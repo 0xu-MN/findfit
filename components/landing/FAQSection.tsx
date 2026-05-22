@@ -17,7 +17,7 @@ interface Props {
 export default function FAQSection({ id = 'faq-section', dark = false, title = '자주 묻는 질문', items }: Props) {
   const [open, setOpen] = useState<number | null>(0)
 
-  const bg = dark ? '#0D0D10' : '#F5F5F5'
+  const bg = dark ? '#0D0D10' : '#F8F8F8'
   const cardBg = dark ? 'rgba(255,255,255,0.04)' : '#FFFFFF'
   const cardBorder = dark ? 'rgba(255,255,255,0.08)' : '#E5E7EB'
   const activeBorder = dark ? '#42A5F5' : '#3B82F6'

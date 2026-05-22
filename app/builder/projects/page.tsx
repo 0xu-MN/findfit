@@ -1,11 +1,11 @@
 import DashboardLayout from '@/components/shared/DashboardLayout'
-import ReportListPage from '@/components/builder/ReportListPage'
+import ProjectListPage from '@/components/builder/ProjectListPage'
 import SharedLoungeFeed from '@/components/shared/SharedLoungeFeed'
 
-export default function BuilderReportsPage() {
+export default function BuilderProjectsPage() {
   return (
     <DashboardLayout role="creator" rightPanel={<SharedLoungeFeed />}>
-      <ReportListPage />
+      <ProjectListPage />
     </DashboardLayout>
   )
 }

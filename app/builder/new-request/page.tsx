@@ -1,8 +1,11 @@
-export default function NewRequestPage() {
+import DashboardLayout from '@/components/shared/DashboardLayout'
+import NewRequestPage from '@/components/builder/NewRequestPage'
+import SharedLoungeFeed from '@/components/shared/SharedLoungeFeed'
+
+export default function BuilderNewRequestPage() {
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold">의뢰 등록</h1>
-      <p className="text-gray-500 mt-2">준비 중입니다.</p>
-    </div>
+    <DashboardLayout role="creator" rightPanel={<SharedLoungeFeed />}>
+      <NewRequestPage />
+    </DashboardLayout>
   )
 }

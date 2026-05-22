@@ -24,7 +24,7 @@ export default function PainPointSection() {
   }, [])
 
   return (
-    <section ref={sectionRef} className="w-full bg-[#F8F8F8]" style={{ minHeight: '100vh', paddingTop: '120px', paddingBottom: '120px' }}>
+    <section ref={sectionRef} className="w-full bg-[#F5F5F5]" style={{ minHeight: '100vh', paddingTop: '120px', paddingBottom: '120px' }}>
       <div className="max-w-[900px] mx-auto px-6">
 
         <div className="fade-up-init text-center mb-14">
@@ -42,7 +42,7 @@ export default function PainPointSection() {
               <div
                 className="px-6 py-4 text-[#1D1C1C] leading-relaxed"
                 style={{
-                  background: '#F8F8F8',
+                  background: '#FFFFFF',
                   boxShadow: '0 2px 16px rgba(0,0,0,0.06)',
                   border: '1px solid rgba(0,0,0,0.06)',
                   maxWidth: '560px',

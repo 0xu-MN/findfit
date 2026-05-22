@@ -30,7 +30,7 @@ export default function Footer() {
       <div className="max-w-[1440px] mx-auto px-16 pt-16 pb-10">
         <div className="flex justify-between items-start mb-14">
           <div className="max-w-[280px]">
-            <span className="text-2xl font-bold text-[#F77019] tracking-tight">FindFit</span>
+            <img src="/logo.png" alt="FindFit" className="h-11 w-auto object-contain" />
             <p className="text-white/35 text-sm leading-relaxed mt-3">
               모든 아이디어가 시장의 신호로<br />시작하는 세상을 만들어갑니다.
             </p>

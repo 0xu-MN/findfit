@@ -40,7 +40,7 @@ export default function Header() {
             boxShadow: '0 8px 32px rgba(0,0,0,0.08)',
           }}
         >
-          <span className="text-xl font-bold text-[#F77019] tracking-tight">FindFit</span>
+          <img src="/logo.png" alt="FindFit" className="h-10 w-auto object-contain" />
           <nav className="flex items-center gap-6">
             {navLinks.map((link) => (
               <a key={link.label} href={link.href}
@@ -49,7 +49,7 @@ export default function Header() {
               </a>
             ))}
           </nav>
-          <a href="#start" className="bg-[#F77019] hover:bg-[#d95e0e] text-white text-sm font-semibold px-5 py-2.5 rounded-full transition-colors">
+          <a href="/builder/dashboard" className="bg-[#F77019] hover:bg-[#d95e0e] text-white text-sm font-semibold px-5 py-2.5 rounded-full transition-colors">
             시작하기
           </a>
         </div>
@@ -64,13 +64,13 @@ export default function Header() {
           pointerEvents: scrolled ? 'auto' : 'none',
         }}
       >
-        <div className="max-w-[1440px] mx-auto px-12 py-5 flex items-center justify-between">
-          <span className="text-xl font-bold text-[#F77019] tracking-tight">FindFit</span>
-          <div className="flex items-center gap-4">
+        <div className="max-w-[1440px] mx-auto px-12 pt-0 pb-5 flex items-center justify-between">
+          <img src="/logo.png" alt="FindFit" className="h-10 w-auto object-contain" />
+          <div className="flex items-center gap-4 pt-4">
             <a href="#reviewer" className="text-sm font-medium text-[#1D1C1C] hover:text-[#F77019] transition-colors">
               리뷰어 모집
             </a>
-            <a href="#start" className="bg-[#F77019] hover:bg-[#d95e0e] text-white text-sm font-semibold px-5 py-2.5 rounded-full transition-colors">
+            <a href="/builder/dashboard" className="bg-[#F77019] hover:bg-[#d95e0e] text-white text-sm font-semibold px-5 py-2.5 rounded-full transition-colors">
               시작하기
             </a>
           </div>

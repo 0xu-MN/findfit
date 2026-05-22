@@ -10,12 +10,10 @@ import FAQSection from './FAQSection'
 
 function ReviewerHeader({ onSwitchToCreator }: { onSwitchToCreator: () => void }) {
   return (
-    <header className="fixed top-0 left-0 w-full z-50"
-      style={{ background: 'rgba(13,13,16,0.92)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}
-    >
-      <div className="max-w-[1440px] mx-auto px-12 py-5 flex items-center justify-between">
-        <span className="text-xl font-bold text-white tracking-tight">FindFit</span>
-        <div className="flex items-center gap-4">
+    <header className="fixed top-0 left-0 w-full z-50">
+      <div className="max-w-[1440px] mx-auto px-12 pt-0 pb-5 flex items-center justify-between">
+        <img src="/logo.png" alt="FindFit" className="h-10 w-auto object-contain" />
+        <div className="flex items-center gap-4 pt-4">
           <button
             onClick={onSwitchToCreator}
             className="flex items-center gap-2 text-white/55 hover:text-white text-sm font-medium transition-colors"
@@ -23,30 +21,166 @@ function ReviewerHeader({ onSwitchToCreator }: { onSwitchToCreator: () => void }
             <ArrowLeft className="w-4 h-4" />
             크리에이터 알아보기
           </button>
-          <button
+          <a
+            href="/evaluator/dashboard"
             className="text-white text-sm font-semibold px-5 py-2.5 rounded-full transition-colors"
             style={{ background: '#42A5F5', boxShadow: '0 4px 16px rgba(66,165,245,0.3)' }}
           >
             리뷰어 등록하기
-          </button>
+          </a>
         </div>
       </div>
     </header>
   )
 }
 
+// ── 결정론적 PRNG (SSR/CSR 동일 결과 → 하이드레이션 불일치 방지) ──
+function mulberry32(a: number) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0
+    let t = Math.imul(a ^ (a >>> 15), 1 | a)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+// ── 역할 소개 우측 비주얼: 유기적 파티클 가닥 (이중나선 + 분진) ──
+type Particle = { x: number; y: number; r: number; o: number; c: string }
+const STRAND: Particle[] = (() => {
+  const rand = mulberry32(20260521)
+  const pts: Particle[] = []
+  const N = 130, turns = 3, H = 540, cx = 250, A = 92, top = 50
+  for (let i = 0; i < N; i++) {
+    const t = i / (N - 1)
+    const ang = t * Math.PI * 2 * turns
+    const y = top + t * H
+    const d1 = (Math.sin(ang) + 1) / 2
+    const d2 = (Math.sin(ang + Math.PI) + 1) / 2
+    pts.push({ x: cx + A * Math.sin(ang), y, r: 1.4 + d1 * 3.2, o: 0.18 + d1 * 0.6, c: d1 > 0.55 ? '#8FCBFF' : '#42A5F5' })
+    pts.push({ x: cx + A * Math.sin(ang + Math.PI), y, r: 1.4 + d2 * 3.2, o: 0.18 + d2 * 0.6, c: d2 > 0.55 ? '#8FCBFF' : '#1E6FD6' })
+  }
+  // 흩어진 분진
+  for (let i = 0; i < 95; i++) {
+    pts.push({ x: cx + (rand() * 2 - 1) * 175, y: top + rand() * H, r: 0.6 + rand() * 1.7, o: 0.05 + rand() * 0.16, c: '#42A5F5' })
+  }
+  return pts
+})()
+
+function ParticleStrand() {
+  return (
+    <div className="relative" style={{ width: '500px', height: '640px' }}>
+      {/* 글로우 */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: 'radial-gradient(ellipse 55% 55% at 50% 45%, rgba(66,165,245,0.22) 0%, transparent 70%)',
+      }} />
+      <svg viewBox="0 0 500 640" className="relative w-full h-full" aria-hidden>
+        <defs>
+          <filter id="strandGlow" x="-40%" y="-40%" width="180%" height="180%">
+            <feGaussianBlur stdDeviation="2.2" result="b" />
+            <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+        </defs>
+        {/* 나선 연결 막대 (가닥감) */}
+        {Array.from({ length: 13 }).map((_, i) => {
+          const t = (i + 0.5) / 13
+          const ang = t * Math.PI * 2 * 3
+          const y = 50 + t * 540
+          const x1 = 250 + 92 * Math.sin(ang)
+          const x2 = 250 + 92 * Math.sin(ang + Math.PI)
+          return <line key={i} x1={x1} y1={y} x2={x2} y2={y} stroke="#42A5F5" strokeWidth="1" opacity={0.12} />
+        })}
+        <g filter="url(#strandGlow)">
+          {STRAND.map((p, i) => (
+            <circle key={i} cx={p.x} cy={p.y} r={p.r} fill={p.c} opacity={p.o} />
+          ))}
+        </g>
+      </svg>
+    </div>
+  )
+}
+
+// ── Benefits 중앙 포컬: 수익 사다리 (전문성↑ = 수익↑) ──
+function EarningsLadder() {
+  const MAX = 290
+  return (
+    <div className="relative select-none" style={{ width: '380px' }}>
+      {/* 글로우 */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: 'radial-gradient(ellipse 60% 50% at 55% 60%, rgba(66,165,245,0.18) 0%, transparent 70%)',
+      }} />
+
+      {/* 세로축 라벨 */}
+      <div className="absolute left-0 top-2 flex items-center gap-1.5 text-white/35 text-[11px] font-bold tracking-wider">
+        <ArrowRight className="w-3.5 h-3.5 -rotate-90" /> 수익
+      </div>
+
+      {/* 막대 */}
+      <div className="relative flex items-end justify-center gap-6 pl-6" style={{ height: MAX + 56 }}>
+        {grades.map((g) => (
+          <div key={g.badge} className="flex flex-col items-center" style={{ width: '92px' }}>
+            <span className="font-black text-white tabular-nums mb-2.5 whitespace-nowrap"
+              style={{ fontSize: g.top ? '15px' : '13px' }}>
+              {g.range}
+            </span>
+            <div
+              className="w-full rounded-t-2xl relative flex items-start justify-center pt-3"
+              style={{
+                height: `${g.h * MAX}px`,
+                background: g.top
+                  ? 'linear-gradient(180deg, #42A5F5 0%, #1E6FD6 100%)'
+                  : `linear-gradient(180deg, ${g.color}33 0%, ${g.color}14 100%)`,
+                border: `1px solid ${g.top ? 'rgba(66,165,245,0.6)' : g.color + '40'}`,
+                boxShadow: g.top ? '0 0 40px rgba(66,165,245,0.45)' : 'none',
+              }}
+            >
+              {g.stars && (
+                <span className="text-[11px]" style={{ color: g.top ? '#fff' : g.color }}>{g.stars}</span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* 베이스라인 */}
+      <div className="h-px ml-6" style={{ background: 'rgba(255,255,255,0.12)' }} />
+
+      {/* 등급명 + 가로축 라벨 */}
+      <div className="flex justify-center gap-6 pl-6 mt-3">
+        {grades.map((g) => (
+          <span key={g.badge} className="text-center font-semibold leading-tight"
+            style={{ width: '92px', fontSize: '12px', color: g.top ? '#42A5F5' : 'rgba(255,255,255,0.5)' }}>
+            {g.badge}
+          </span>
+        ))}
+      </div>
+      <div className="flex items-center justify-end gap-1.5 mt-4 text-white/35 text-[11px] font-bold tracking-wider">
+        전문성 <ArrowRight className="w-3.5 h-3.5" />
+      </div>
+    </div>
+  )
+}
+
 // ── Data ────────────────────────────────────────────────────
-const benefits = [
-  { n: '01', title: '내 분야 제품만', desc: '관심 카테고리와 일치하는 의뢰만 알림으로 받아요.' },
-  { n: '02', title: '리뷰당 최대 3,000원', desc: '전문성이 높을수록 단가가 올라가요. 기프티콘 또는 현금 전환.' },
-  { n: '03', title: '출시 전 신제품 선행 접근', desc: '아직 세상에 나오지 않은 제품을 남들보다 먼저 경험해요.' },
-  { n: '04', title: '내 피드백이 제품을 바꾼다', desc: '리뷰로 인해 제품이 피봇했을 때 알림이 와요.' },
+// Benefits 우측 리스트 (이미지3 구도 — 수익화 항목을 함께 녹임)
+const benefitItems: { title: string; lines: [string, string] }[] = [
+  {
+    title: '전문성이 곧 수익',
+    lines: ['등급이 오를수록 리뷰당 단가가 올라가요.', '도메인 전문가는 리뷰 한 건에 최대 3,000원.'],
+  },
+  {
+    title: '내 분야 제품만',
+    lines: ['관심 카테고리와 일치하는 의뢰만', '골라서 참여할 수 있어요.'],
+  },
+  {
+    title: '신제품 선행 접근',
+    lines: ['아직 세상에 없는 제품을', '누구보다 먼저 경험해요.'],
+  },
 ]
 
 const grades = [
-  { badge: '일반', color: '#9CA3AF', range: '500~800원', cond: '가입 후 프로필 완성' },
-  { badge: '전문가 ★★', color: '#F77019', range: '1,200~1,800원', cond: '도메인 태그 3개 이상, 리뷰 10건 이상' },
-  { badge: '도메인전문가 ★★★', color: '#42A5F5', range: '2,000~3,000원', cond: '실무 경력 인증 + 품질 점수 상위 20%' },
+  { badge: '일반', color: '#9CA3AF', range: '500~800', h: 0.4 },
+  { badge: '전문가', stars: '★★', color: '#F77019', range: '1,200~1,800', h: 0.68 },
+  { badge: '도메인 전문가', stars: '★★★', color: '#42A5F5', range: '2,000~3,000', h: 1, top: true },
 ]
 
 const howSteps = [
@@ -77,7 +211,7 @@ export default function ReviewerLanding({ onSwitchToCreator }: Props) {
       <ScrollIndicator side="right" mode="reviewer" />
 
       {/* Hero */}
-      <section id="reviewer-hero" className="snap-section relative" style={{ paddingTop: '88px' }}>
+      <section id="reviewer-hero" className="snap-section relative">
         {/* dot grid */}
         <div className="absolute inset-0 pointer-events-none" style={{
           backgroundImage: 'radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px)',
@@ -105,33 +239,101 @@ export default function ReviewerLanding({ onSwitchToCreator }: Props) {
               관심 분야의 출시 전 제품을 리뷰하고<br />
               전문성을 수익으로 연결하세요.
             </p>
-            <button
+            <a
+              href="/evaluator/dashboard"
               className="flex items-center gap-2 font-bold rounded-full text-white hover:scale-[1.03] transition-transform"
               style={{ background: '#42A5F5', padding: '16px 36px', fontSize: '16px', boxShadow: '0 4px 32px rgba(66,165,245,0.35)' }}
             >
               리뷰어 등록하기 <ArrowRight className="w-5 h-5" />
-            </button>
+            </a>
           </div>
         </div>
       </section>
 
-      {/* Benefits */}
-      <section id="reviewer-benefits" className="snap-section" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <div className="max-w-[1440px] mx-auto px-16 h-full flex items-center">
-          <div className="w-full">
-            <p className="text-[#42A5F5] text-xs font-bold uppercase tracking-[0.2em] mb-4">Benefits</p>
-            <h2 className="font-bold mb-10" style={{ fontSize: 'clamp(32px, 3vw, 52px)' }}>리뷰어가 얻는 것</h2>
-            <div className="grid grid-cols-2 gap-4">
-              {benefits.map((b) => (
-                <div key={b.n} className="rounded-2xl p-7"
-                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                  <span className="text-5xl font-black text-white/[0.05] block mb-3">{b.n}</span>
-                  <h3 className="text-base font-bold text-white mb-1.5">{b.title}</h3>
-                  <p className="text-white/40 text-sm leading-relaxed">{b.desc}</p>
-                </div>
-              ))}
-            </div>
+      {/* Role intro — 리뷰어란 (이미지4 스타일: 좌 헤딩+아웃라인 버튼 / 우 파티클 비주얼) */}
+      <section id="reviewer-role-intro" className="snap-section" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+        {/* 우측 글로우 */}
+        <div className="absolute inset-0 pointer-events-none" style={{
+          background: 'radial-gradient(ellipse 50% 70% at 78% 50%, rgba(66,165,245,0.08) 0%, transparent 70%)',
+        }} />
+
+        <div className="max-w-[1440px] mx-auto px-16 h-full flex items-center justify-between gap-10 relative z-10">
+
+          {/* 좌측: 라벨 + 헤딩 + 문단 + 아웃라인 버튼 */}
+          <div className="flex flex-col items-start flex-shrink-0" style={{ maxWidth: '520px' }}>
+            <p className="text-[#42A5F5] text-xs font-bold uppercase tracking-[0.25em] mb-7">What reviewers do</p>
+            <h2 className="font-bold leading-[1.08] tracking-tight mb-8" style={{ fontSize: 'clamp(40px, 4vw, 68px)' }}>
+              당신의 경험으로<br />제품을 진단하세요
+            </h2>
+            <p className="text-white/45 leading-relaxed mb-11" style={{ fontSize: '17px', maxWidth: '420px' }}>
+              출시 전 신제품을 직접 써보고 솔직한 피드백을 남기면,
+              그 데이터가 제품의 방향을 결정해요. 전문성을 살려 부수입까지 얻으세요.
+            </p>
+            <a
+              href="/evaluator/dashboard"
+              className="group flex items-center gap-3 rounded-full font-semibold text-white transition-colors"
+              style={{ padding: '15px 32px', fontSize: '14px', letterSpacing: '0.04em', border: '1px solid rgba(255,255,255,0.3)' }}
+            >
+              리뷰어 시작하기
+              <span className="flex items-center justify-center w-7 h-7 rounded-full transition-colors"
+                style={{ background: 'rgba(66,165,245,0.15)' }}>
+                <ArrowRight className="w-3.5 h-3.5 text-[#42A5F5]" />
+              </span>
+            </a>
           </div>
+
+          {/* 우측: 유기적 파티클 비주얼 */}
+          <div className="hidden lg:flex justify-end flex-shrink-0">
+            <ParticleStrand />
+          </div>
+
+        </div>
+      </section>
+
+      {/* Benefits (+ Earnings 통합) — 이미지3 구도: 좌 헤딩+버튼 / 중앙 포컬 / 우 리스트 */}
+      <section id="reviewer-benefits" className="snap-section" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+        <div className="max-w-[1440px] mx-auto px-16 h-full flex items-center justify-between gap-10">
+
+          {/* 좌측: 헤딩 + 문단 + 버튼 */}
+          <div className="flex flex-col items-start flex-shrink-0" style={{ maxWidth: '340px' }}>
+            <p className="text-[#42A5F5] text-xs font-bold uppercase tracking-[0.25em] mb-5">Benefits</p>
+            <h2 className="font-bold leading-[1.08] mb-7" style={{ fontSize: 'clamp(36px, 3.4vw, 60px)' }}>
+              리뷰어가<br />얻는 것
+            </h2>
+            <p className="text-white/45 leading-relaxed mb-9" style={{ fontSize: '15px' }}>
+              관심 분야 신제품을 먼저 경험하고,
+              전문성이 쌓일수록 더 큰 보상을 받아요.
+            </p>
+            <a
+              href="/evaluator/dashboard"
+              className="flex items-center gap-3 rounded-full font-bold text-white hover:scale-[1.03] transition-transform"
+              style={{ background: '#42A5F5', padding: '14px 28px', fontSize: '15px', boxShadow: '0 4px 24px rgba(66,165,245,0.3)' }}
+            >
+              리뷰어 등록하기
+              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-white/20">
+                <ArrowRight className="w-3.5 h-3.5" />
+              </span>
+            </a>
+          </div>
+
+          {/* 중앙: 수익 사다리 (전문성↑ = 수익↑ — Earnings 녹임) */}
+          <div className="hidden lg:flex justify-center flex-shrink-0">
+            <EarningsLadder />
+          </div>
+
+          {/* 우측: 혜택 리스트 (구분선) */}
+          <div className="flex flex-col items-end flex-shrink-0" style={{ maxWidth: '340px' }}>
+            {benefitItems.map((item, i) => (
+              <div key={item.title} className="w-full">
+                {i > 0 && <div className="h-px bg-white/10 my-6" />}
+                <h3 className="text-white font-semibold mb-2 text-right" style={{ fontSize: '21px' }}>{item.title}</h3>
+                {item.lines.map((line, j) => (
+                  <p key={j} className="text-white/45 text-sm text-right leading-snug">{line}</p>
+                ))}
+              </div>
+            ))}
+          </div>
+
         </div>
       </section>
 
@@ -160,28 +362,6 @@ export default function ReviewerLanding({ onSwitchToCreator }: Props) {
         </div>
       </section>
 
-      {/* Earnings */}
-      <section id="reviewer-earnings" className="snap-section" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <div className="max-w-[1440px] mx-auto px-16 h-full flex items-center">
-          <div className="w-full">
-            <p className="text-[#42A5F5] text-xs font-bold uppercase tracking-[0.2em] mb-4">Earnings</p>
-            <h2 className="font-bold mb-12" style={{ fontSize: 'clamp(32px, 3vw, 52px)' }}>
-              전문성이 높을수록<br />더 많이 받아요
-            </h2>
-            <div className="flex flex-col gap-3">
-              {grades.map((g) => (
-                <div key={g.badge} className="flex items-center justify-between rounded-2xl px-8 py-6"
-                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                  <span className="font-semibold" style={{ color: g.color, minWidth: '200px' }}>{g.badge}</span>
-                  <span className="text-2xl font-black text-white">{g.range} / 리뷰</span>
-                  <span className="text-white/30 text-sm text-right max-w-[260px]">{g.cond}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* FAQ */}
       <FAQSection
         id="reviewer-faq"
@@ -192,23 +372,11 @@ export default function ReviewerLanding({ onSwitchToCreator }: Props) {
 
       {/* RoleSection (역할) */}
       <div id="reviewer-role" className="snap-section">
-        <RoleSection onSeeCreator={onSwitchToCreator} />
+        <RoleSection onSeeCreator={onSwitchToCreator} dark={true} />
       </div>
 
-      {/* CTA + Footer */}
+      {/* Footer */}
       <div className="snap-section-auto" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <div className="max-w-[1440px] mx-auto px-16 py-24 text-center">
-          <h2 className="font-black mb-6" style={{ fontSize: 'clamp(36px, 4vw, 64px)', color: '#fff' }}>
-            지금 리뷰어로<br />참여하세요
-          </h2>
-          <p className="text-white/40 mb-10 text-lg">가입은 무료, 내 관심 분야 의뢰가 오면 알려드려요.</p>
-          <button
-            className="inline-flex items-center gap-2 font-bold rounded-full text-white hover:scale-[1.03] transition-transform"
-            style={{ background: '#42A5F5', padding: '18px 48px', fontSize: '18px', boxShadow: '0 4px 32px rgba(66,165,245,0.3)' }}
-          >
-            리뷰어 등록하기 <ArrowRight className="w-5 h-5" />
-          </button>
-        </div>
         <Footer />
       </div>
     </div>

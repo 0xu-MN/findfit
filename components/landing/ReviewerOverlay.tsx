@@ -51,15 +51,15 @@ export default function ReviewerOverlay({ visible, onClose }: Props) {
       >
         {/* 오버레이 헤더 */}
         <div
-          className="sticky top-0 z-10 flex items-center justify-between px-12 py-5"
+          className="sticky top-0 z-10 flex items-center justify-between px-12 pt-0 pb-5"
           style={{
             background: 'rgba(248,248,248,0.92)',
             backdropFilter: 'blur(12px)',
             borderBottom: '1px solid rgba(0,0,0,0.06)',
           }}
         >
-          <span className="text-xl font-bold text-[#F77019]">FindFit</span>
-          <div className="flex items-center gap-3">
+          <img src="/logo.png" alt="FindFit" className="h-10 w-auto object-contain" />
+          <div className="flex items-center gap-3 pt-4">
             <span className="text-sm text-[#999]">리뷰어 입장 보기</span>
             <button
               className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors"

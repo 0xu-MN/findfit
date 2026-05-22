@@ -12,12 +12,12 @@ const creatorSections = [
 ]
 
 const reviewerSections = [
-  { id: 'reviewer-hero',     label: '홈' },
-  { id: 'reviewer-benefits', label: '혜택' },
-  { id: 'reviewer-how',      label: '방법' },
-  { id: 'reviewer-earnings', label: '수익' },
-  { id: 'reviewer-faq',      label: 'FAQ' },
-  { id: 'reviewer-role',     label: '역할' },
+  { id: 'reviewer-hero',       label: '홈' },
+  { id: 'reviewer-role-intro', label: '소개' },
+  { id: 'reviewer-benefits',   label: '혜택' },
+  { id: 'reviewer-how',        label: '방법' },
+  { id: 'reviewer-faq',        label: 'FAQ' },
+  { id: 'reviewer-role',       label: '역할' },
 ]
 
 interface Props {
@@ -30,21 +30,25 @@ export default function ScrollIndicator({ side = 'left', mode = 'creator' }: Pro
   const [active, setActive] = useState(sections[0].id)
 
   useEffect(() => {
-    setActive(sections[0].id)
-    const observers: IntersectionObserver[] = []
-
-    sections.forEach(({ id }) => {
-      const el = document.getElementById(id)
-      if (!el) return
-      const observer = new IntersectionObserver(
-        ([entry]) => { if (entry.isIntersecting) setActive(id) },
-        { threshold: 0.4 }
-      )
-      observer.observe(el)
-      observers.push(observer)
-    })
-
-    return () => observers.forEach((o) => o.disconnect())
+    // 뷰포트 중앙선을 품고 있는 섹션을 활성으로 — 스냅 스크롤에서 한 칸 밀리는 문제 방지
+    const onScroll = () => {
+      const mid = window.innerHeight / 2
+      let current = sections[0].id
+      for (const { id } of sections) {
+        const el = document.getElementById(id)
+        if (!el) continue
+        const r = el.getBoundingClientRect()
+        if (r.top <= mid && r.bottom > mid) { current = id; break }
+      }
+      setActive(current)
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    const raf = requestAnimationFrame(onScroll)
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      cancelAnimationFrame(raf)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode])
 
   const scrollTo = (id: string) =>

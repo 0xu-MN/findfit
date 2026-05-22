@@ -134,9 +134,10 @@ function ReviewerExpanded({ onSeeReviewer }: { onSeeReviewer?: () => void }) {
 interface RoleSectionProps {
   onSeeReviewer?: () => void  // 크리에이터 페이지: 리뷰어 오버레이 열기
   onSeeCreator?: () => void   // 리뷰어 오버레이: 닫고 크리에이터로 복귀
+  dark?: boolean              // 다크 모드 (리뷰어 페이지용)
 }
 
-export default function RoleSection({ onSeeReviewer, onSeeCreator }: RoleSectionProps) {
+export default function RoleSection({ onSeeReviewer, onSeeCreator, dark = false }: RoleSectionProps) {
   const [hovered, setHovered] = useState<'creator' | 'reviewer' | null>(null)
 
   const creatorW = hovered === 'creator' ? '65%' : hovered === 'reviewer' ? '35%' : '50%'
@@ -145,16 +146,20 @@ export default function RoleSection({ onSeeReviewer, onSeeCreator }: RoleSection
   return (
     <section className="w-full" style={{ height: '100vh', minHeight: '800px' }}>
 
-      {/* ── Title area — #F8F8F8 배경 ── */}
+      {/* ── Title area ── */}
       <div
         className="flex items-end px-16 pb-8"
-        style={{ height: '150px', background: '#F8F8F8', borderBottom: '1px solid rgba(0,0,0,0.06)' }}
+        style={{ 
+          height: '150px', 
+          background: dark ? '#0D0D10' : '#F8F8F8', 
+          borderBottom: dark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.06)' 
+        }}
       >
         <div className="flex items-end justify-between w-full max-w-[1440px] mx-auto">
-          <h2 className="text-5xl font-bold tracking-tight text-[#1D1C1C]">
+          <h2 className={`text-5xl font-bold tracking-tight ${dark ? 'text-white' : 'text-[#1D1C1C]'}`}>
             어떤 역할로 시작하시나요?
           </h2>
-          <p className="text-[#999] text-sm max-w-[320px] text-right leading-relaxed mb-1">
+          <p className={`text-sm max-w-[320px] text-right leading-relaxed mb-1 ${dark ? 'text-white/40' : 'text-[#999]'}`}>
             크리에이터 또는 리뷰어로 참여하세요.
           </p>
         </div>

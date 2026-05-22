@@ -1,9 +1,6 @@
 'use client'
 
-import dynamic from 'next/dynamic'
 import { ArrowRight, ChevronDown } from 'lucide-react'
-
-const HeroCanvas = dynamic(() => import('./HeroCanvas'), { ssr: false })
 
 const trustItems = [
   { value: '72시간', label: '내 리포트 수령' },
@@ -17,7 +14,7 @@ export default function HeroSection() {
       <div className="max-w-[1440px] mx-auto h-full flex items-center px-16">
 
         {/* Left — text */}
-        <div className="flex flex-col justify-center w-[42%] z-10 pr-8">
+        <div className="flex flex-col justify-center w-full max-w-[680px] z-10">
           <span className="self-start text-sm font-semibold px-4 py-1.5 rounded-full mb-6 text-[#F77019] bg-[#F77019]/10 border border-[#F77019]/25">
             아이디어 검증 플랫폼
           </span>
@@ -36,13 +33,13 @@ export default function HeroSection() {
           </p>
 
           <div className="flex items-center gap-4 mt-10">
-            <button className="flex items-center gap-2 font-semibold rounded-full bg-[#F77019] text-white px-7 py-3.5 text-[15px] shadow-[0_4px_24px_rgba(247,112,25,0.35)] hover:scale-[1.03] transition-transform">
+            <a href="/builder/dashboard" className="flex items-center gap-2 font-semibold rounded-full bg-[#F77019] text-white px-7 py-3.5 text-[15px] shadow-[0_4px_24px_rgba(247,112,25,0.35)] hover:scale-[1.03] transition-transform">
               내 아이디어 검증받기
               <ArrowRight className="w-4 h-4" />
-            </button>
-            <button className="font-semibold rounded-full border-[1.5px] border-[#1D1C1C] text-[#1D1C1C] px-7 py-3.5 text-[15px] hover:bg-[#F77019] hover:border-[#F77019] hover:text-white transition-all">
+            </a>
+            <a href="/evaluator/dashboard" className="font-semibold rounded-full border-[1.5px] border-[#1D1C1C] text-[#1D1C1C] px-7 py-3.5 text-[15px] hover:bg-[#F77019] hover:border-[#F77019] hover:text-white transition-all">
               평가단 참여하기
-            </button>
+            </a>
           </div>
 
           <div className="flex items-center gap-6 mt-10">
@@ -55,10 +52,6 @@ export default function HeroSection() {
           </div>
         </div>
 
-        {/* Right — Three.js */}
-        <div className="flex-1 h-full relative">
-          <HeroCanvas />
-        </div>
       </div>
 
       {/* Scroll indicator */}

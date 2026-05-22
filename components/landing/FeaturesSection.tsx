@@ -177,7 +177,7 @@ export default function FeaturesSection() {
   }, [])
 
   return (
-    <section ref={sectionRef} className="relative w-full bg-[#F8F8F8]"
+    <section ref={sectionRef} className="relative w-full min-h-[100vh] bg-[#F8F8F8] flex flex-col justify-center py-24 md:py-32"
       style={{ scrollSnapAlign: 'start' }}>
 
       {/* 상하 페이드 */}
