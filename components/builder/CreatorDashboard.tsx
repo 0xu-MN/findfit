@@ -314,7 +314,7 @@ export default function CreatorDashboard() {
 
           {/* 새로 등록하기 버튼 */}
           <button onClick={() => router.push('/builder/new-request')} className="w-full flex items-center justify-center gap-1.5 font-black rounded-2xl text-white text-xs py-4 hover:scale-[1.02] active:scale-[0.98] transition-all"
-            style={{ background: 'linear-gradient(135deg,#F77019,#E65100)', boxShadow: '0 4px 12px rgba(247,112,25,0.2)' }}>
+            style={{ background: 'linear-gradient(135deg,#F77019,#F77019)', boxShadow: '0 4px 12px rgba(247,112,25,0.2)' }}>
             <PlusCircle className="w-4 h-4" />
             새 프로젝트 등록하기
           </button>
@@ -329,7 +329,7 @@ export default function CreatorDashboard() {
                 <span className="text-2xl font-black text-[#F77019]">12,500</span>
                 <Coins className="w-4 h-4 text-[#F77019]" />
               </div>
-              <button className="text-[10px] font-black text-white bg-[#F77019] px-3 py-1.5 rounded-lg hover:bg-[#d95e0e] transition-colors">
+              <button className="text-[10px] font-black text-white bg-[#F77019] px-3 py-1.5 rounded-lg hover:opacity-90 transition-all">
                 충전하기
               </button>
             </div>

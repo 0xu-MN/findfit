@@ -49,7 +49,7 @@ export default function Header() {
               </a>
             ))}
           </nav>
-          <a href="/builder/dashboard" className="bg-[#F77019] hover:bg-[#d95e0e] text-white text-sm font-semibold px-5 py-2.5 rounded-full transition-colors">
+          <a href="/builder/dashboard" className="bg-[#F77019] hover:opacity-90 text-white text-sm font-semibold px-5 py-2.5 rounded-full transition-all">
             시작하기
           </a>
         </div>
@@ -70,7 +70,7 @@ export default function Header() {
             <a href="#reviewer" className="text-sm font-medium text-[#1D1C1C] hover:text-[#F77019] transition-colors">
               리뷰어 모집
             </a>
-            <a href="/builder/dashboard" className="bg-[#F77019] hover:bg-[#d95e0e] text-white text-sm font-semibold px-5 py-2.5 rounded-full transition-colors">
+            <a href="/builder/dashboard" className="bg-[#F77019] hover:opacity-90 text-white text-sm font-semibold px-5 py-2.5 rounded-full transition-all">
               시작하기
             </a>
           </div>

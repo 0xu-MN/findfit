@@ -61,7 +61,7 @@ function CreatorExpanded({ onSeeCreator }: { onSeeCreator?: () => void }) {
           아이디어부터 출시 후까지 — 모든 단계에서<br />
           실제 사람들의 검증으로 방향을 잡으세요.
         </p>
-        <button className="flex items-center gap-2 bg-[#F77019] hover:bg-[#d95e0e] text-white text-base font-semibold px-7 py-3.5 rounded-full transition-colors mb-4">
+        <button className="flex items-center gap-2 bg-[#F77019] hover:opacity-90 text-white text-base font-semibold px-7 py-3.5 rounded-full transition-all mb-4">
           의뢰 등록하기 <ArrowRight className="w-5 h-5" />
         </button>
         {/* 오버레이 안에서만 표시 — 닫기 버튼 */}

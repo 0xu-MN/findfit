@@ -6,7 +6,7 @@ const completedReports = [
   { id: 1, title: '클린뷰티 폼 패키지 디자인 리뷰', date: '2024.05.20', score: 4.6, resp: 100, color: '#F77019' },
   { id: 2, title: '웹사이트 메인페이지 맵핑 리뷰', date: '2024.05.18', score: 4.2, resp: 120, color: '#1565C0' },
   { id: 3, title: '비건 소녀 브랜드 사용 검증', date: '2024.05.15', score: 4.8, resp: 80, color: '#2E7D32' },
-  { id: 4, title: '다이어트 보조제 패키지 A/B 테스트', date: '2024.05.02', score: 4.1, resp: 200, color: '#D84315' },
+  { id: 4, title: '다이어트 보조제 패키지 A/B 테스트', date: '2024.05.02', score: 4.1, resp: 200, color: '#F77019' },
 ]
 
 export default function ReportListPage() {

@@ -96,37 +96,55 @@ export default function DashboardLayout({ role, children, rightPanel }: Dashboar
           <header className="h-20 flex-shrink-0 flex items-center justify-between pr-4">
             {/* Logo (always visible) */}
             <div className="flex items-center gap-3 cursor-pointer flex-shrink-0" onClick={() => router.push('/')}>
-              <img src="/logo.png" alt="FindFit" className="h-11 w-auto object-contain" />
+              <img src="/logo.png" alt="FindFit" className="h-[40px] w-auto object-contain" />
             </div>
 
             {/* Nav Links – hidden when collapsed */}
             {isLeftOpen && (
-              <div className="flex items-center gap-0 ml-2 flex-1 justify-between">
+              <div className="flex items-center gap-0 ml-[35px] flex-1 justify-between">
                 <nav className="flex items-center">
-                  {leftNavItems.map((item) => {
+                  {leftNavItems.map((item, index, arr) => {
                     const isActive = pathname === item.path
                     return (
-                      <button
-                        key={item.label}
-                        onClick={() => router.push(item.path)}
-                        className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[11px] font-semibold transition-colors whitespace-nowrap ${
-                          isActive ? 'text-[#1D1C1C] font-black' : 'text-[#999] hover:text-[#1D1C1C]'
-                        }`}
-                      >
-                        <item.icon className="w-3.5 h-3.5" style={{ color: isActive ? accentColor : undefined }} />
-                        {item.label}
-                      </button>
+                      <div key={item.label} className="flex items-center">
+                        <button
+                          onClick={() => router.push(item.path)}
+                          className={`flex items-center gap-1.5 py-2 transition-colors whitespace-nowrap ${
+                            isActive ? 'text-[14px] text-[#1D1C1C] font-black' : 'text-[12px] text-[#999999] font-bold hover:text-[#1D1C1C]'
+                          }`}
+                        >
+                          <item.icon className="w-4 h-4" style={{ color: isActive ? accentColor : undefined }} />
+                          {item.label}
+                        </button>
+                        {index < arr.length - 1 && (
+                          <span className="text-[#D4D4D4] mx-[20px] text-[12px] font-light">|</span>
+                        )}
+                      </div>
                     )
                   })}
                 </nav>
 
-                {/* User profile */}
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-black"
-                    style={{ background: accentColor }}>
-                    {role === 'creator' ? 'C' : 'R'}
+                <div className="flex items-center gap-4 flex-shrink-0">
+                  {/* Tiny role switcher */}
+                  <div className="p-0.5 rounded-full bg-[#1D1C1C]/5 flex items-center border border-[#1D1C1C]/5">
+                    <button onClick={() => role !== 'creator' && router.push('/builder/dashboard')}
+                      className={`px-2 py-0.5 rounded-full text-[9px] font-bold transition-all ${
+                        role === 'creator' ? 'bg-white text-[#F77019] shadow-sm' : 'text-[#999]'
+                      }`}>C</button>
+                    <button onClick={() => role !== 'reviewer' && router.push('/evaluator/dashboard')}
+                      className={`px-2 py-0.5 rounded-full text-[9px] font-bold transition-all ${
+                        role === 'reviewer' ? 'bg-white text-[#1565C0] shadow-sm' : 'text-[#999]'
+                      }`}>R</button>
                   </div>
-                  <span className="text-[11px] font-bold text-[#666]">jungin0314</span>
+
+                  {/* User profile */}
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-black"
+                      style={{ background: accentColor }}>
+                      {role === 'creator' ? 'C' : 'R'}
+                    </div>
+                    <span className="text-[11px] font-bold text-[#666]">jungin0314</span>
+                  </div>
                 </div>
               </div>
             )}
@@ -154,7 +172,7 @@ export default function DashboardLayout({ role, children, rightPanel }: Dashboar
                 style={{ borderColor: `${accentColor}20` }}>
                 <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-5 text-white"
                   style={{
-                    background: role === 'creator' ? 'linear-gradient(135deg,#F77019,#FF8C00)' : 'linear-gradient(135deg,#1565C0,#42A5F5)',
+                    background: role === 'creator' ? 'linear-gradient(135deg,#F77019,#F77019)' : 'linear-gradient(135deg,#1565C0,#42A5F5)',
                     boxShadow: `0 8px 20px ${accentColor}30`,
                   }}>
                   <Sparkles className="w-7 h-7" />
@@ -171,7 +189,7 @@ export default function DashboardLayout({ role, children, rightPanel }: Dashboar
                   <button onClick={handleConfirmClose}
                     className="w-full py-3 rounded-full text-sm font-extrabold text-white transition-all hover:scale-[1.02] active:scale-[0.98]"
                     style={{
-                      background: role === 'creator' ? 'linear-gradient(135deg,#F77019,#d95e0e)' : 'linear-gradient(135deg,#1565C0,#1e5bb0)',
+                      background: role === 'creator' ? 'linear-gradient(135deg,#F77019,#F77019)' : 'linear-gradient(135deg,#1565C0,#1e5bb0)',
                       boxShadow: `0 4px 14px ${accentColor}30`,
                     }}>
                     네, {role === 'creator' ? '크리에이터' : '리뷰어'}로 계속하기
@@ -193,62 +211,89 @@ export default function DashboardLayout({ role, children, rightPanel }: Dashboar
         <div className="h-full flex-1 flex flex-col transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden relative"
           style={{ minWidth: '400px' }}>
 
-          {/* ── PEEK HANDLE: left edge of right panel ── */}
+          {/* ── PEEK HANDLE — landing-page style (glassy vertical handle) ── */}
           <button
-            onClick={() => setIsLeftOpen(!isLeftOpen)}
-            className="absolute left-0 top-1/2 -translate-y-1/2 z-20 w-[18px] h-14 rounded-r-lg flex items-center justify-center transition-all cursor-pointer group"
+            onClick={() => setIsLeftOpen((prev) => !prev)}
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-20 group flex items-center justify-center cursor-pointer overflow-hidden"
             style={{
+              width: isLeftOpen ? '14px' : '42px',
+              height: isLeftOpen ? '64px' : '180px',
               background: 'rgba(255,255,255,0.65)',
-              backdropFilter: 'blur(6px)',
-              border: '1px solid rgba(29,28,28,0.06)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              border: '1px solid rgba(29,28,28,0.08)',
               borderLeft: 'none',
+              borderRadius: '0 14px 14px 0',
+              boxShadow: isLeftOpen ? '4px 0 16px rgba(0,0,0,0.04)' : '8px 0 32px rgba(247,112,25,0.08)',
+              transition: 'width 0.4s cubic-bezier(0.4,0,0.2,1), height 0.4s cubic-bezier(0.4,0,0.2,1), box-shadow 0.4s',
             }}
-            title={isLeftOpen ? '대시보드 접기' : '대시보드 열기'}>
-            {isLeftOpen
-              ? <ChevronLeft className="w-3 h-3 text-[#999] group-hover:text-[#F77019] transition-colors" />
-              : <ChevronRight className="w-3 h-3 text-[#999] group-hover:text-[#F77019] transition-colors" />}
+            title={isLeftOpen ? '대시보드 접기' : '대시보드 열기'}
+          >
+            {/* Closed state: vertical "DASHBOARD" + arrow */}
+            {!isLeftOpen && (
+              <div className="flex flex-col items-center justify-center gap-3 px-1.5">
+                <ChevronRight className="w-3.5 h-3.5 text-[#F77019] group-hover:translate-x-0.5 transition-transform" />
+                <span
+                  className="text-[#1D1C1C]/70 text-[10px] font-black uppercase tracking-[0.22em] group-hover:text-[#F77019] transition-colors"
+                  style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+                >
+                  Dashboard
+                </span>
+              </div>
+            )}
+
+            {/* Open state: just a thin chevron */}
+            {isLeftOpen && (
+              <ChevronLeft className="w-3 h-3 text-[#999] group-hover:text-[#F77019] transition-colors" />
+            )}
           </button>
 
           {/* ── RIGHT HEADER (80px, transparent) ── */}
-          <header className="h-20 flex-shrink-0 flex items-center justify-between pl-7 pr-2">
+          <header className="h-20 flex-shrink-0 flex items-center justify-between pl-5 pr-2">
             {/* Tab navigation */}
-            <nav className="flex items-center gap-0.5">
-              {rightTabs.map((tab) => (
-                <button key={tab.key} onClick={() => setRightTab(tab.key)}
-                  className={`px-3 py-1 rounded-md text-[11px] font-bold transition-all ${
-                    rightTab === tab.key ? 'text-[#1D1C1C] font-black' : 'text-[#999] hover:text-[#1D1C1C]'
-                  }`}>
-                  {tab.label}
-                </button>
+            <nav className="flex items-center">
+              {rightTabs.map((tab, index, arr) => (
+                <div key={tab.key} className="flex items-center">
+                  <button
+                    onClick={() => setRightTab(tab.key)}
+                    className={`py-1.5 transition-all ${
+                      rightTab === tab.key
+                      ? 'text-[14px] font-black text-[#1D1C1C]' 
+                      : 'text-[12px] font-bold text-[#999999] hover:text-[#1D1C1C]'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                  {index < arr.length - 1 && (
+                    <span className="text-[#D4D4D4] mx-[20px] text-[12px] font-light">|</span>
+                  )}
+                </div>
               ))}
             </nav>
 
-            {/* Right: role switcher (small) + icons */}
+            {/* Right: icons */}
             <div className="flex items-center gap-2">
-              {/* Tiny role switcher */}
-              <div className="p-0.5 rounded-full bg-[#1D1C1C]/5 flex items-center border border-[#1D1C1C]/5">
-                <button onClick={() => role !== 'creator' && router.push('/builder/dashboard')}
-                  className={`px-2 py-0.5 rounded-full text-[9px] font-bold transition-all ${
-                    role === 'creator' ? 'bg-white text-[#F77019] shadow-sm' : 'text-[#999]'
-                  }`}>C</button>
-                <button onClick={() => role !== 'reviewer' && router.push('/evaluator/dashboard')}
-                  className={`px-2 py-0.5 rounded-full text-[9px] font-bold transition-all ${
-                    role === 'reviewer' ? 'bg-white text-[#1565C0] shadow-sm' : 'text-[#999]'
-                  }`}>R</button>
-              </div>
-
               <button className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-[#1D1C1C]/5 transition-colors text-[#666] relative">
                 <Bell className="w-3.5 h-3.5" />
                 <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-[#F77019]" />
               </button>
-              <button className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-[#1D1C1C]/5 transition-colors text-[#666]">
+              <button
+                onClick={() => setIsLeftOpen((prev) => !prev)}
+                title={isLeftOpen ? '오른쪽 패널 확장' : '대시보드 보기'}
+                aria-pressed={!isLeftOpen}
+                className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
+                  isLeftOpen
+                    ? 'text-[#666] bg-transparent hover:bg-[#1D1C1C]/5'
+                    : 'bg-[#F77019]/10 text-[#F77019] hover:bg-[#F77019]/15'
+                }`}
+              >
                 <Columns2 className="w-3.5 h-3.5" />
               </button>
             </div>
           </header>
 
           {/* ── RIGHT CONTENT ── */}
-          <div className="flex-1 overflow-y-auto pl-7 pr-2 pb-8 custom-scrollbar">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden pl-5 pr-2 pb-8 custom-scrollbar min-w-0">
             {rightPanel}
           </div>
         </div>
