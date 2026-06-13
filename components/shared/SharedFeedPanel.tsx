@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ArrowRight, Bookmark, Clock, User } from 'lucide-react'
+import { useRightPanel } from './RightPanelContext'
 
 const heroPost = {
   category: '성공사례',
@@ -130,37 +131,65 @@ const newsItems = [
 
 export default function SharedFeedPanel() {
   const [activeFilter, setActiveFilter] = useState('전체')
+  const { isExpanded: ctxExpanded } = useRightPanel()
+
+  // 패널 너비 감지 — fallback (단독 페이지 호환)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [widthExpanded, setWidthExpanded] = useState(false)
+
+  useEffect(() => {
+    if (!containerRef.current) return
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setWidthExpanded(entry.contentRect.width > 700)
+      }
+    })
+    observer.observe(containerRef.current)
+    return () => observer.disconnect()
+  }, [])
+
+  const isExpanded = ctxExpanded || widthExpanded
+  const isNarrow = !isExpanded // 축소 모드일 때 반응형 적용
 
   const filtered = activeFilter === '전체'
     ? feedPosts
     : feedPosts.filter(p => p.category === activeFilter)
 
-  return (
-    <div className="w-full min-h-full flex flex-col select-none text-[#1D1C1C]">
+  // 그리드 컬럼 수 — 축소 시 1열, 확장 시 3열
+  const gridCols = isNarrow ? 'repeat(1, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))'
 
-      {/* ── Hero Article (좌: 썸네일, 우: 텍스트) ── */}
+  return (
+    <div ref={containerRef} className="w-full min-h-full flex flex-col select-none text-[#1D1C1C]">
+
+      {/* ── Hero Article — 축소 시 세로 적층, 확장 시 좌우 분할 ── */}
       <div className="pb-8 border-b border-[#1D1C1C]/6">
-        <div className="flex items-start gap-7">
-          {/* 좌: 썸네일 (고정 높이) */}
-          <div className="flex-shrink-0 rounded-2xl overflow-hidden bg-[#F0F0F2]" style={{ width: '40%', height: 200 }}>
+        <div className={`gap-5 ${isNarrow ? 'flex flex-col' : 'flex items-stretch gap-7'}`}>
+          {/* 썸네일 */}
+          <div
+            className={`flex-shrink-0 rounded-2xl overflow-hidden bg-[#F0F0F2] ${isNarrow ? 'w-full aspect-[16/9]' : 'aspect-[3/2]'}`}
+            style={isNarrow ? undefined : { width: '44%' }}
+          >
             <img src={heroPost.img} alt={heroPost.title} className="w-full h-full object-cover" />
           </div>
-          {/* 우: 텍스트 */}
-          <div className="flex-1 min-w-0 flex flex-col justify-center gap-3.5">
-            <h1 className="font-black text-[#1D1C1C] leading-snug" style={{ fontSize: 'clamp(18px,2vw,26px)' }}>
+          {/* 텍스트 */}
+          <div className={`flex-1 min-w-0 flex flex-col gap-3 ${isNarrow ? '' : 'justify-center gap-4 py-2'}`}>
+            <h1
+              className="font-black text-[#1D1C1C] leading-snug"
+              style={{ fontSize: isNarrow ? 'clamp(17px,3.5vw,22px)' : 'clamp(20px,2.2vw,30px)' }}
+            >
               {heroPost.title}
             </h1>
-            <p className="text-[12px] text-[#666] leading-relaxed">
+            <p className={`text-[#666] leading-relaxed ${isNarrow ? 'text-[12px] line-clamp-3' : 'text-[13px]'}`}>
               {heroPost.desc}
             </p>
-            <div className="flex items-center gap-4 text-[10px] text-[#999] font-medium">
+            <div className="flex items-center gap-3 text-[10px] text-[#999] font-medium flex-wrap">
               <span className="flex items-center gap-1"><User className="w-3 h-3" />{heroPost.author}</span>
               <span>{heroPost.date}</span>
               <span className="flex items-center gap-1"><Clock className="w-3 h-3" />읽기 {heroPost.readTime}</span>
             </div>
-            <div className="flex items-center gap-1.5 flex-wrap mt-1">
-              {[heroPost.category, '검증', 'PSF', '성장'].map(tag => (
-                <span key={tag} className="text-[9px] font-bold px-2.5 py-1 rounded-full border border-[#1D1C1C]/10 text-[#666]">
+            <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+              {[heroPost.category, '검증', 'PSF', '성장'].slice(0, isNarrow ? 3 : 4).map(tag => (
+                <span key={tag} className="text-[9px] font-bold px-2 py-0.5 rounded-full border border-[#1D1C1C]/10 text-[#666]">
                   {tag}
                 </span>
               ))}
@@ -169,11 +198,11 @@ export default function SharedFeedPanel() {
         </div>
       </div>
 
-      {/* ── Main Content + Sidebar ── */}
-      <div className="flex gap-8 pt-7 pb-10">
+      {/* ── Main Content (+ Sidebar 확장 시만) ── */}
+      <div className={`pt-7 pb-10 ${isNarrow ? 'flex flex-col gap-6' : 'flex gap-8'}`}>
 
-        {/* ── Left: Latest Posts ── */}
-        <div className="flex-1 min-w-0 flex flex-col gap-6">
+        {/* ── Latest Posts ── */}
+        <div className="flex-1 min-w-0 flex flex-col gap-5">
           <div className="flex items-center justify-between">
             <h2 className="text-[15px] font-black text-[#1D1C1C]">최신 피드</h2>
           </div>
@@ -192,19 +221,22 @@ export default function SharedFeedPanel() {
             ))}
           </div>
 
-          {/* Card grid — 가로 3개 고정 */}
-          <div className="grid gap-5" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
+          {/* Card grid — 축소 시 1열, 확장 시 3열 */}
+          <div className="grid gap-5" style={{ gridTemplateColumns: gridCols }}>
             {filtered.map(post => (
-              <FeedCard key={post.id} post={post} />
+              <FeedCard key={post.id} post={post} horizontal={isNarrow} />
             ))}
           </div>
         </div>
 
-        {/* ── Right: Newsroom sidebar ── */}
-        <div className="flex-shrink-0 flex flex-col gap-4" style={{ width: 220 }}>
+        {/* ── Newsroom sidebar — 축소 시 아래로 이동, 확장 시 우측 고정 ── */}
+        <div
+          className={`flex-shrink-0 flex flex-col gap-4 ${isNarrow ? 'w-full pt-4 border-t border-[#1D1C1C]/5' : ''}`}
+          style={isNarrow ? undefined : { width: 220 }}
+        >
           <h2 className="text-[13px] font-black text-[#1D1C1C]">파인드핏 뉴스룸</h2>
-          <div className="flex flex-col gap-3">
-            {newsItems.map(item => (
+          <div className={isNarrow ? 'grid grid-cols-2 gap-3' : 'flex flex-col gap-3'}>
+            {newsItems.slice(0, isNarrow ? 4 : newsItems.length).map(item => (
               <NewsItem key={item.id} item={item} />
             ))}
           </div>
@@ -215,7 +247,48 @@ export default function SharedFeedPanel() {
   )
 }
 
-function FeedCard({ post }: { post: typeof feedPosts[0] }) {
+function FeedCard({ post, horizontal }: { post: typeof feedPosts[0]; horizontal?: boolean }) {
+  if (horizontal) {
+    // 축소 시 — 좌측 썸네일 + 우측 텍스트 가로 카드
+    return (
+      <article className="flex items-start gap-3 group cursor-pointer p-3 rounded-2xl bg-white border border-[#1D1C1C]/5 hover:border-[#F77019]/30 transition-all">
+        <div
+          className="flex-shrink-0 rounded-xl overflow-hidden bg-[#F0F0F2] w-[100px] aspect-[4/3]"
+        >
+          <img
+            src={post.img}
+            alt={post.title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          />
+        </div>
+        <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span
+              className="text-[9px] font-black px-2 py-0.5 rounded-md"
+              style={{
+                color: post.categoryColor,
+                background: `${post.categoryColor}12`,
+                border: `1px solid ${post.categoryColor}20`,
+              }}
+            >
+              {post.category}
+            </span>
+            <span className="text-[9px] text-[#BBB] font-medium">{post.date}</span>
+          </div>
+          <h3 className="text-[12px] font-black text-[#1D1C1C] leading-snug line-clamp-2 group-hover:text-[#F77019] transition-colors">
+            {post.title}
+          </h3>
+          <p className="text-[10px] text-[#888] leading-relaxed line-clamp-2">{post.desc}</p>
+          <div className="flex items-center justify-between mt-0.5 text-[9px] text-[#999] font-medium">
+            <span>{post.author}</span>
+            <span className="flex items-center gap-0.5"><Clock className="w-2.5 h-2.5" />{post.readTime}</span>
+          </div>
+        </div>
+      </article>
+    )
+  }
+
+  // 확장 시 — 세로 카드 (기존 3-column 그리드용)
   return (
     <article className="flex flex-col gap-3 group cursor-pointer">
       <div className="w-full rounded-2xl overflow-hidden bg-[#F0F0F2]" style={{ aspectRatio: '4 / 3' }}>

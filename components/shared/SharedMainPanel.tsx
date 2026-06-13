@@ -63,6 +63,72 @@ export default function SharedMainPanel() {
   const handleSearch = () => { if (search.trim()) setSearched(true) }
   const handleChip   = (chip: string) => { setSearch(chip); setSearched(true) }
 
+  // 축소 모드 — 네이버 스타일 (작은 타이틀 + 검색창 중심)
+  if (!isWide) {
+    return (
+      <div
+        ref={containerRef}
+        className="w-full h-full flex flex-col items-center select-none overflow-hidden px-5 pt-12"
+      >
+        {/* 작은 브랜드 타이틀 */}
+        <div className="flex flex-col items-center gap-1.5 mb-7">
+          <span className="text-[22px] font-black tracking-tight">
+            <span className="text-[#F77019]">Find</span>
+            <span className="text-[#1D1C1C]">Fit</span>
+          </span>
+          <span className="text-[10px] font-bold text-[#999] tracking-wide">
+            좋은 브랜드는 <span className="text-[#F77019]">{rotatingWords[wordIdx]}</span>에서 시작됩니다
+          </span>
+        </div>
+
+        {/* 검색창 — 큰 사이즈, 중앙 강조 */}
+        <div
+          className="w-full max-w-[420px] flex items-center gap-2.5 px-4 py-3 rounded-2xl transition-all focus-within:shadow-[0_0_0_2px_rgba(247,112,25,0.18)]"
+          style={{ background: '#FFFFFF', border: '2px solid #1D1C1C' }}
+        >
+          <Sparkles className="w-4 h-4 text-[#F77019] flex-shrink-0" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setSearched(false) }}
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            placeholder="검증하고 싶은 아이디어를 입력해보세요"
+            className="flex-1 bg-transparent text-[13px] font-medium text-[#1D1C1C] placeholder-[#999] outline-none min-w-0"
+          />
+          <button
+            onClick={handleSearch}
+            className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all hover:scale-105 active:scale-95"
+            style={{ background: search ? '#F77019' : '#1D1C1C' }}
+          >
+            <ArrowRight className="w-4 h-4 text-white" />
+          </button>
+        </div>
+
+        {/* 추천 검색어 칩 */}
+        <div className="w-full max-w-[420px] flex items-center gap-1.5 flex-wrap justify-center mt-4">
+          {quickChips.slice(0, 5).map((chip) => (
+            <button
+              key={chip}
+              onClick={() => handleChip(chip)}
+              className="text-[10px] font-bold px-3 py-1.5 rounded-full border border-[#1D1C1C]/10 text-[#555] bg-white hover:border-[#F77019]/40 hover:text-[#F77019] transition-all"
+            >
+              {chip}
+            </button>
+          ))}
+        </div>
+
+        {/* 하단 라이브 카운터 (작게) */}
+        <div className="flex items-center gap-1.5 mt-auto mb-8 text-[10px] font-bold text-[#999]">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E] animate-pulse" />
+          <span>
+            현재 <span className="text-[#1D1C1C] font-black">{liveCount.toLocaleString()}명</span> 활동 중
+          </span>
+        </div>
+      </div>
+    )
+  }
+
+  // 확장 모드 — 기존 풀 디자인
   return (
     <>
       <style>{`
