@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
+import SharedMainPanel from './SharedMainPanel'
+import SharedFeedPanel from './SharedFeedPanel'
 import { 
   Bell, 
   ChevronLeft, 
@@ -256,13 +258,16 @@ export default function DashboardLayout({ role, children, rightPanel }: Dashboar
                 <div key={tab.key} className="flex items-center">
                   <button
                     onClick={() => setRightTab(tab.key)}
-                    className={`py-1.5 transition-all ${
+                    className={`py-1.5 transition-all relative ${
                       rightTab === tab.key
-                      ? 'text-[14px] font-black text-[#1D1C1C]' 
+                      ? 'text-[14px] font-black text-[#F77019]'
                       : 'text-[12px] font-bold text-[#999999] hover:text-[#1D1C1C]'
                     }`}
                   >
                     {tab.label}
+                    {rightTab === tab.key && (
+                      <span className="absolute -bottom-0.5 left-0 right-0 h-[2px] rounded-full bg-[#F77019]" />
+                    )}
                   </button>
                   {index < arr.length - 1 && (
                     <span className="text-[#D4D4D4] mx-[20px] text-[12px] font-light">|</span>
@@ -293,8 +298,16 @@ export default function DashboardLayout({ role, children, rightPanel }: Dashboar
           </header>
 
           {/* ── RIGHT CONTENT ── */}
-          <div className="flex-1 overflow-y-auto overflow-x-hidden pl-5 pr-2 pb-8 custom-scrollbar min-w-0">
-            {rightPanel}
+          <div className={`flex-1 overflow-x-hidden min-w-0 ${
+            rightTab === 'main'
+              ? 'overflow-hidden'
+              : 'overflow-y-auto pl-5 pr-2 pb-8 custom-scrollbar'
+          }`}>
+            {rightTab === 'main'
+              ? <SharedMainPanel />
+              : rightTab === 'feed'
+                ? <SharedFeedPanel />
+                : rightPanel}
           </div>
         </div>
       </div>
