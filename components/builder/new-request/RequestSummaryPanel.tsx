@@ -1,38 +1,45 @@
 'use client'
 
-import { EVALUATOR_TIERS, type RequestFormData } from './types'
+import { PROJECT_TYPE_OPTIONS, calculateCost, type RequestFormData } from './types'
 
 type Props = {
   data: RequestFormData
 }
 
-function fmtNumber(n: number): string {
+function fmt(n: number): string {
   return n.toLocaleString('ko-KR')
 }
 
 export default function RequestSummaryPanel({ data }: Props) {
-  const tier = EVALUATOR_TIERS.find((t) => t.value === data.evaluatorTier)
-  const requestTypeLabel = data.requestType === 'survey' ? '설문형' : data.requestType === 'experience' ? '체험형' : '미선택'
+  const typeMeta = PROJECT_TYPE_OPTIONS.find((o) => o.value === data.projectType)
   const stageLabel = data.stage
     ? { idea: '아이디에이션', prototype: '프로토타입', beta: '베타', launched: '출시 후' }[data.stage]
     : '미선택'
 
-  const cashCost = (tier?.cash ?? 0) * data.evaluatorCount + (data.aiReport === 'deep' ? 5000 : 0)
-  const feeSubtotal = data.feePerEvaluator * data.evaluatorCount
-  const platformFee = Math.round(feeSubtotal * 0.075)
-  const vat = Math.round(platformFee * 0.1)
-  const totalCash = feeSubtotal + platformFee + vat
+  const cost = calculateCost(data)
 
   return (
     <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-6 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
       <h3 className="text-xs font-black mb-5">의뢰 요약</h3>
 
       <div className="flex flex-col gap-3 text-[10px] font-bold text-[#666]">
-        <Row label="의뢰 타입" value={requestTypeLabel} highlight={!!data.requestType} />
+        <Row label="프로젝트 타입" value={typeMeta?.title ?? '미선택'} highlight={!!typeMeta} />
         <Row label="단계" value={stageLabel} highlight={!!data.stage} />
-        <Row label="평가단" value={tier ? `${tier.label} ${data.evaluatorCount}명` : '미선택'} highlight />
-        <Row label="리포트" value={data.aiReport === 'deep' ? '심층 분석' : '기본'} />
-        <Row label="완료 기한" value={`${data.deadlineHours}시간`} />
+
+        {data.projectType === 'light' && (
+          <>
+            <Row label="질문 수" value={`${data.questions.length}개`} />
+            <Row label="기한" value={`최대 ${data.deadlineDays}일`} />
+          </>
+        )}
+
+        {(data.projectType === 'standard' || data.projectType === 'deep') && (
+          <>
+            <Row label="평가단" value={`${data.evaluatorCount}명`} highlight />
+            <Row label="1인당 사례금" value={`${fmt(data.feePerEvaluator)}원`} />
+            <Row label="기한" value={`최대 ${data.deadlineDays}일`} />
+          </>
+        )}
 
         <div className="h-[1px] bg-[#EEEEEE] my-1" />
 
@@ -41,23 +48,30 @@ export default function RequestSummaryPanel({ data }: Props) {
 
         <div className="h-[1px] bg-[#EEEEEE] my-1" />
 
+        {/* 비용 */}
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
-            <span>캐시 소모</span>
-            <span className="text-[#1D1C1C]">{fmtNumber(cashCost)}C</span>
+            <span>플랫폼 이용료 (캐시)</span>
+            <span className="text-[#1D1C1C]">{fmt(cost.cashCost)}C</span>
           </div>
-          <div className="flex items-center justify-between">
-            <span>사례금 소계</span>
-            <span className="text-[#1D1C1C]">{fmtNumber(feeSubtotal)}원</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span>수수료 + 부가세</span>
-            <span className="text-[#1D1C1C]">{fmtNumber(platformFee + vat)}원</span>
-          </div>
-          <div className="flex items-center justify-between pt-2 mt-1 border-t border-[#EEEEEE]">
-            <span className="text-[#1D1C1C]">총 현금 결제</span>
-            <span className="text-[#F77019] text-[11px] font-black">{fmtNumber(totalCash)}원</span>
-          </div>
+          {cost.preAuthAmount > 0 && (
+            <>
+              <div className="flex items-center justify-between">
+                <span>사전 승인액</span>
+                <span className="text-[#1D1C1C]">{fmt(cost.preAuthAmount)}원</span>
+              </div>
+              <div className="flex items-center justify-between pt-1 mt-1 border-t border-[#EEEEEE]">
+                <span className="text-[#1D1C1C]">실제 청구 시점</span>
+                <span className="text-[#F77019] text-[10px] font-black">리뷰 완료 후</span>
+              </div>
+            </>
+          )}
+          {data.projectType === 'light' && (
+            <div className="flex items-center justify-between pt-1 mt-1 border-t border-[#EEEEEE]">
+              <span className="text-[#1D1C1C]">사례금</span>
+              <span className="text-[#1D1C1C]">없음</span>
+            </div>
+          )}
         </div>
       </div>
     </div>

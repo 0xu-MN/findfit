@@ -1,4 +1,4 @@
-import type { RequestFormData } from './types'
+import { migrateDraft, type RequestFormData } from './types'
 
 // localStorage 기반 임시 저장소.
 // 추후 Supabase 연동 시: 이 파일의 함수 시그니처를 유지한 채 내부 구현만 fetch / supabase-js 호출로 교체.
@@ -25,7 +25,9 @@ function readAll(key: string): RequestFormData[] {
     const raw = window.localStorage.getItem(key)
     if (!raw) return []
     const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed : []
+    if (!Array.isArray(parsed)) return []
+    // 이전 버전 draft를 안전하게 마이그레이션
+    return parsed.map((d) => migrateDraft(d))
   } catch {
     return []
   }

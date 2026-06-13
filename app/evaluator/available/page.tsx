@@ -1,8 +1,11 @@
-export default function AvailablePage() {
+import DashboardLayout from '@/components/shared/DashboardLayout'
+import ReviewerFeedPage from '@/components/evaluator/ReviewerFeedPage'
+import SharedLoungeFeed from '@/components/shared/SharedLoungeFeed'
+
+export default function EvaluatorAvailablePage() {
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold">참여 가능 의뢰</h1>
-      <p className="text-gray-500 mt-2">준비 중입니다.</p>
-    </div>
+    <DashboardLayout role="reviewer" rightPanel={<SharedLoungeFeed />}>
+      <ReviewerFeedPage />
+    </DashboardLayout>
   )
 }

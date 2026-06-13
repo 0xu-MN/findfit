@@ -1,6 +1,15 @@
 'use client'
 
-import { CATEGORIES, STAGE_OPTIONS, type RequestFormData, type RequestType, type Stage } from './types'
+import {
+  CATEGORIES,
+  PROJECT_TYPE_OPTIONS,
+  STAGE_OPTIONS,
+  getFlow,
+  getStepKey,
+  type ProjectType,
+  type RequestFormData,
+  type Stage,
+} from './types'
 
 type Props = {
   data: RequestFormData
@@ -12,6 +21,52 @@ export default function Step1BasicInfo({ data, onChange }: Props) {
     const has = data.categories.includes(cat)
     if (has) onChange({ categories: data.categories.filter((c) => c !== cat) })
     else if (data.categories.length < 3) onChange({ categories: [...data.categories, cat] })
+  }
+
+  const selectType = (type: ProjectType) => {
+    // 타입이 변경되는 경우 (null → 선택 또는 다른 타입 전환)
+    const typeChanged = data.projectType !== type
+    const opt = PROJECT_TYPE_OPTIONS.find((o) => o.value === type)!
+
+    const patch: Partial<RequestFormData> = {
+      projectType: type,
+      deadlineDays: opt.maxDays,
+    }
+
+    // Standard/Deep는 최소 10명
+    if (type !== 'light' && data.evaluatorCount < 10) {
+      patch.evaluatorCount = 10
+    }
+    // Light는 사례금 0
+    if (type === 'light') {
+      patch.feePerEvaluator = 0
+    } else if (data.feePerEvaluator === 0) {
+      patch.feePerEvaluator = 5000
+    }
+
+    // 타입이 실제로 변경되었을 때 — 질문 데이터 초기화 (타입별 질문 타입이 다름)
+    if (typeChanged && data.projectType !== null) {
+      patch.questions = []
+      patch.postQuestions = []
+      patch.lightQuestionStyle = null
+    }
+
+    // 현재 단계가 새 흐름에 존재하지 않으면 같은 'key'를 새 흐름에서 찾아 매핑
+    if (typeChanged) {
+      const currentKey = getStepKey(data.projectType, data.currentStep)
+      const newFlow = getFlow(type)
+      const newIdx = newFlow.indexOf(currentKey)
+      if (newIdx >= 0) {
+        patch.currentStep = newIdx + 1
+      } else {
+        // 새 흐름에 없는 step(target/attachments)이면 가장 가까운 이전 step으로
+        patch.currentStep = Math.min(data.currentStep, newFlow.length)
+      }
+      // 안전 클램프
+      patch.currentStep = Math.max(1, Math.min(patch.currentStep!, newFlow.length))
+    }
+
+    onChange(patch)
   }
 
   return (
@@ -37,7 +92,7 @@ export default function Step1BasicInfo({ data, onChange }: Props) {
           maxLength={60}
           value={data.oneLineDesc}
           onChange={(e) => onChange({ oneLineDesc: e.target.value })}
-          placeholder="누구를 위한 어떤 솔루션인지 한 줄로"
+          placeholder="누구를 위한 어떤 솔루션인지 한 줄로 — Reviewer 카드에 그대로 노출"
           className="w-full h-10 rounded-xl bg-[#F5F5F5] border-none outline-none px-4 text-[11px]"
         />
       </Field>
@@ -96,32 +151,46 @@ export default function Step1BasicInfo({ data, onChange }: Props) {
         />
       </Field>
 
-      {/* 의뢰 타입 (Step 4 분기 결정) */}
+      {/* 프로젝트 타입 — Light / Standard / Deep */}
       <div className="flex flex-col gap-3 mt-2">
         <div className="flex items-center gap-2">
-          <span className="text-[11px] font-bold">의뢰 타입</span>
-          <span className="text-[9px] text-[#F77019] font-black bg-[#F77019]/10 px-2 py-0.5 rounded">필수 · Step 4 분기 결정</span>
+          <span className="text-[11px] font-bold">프로젝트 타입</span>
+          <span className="text-[9px] text-[#F77019] font-black bg-[#F77019]/10 px-2 py-0.5 rounded">
+            필수 · Step 4 분기 결정
+          </span>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          {(
-            [
-              { value: 'survey', title: '설문형', desc: '질문에 답변받기 — 제품 설명을 읽고 바로 답변', detail: '아이디어 · 콘셉트 · 목업 검증' },
-              { value: 'experience', title: '체험형', desc: '써보고 평가받기 — 직접 사용 후 평가', detail: '앱 · 게임 · 웹 프로토타입/베타' },
-            ] as { value: RequestType; title: string; desc: string; detail: string }[]
-          ).map((opt) => {
-            const active = data.requestType === opt.value
+        <div className="grid grid-cols-3 gap-3">
+          {PROJECT_TYPE_OPTIONS.map((opt) => {
+            const active = data.projectType === opt.value
             return (
               <button
                 key={opt.value}
                 type="button"
-                onClick={() => onChange({ requestType: opt.value })}
+                onClick={() => selectType(opt.value)}
                 className={`flex flex-col p-5 rounded-2xl text-left transition-colors ${
                   active ? 'bg-[#F77019]/10 border border-[#F77019]' : 'bg-[#F5F5F5] border border-transparent hover:border-[#1D1C1C]/10'
                 }`}
               >
                 <span className={`text-sm font-black ${active ? 'text-[#F77019]' : 'text-[#1D1C1C]'}`}>{opt.title}</span>
-                <span className={`text-[11px] mt-2 font-bold ${active ? 'text-[#F77019]/80' : 'text-[#666]'}`}>{opt.desc}</span>
+                <span className={`text-[11px] mt-2 font-bold ${active ? 'text-[#F77019]/80' : 'text-[#666]'}`}>
+                  {opt.shortDesc}
+                </span>
                 <span className={`text-[10px] mt-1 ${active ? 'text-[#F77019]/60' : 'text-[#999]'}`}>{opt.detail}</span>
+                <div className="h-[1px] bg-[#1D1C1C]/5 my-3" />
+                <div className="flex flex-col gap-1 text-[10px] font-bold">
+                  <div className="flex items-center justify-between">
+                    <span className={active ? 'text-[#F77019]/60' : 'text-[#999]'}>이용료</span>
+                    <span className={active ? 'text-[#F77019]' : 'text-[#1D1C1C]'}>{opt.cashCost}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className={active ? 'text-[#F77019]/60' : 'text-[#999]'}>사례금</span>
+                    <span className={active ? 'text-[#F77019]' : 'text-[#1D1C1C]'}>{opt.honorariumNote}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className={active ? 'text-[#F77019]/60' : 'text-[#999]'}>최대 기간</span>
+                    <span className={active ? 'text-[#F77019]' : 'text-[#1D1C1C]'}>{opt.maxDays}일</span>
+                  </div>
+                </div>
               </button>
             )
           })}

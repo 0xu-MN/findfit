@@ -4,11 +4,13 @@ import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import SharedMainPanel from './SharedMainPanel'
 import SharedFeedPanel from './SharedFeedPanel'
-import { 
-  Bell, 
-  ChevronLeft, 
-  ChevronRight, 
-  Sparkles, 
+import RightPanelFooter from './RightPanelFooter'
+import { RightPanelProvider, type RightTab } from './RightPanelContext'
+import {
+  Bell,
+  ChevronLeft,
+  ChevronRight,
+  Sparkles,
   RefreshCw,
   LayoutDashboard,
   FilePlus,
@@ -298,16 +300,29 @@ export default function DashboardLayout({ role, children, rightPanel }: Dashboar
           </header>
 
           {/* ── RIGHT CONTENT ── */}
-          <div className={`flex-1 overflow-x-hidden min-w-0 ${
-            rightTab === 'main'
-              ? 'overflow-hidden'
-              : 'overflow-y-auto pl-5 pr-2 pb-8 custom-scrollbar'
-          }`}>
-            {rightTab === 'main'
-              ? <SharedMainPanel />
-              : rightTab === 'feed'
-                ? <SharedFeedPanel />
-                : rightPanel}
+          <div
+            className={`flex-1 overflow-x-hidden min-w-0 ${
+              rightTab === 'main'
+                ? 'overflow-hidden'
+                : 'overflow-y-auto pl-5 pr-2 pb-8 custom-scrollbar'
+            }`}
+          >
+            <RightPanelProvider
+              value={{
+                tab: rightTab as RightTab,
+                setTab: (t: RightTab) => setRightTab(t),
+                isExpanded: !isLeftOpen,
+              }}
+            >
+              {/* 탭별 패널 라우팅: Windows 추가 메인/피드 + 우리 라운지(rightPanel) */}
+              {rightTab === 'main'
+                ? <SharedMainPanel />
+                : rightTab === 'feed'
+                  ? <SharedFeedPanel />
+                  : rightPanel}
+              {/* 패널 확장 + 메인 탭이 아닐 때 공통 Footer (메인은 overflow-hidden이라 스크롤 불가) */}
+              {!isLeftOpen && rightTab !== 'main' && <RightPanelFooter />}
+            </RightPanelProvider>
           </div>
         </div>
       </div>

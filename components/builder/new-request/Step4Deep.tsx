@@ -2,23 +2,28 @@
 
 import { Camera, Upload } from 'lucide-react'
 import QuestionBuilder from './QuestionBuilder'
-import { EXPERIENCE_DEADLINES, EXPERIENCE_TIMES, SEAN_ELLIS_QUESTION, type RequestFormData } from './types'
+import {
+  DEEP_RECOMMENDED_FEE,
+  EXPERIENCE_DEADLINES,
+  EXPERIENCE_TIMES,
+  SEAN_ELLIS_QUESTION,
+  STD_DEEP_MAX_WRITABLE,
+  type RequestFormData,
+} from './types'
 
 type Props = {
   data: RequestFormData
   onChange: (patch: Partial<RequestFormData>) => void
 }
 
-const RECOMMENDED_FEE: Record<number, number> = { 5: 3000, 10: 5000, 15: 8000, 30: 15000, 60: 25000 }
-
-export default function Step4Experience({ data, onChange }: Props) {
+export default function Step4Deep({ data, onChange }: Props) {
   return (
     <div className="flex flex-col gap-5">
       {/* 공통 영역 */}
       <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 flex flex-col gap-6 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
         <div className="flex items-center gap-2">
           <h2 className="text-lg font-black">검증 내용</h2>
-          <span className="text-[9px] font-black bg-[#F77019]/10 text-[#F77019] px-2 py-0.5 rounded">체험형</span>
+          <span className="text-[9px] font-black bg-[#F77019]/10 text-[#F77019] px-2 py-0.5 rounded">Deep</span>
         </div>
 
         <Textarea
@@ -42,7 +47,7 @@ export default function Step4Experience({ data, onChange }: Props) {
         />
       </div>
 
-      {/* 체험형 — 체험 설계 */}
+      {/* 체험 설계 */}
       <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 flex flex-col gap-6 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
         <div className="flex flex-col gap-1">
           <h3 className="text-sm font-black">체험 설계</h3>
@@ -82,7 +87,7 @@ export default function Step4Experience({ data, onChange }: Props) {
           max={300}
           rows={4}
           value={data.experienceGuide}
-          placeholder='예: "1. 앱 설치 후 회원가입 → 2. 추천 탭 둘러보기 → 3. 상품 1개 장바구니까지"'
+          placeholder='핵심 사용 경로 안내 — 예: "1. 앱 설치 후 회원가입 → 2. 추천 탭 둘러보기 → 3. 상품 1개 장바구니까지"'
           onChange={(v) => onChange({ experienceGuide: v })}
         />
 
@@ -95,7 +100,9 @@ export default function Step4Experience({ data, onChange }: Props) {
                 <button
                   key={t}
                   type="button"
-                  onClick={() => onChange({ experienceTime: t, feePerEvaluator: RECOMMENDED_FEE[t] ?? data.feePerEvaluator })}
+                  onClick={() =>
+                    onChange({ experienceTime: t, feePerEvaluator: DEEP_RECOMMENDED_FEE[t] ?? data.feePerEvaluator })
+                  }
                   className={`flex-1 h-10 rounded-xl text-[11px] font-black transition-colors ${
                     active ? 'bg-[#F77019] text-white' : 'bg-[#F5F5F5] text-[#666] hover:text-[#1D1C1C]'
                   }`}
@@ -106,12 +113,12 @@ export default function Step4Experience({ data, onChange }: Props) {
             })}
           </div>
           <p className="text-[10px] text-[#999] font-bold mt-1">
-            권장 사례금: {RECOMMENDED_FEE[data.experienceTime]?.toLocaleString('ko-KR')}원~ (Step 6에서 조정)
+            권장 사례금: {DEEP_RECOMMENDED_FEE[data.experienceTime]?.toLocaleString('ko-KR')}원~ (Step 6에서 조정)
           </p>
         </Field>
 
         {/* 체험 완료 기한 */}
-        <Field label="체험 완료 기한" hint="기한 경과 시 미션 자동 취소">
+        <Field label="체험 완료 기한" hint="기한 경과 시 미션 자동 취소 + 사전 승인 잠금 해제">
           <div className="grid grid-cols-3 gap-2">
             {EXPERIENCE_DEADLINES.map((h) => {
               const active = data.experienceDeadline === h
@@ -160,14 +167,15 @@ export default function Step4Experience({ data, onChange }: Props) {
         <div className="flex flex-col gap-1">
           <h3 className="text-sm font-black">체험 후 질문</h3>
           <p className="text-[10px] text-[#999] font-bold">
-            평가단이 체험을 마치고 답변할 질문. Sean Ellis Test가 자동 포함되어 최대 9개까지 작성 가능.
+            평가단이 체험을 마치고 답변할 질문. Sean Ellis Test 자동 포함하여 작성 가능 최대 {STD_DEEP_MAX_WRITABLE}개
           </p>
         </div>
 
         <QuestionBuilder
           questions={data.postQuestions}
           onChange={(qs) => onChange({ postQuestions: qs })}
-          max={9}
+          max={STD_DEEP_MAX_WRITABLE}
+          allowedTypes={['multiple_choice', 'short_answer', 'likert']}
           showFixed={SEAN_ELLIS_QUESTION}
         />
       </div>

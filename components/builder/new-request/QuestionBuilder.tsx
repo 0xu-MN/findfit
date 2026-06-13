@@ -8,16 +8,31 @@ type Props = {
   questions: Question[]
   onChange: (next: Question[]) => void
   max: number
+  allowedTypes: QuestionType[]
   showFixed?: Question
 }
 
 const TYPE_LABELS: Record<QuestionType, string> = {
-  multiple: '객관식',
-  text: '주관식',
+  multiple_choice: '객관식',
+  short_answer: '주관식',
   likert: '리커트 5점',
+  ab_test: 'A/B 테스트',
+  keyword: '키워드 선택',
+  yes_no: '예/아니오',
+  sean_ellis: 'Sean Ellis',
 }
 
-export default function QuestionBuilder({ questions, onChange, max, showFixed }: Props) {
+const TYPE_HINTS: Record<QuestionType, string> = {
+  multiple_choice: '여러 선택지 중 1개 선택',
+  short_answer: '평가단이 자유롭게 답변 작성',
+  likert: '1점(전혀) ~ 5점(매우)',
+  ab_test: '두 옵션 중 하나를 선택 (이미지·텍스트·카드)',
+  keyword: '제시된 키워드 중 해당하는 것 선택 (최대 10개)',
+  yes_no: '단순 이진 선택',
+  sean_ellis: 'Sean Ellis Test 자동 포함',
+}
+
+export default function QuestionBuilder({ questions, onChange, max, allowedTypes, showFixed }: Props) {
   const writable = questions.filter((q) => !q.isFixed)
   const remaining = max - writable.length
 
@@ -27,7 +42,12 @@ export default function QuestionBuilder({ questions, onChange, max, showFixed }:
       id: generateId('q'),
       type,
       text: '',
-      options: type === 'multiple' ? ['', ''] : undefined,
+      options:
+        type === 'multiple_choice' || type === 'ab_test'
+          ? ['', '']
+          : type === 'keyword'
+            ? ['', '', '']
+            : undefined,
     }
     onChange([...writable, next])
   }
@@ -49,13 +69,16 @@ export default function QuestionBuilder({ questions, onChange, max, showFixed }:
   const addOption = (qid: string) => {
     const q = writable.find((x) => x.id === qid)
     if (!q || !q.options) return
-    if (q.options.length >= 6) return
+    const maxOptions = q.type === 'ab_test' ? 2 : q.type === 'keyword' ? 10 : 6
+    if (q.options.length >= maxOptions) return
     updateQuestion(qid, { options: [...q.options, ''] })
   }
 
   const removeOption = (qid: string, idx: number) => {
     const q = writable.find((x) => x.id === qid)
-    if (!q || !q.options || q.options.length <= 2) return
+    if (!q || !q.options) return
+    const minOptions = q.type === 'keyword' ? 2 : 2
+    if (q.options.length <= minOptions) return
     updateQuestion(qid, { options: q.options.filter((_, i) => i !== idx) })
   }
 
@@ -66,7 +89,7 @@ export default function QuestionBuilder({ questions, onChange, max, showFixed }:
         <span className="text-[9px] text-[#999] font-bold">최대 {max}개 · 남은 {remaining}개</span>
       </div>
 
-      {/* 작성한 질문들 */}
+      {/* 작성된 질문들 */}
       <div className="flex flex-col gap-3">
         {writable.map((q, i) => (
           <div key={q.id} className="rounded-xl bg-[#F5F5F5] p-4 flex flex-col gap-3">
@@ -88,7 +111,8 @@ export default function QuestionBuilder({ questions, onChange, max, showFixed }:
               className="w-full h-9 rounded-lg bg-white border-none outline-none px-3 text-[11px]"
             />
 
-            {q.type === 'multiple' && q.options && (
+            {/* 객관식 / A/B / 키워드: 선택지 입력 */}
+            {(q.type === 'multiple_choice' || q.type === 'ab_test' || q.type === 'keyword') && q.options && (
               <div className="flex flex-col gap-2 pl-2">
                 {q.options.map((opt, idx) => (
                   <div key={idx} className="flex items-center gap-2">
@@ -97,27 +121,26 @@ export default function QuestionBuilder({ questions, onChange, max, showFixed }:
                       type="text"
                       value={opt}
                       onChange={(e) => updateOption(q.id, idx, e.target.value)}
-                      placeholder={`선택지 ${idx + 1}`}
+                      placeholder={
+                        q.type === 'ab_test' ? `옵션 ${idx + 1}` : q.type === 'keyword' ? `키워드 ${idx + 1}` : `선택지 ${idx + 1}`
+                      }
                       className="flex-1 h-8 rounded-lg bg-white border-none outline-none px-3 text-[11px]"
                     />
                     {q.options!.length > 2 && (
-                      <button
-                        type="button"
-                        onClick={() => removeOption(q.id, idx)}
-                        className="text-[#999] hover:text-red-500 p-1"
-                      >
+                      <button type="button" onClick={() => removeOption(q.id, idx)} className="text-[#999] hover:text-red-500 p-1">
                         <Trash2 className="w-3 h-3" />
                       </button>
                     )}
                   </div>
                 ))}
-                {q.options.length < 6 && (
+                {/* + 옵션 추가 (A/B는 2개 고정) */}
+                {q.type !== 'ab_test' && (
                   <button
                     type="button"
                     onClick={() => addOption(q.id)}
                     className="self-start text-[10px] font-bold text-[#F77019] hover:underline mt-1 ml-6"
                   >
-                    + 선택지 추가
+                    + {q.type === 'keyword' ? '키워드' : '선택지'} 추가
                   </button>
                 )}
               </div>
@@ -131,31 +154,41 @@ export default function QuestionBuilder({ questions, onChange, max, showFixed }:
               </div>
             )}
 
-            {q.type === 'text' && (
-              <div className="pl-2 text-[10px] text-[#999] font-bold">평가단이 자유롭게 답변 작성</div>
+            {q.type === 'short_answer' && (
+              <div className="pl-2 text-[10px] text-[#999] font-bold">{TYPE_HINTS.short_answer}</div>
+            )}
+
+            {q.type === 'yes_no' && (
+              <div className="flex items-center gap-2 pl-2">
+                <span className="px-3 py-1 rounded-lg bg-white text-[10px] font-bold text-[#666]">예</span>
+                <span className="px-3 py-1 rounded-lg bg-white text-[10px] font-bold text-[#666]">아니오</span>
+              </div>
             )}
           </div>
         ))}
       </div>
 
-      {/* 질문 추가 버튼들 */}
+      {/* 질문 추가 버튼들 — allowedTypes 기반 */}
       {remaining > 0 && (
-        <div className="flex items-center gap-2">
-          {(['multiple', 'text', 'likert'] as QuestionType[]).map((t) => (
+        <div className="grid grid-cols-3 gap-2">
+          {allowedTypes.map((t) => (
             <button
               key={t}
               type="button"
               onClick={() => addQuestion(t)}
-              className="flex-1 flex items-center justify-center gap-1 h-10 rounded-xl border border-dashed border-[#1D1C1C]/15 text-[11px] font-bold text-[#666] hover:border-[#F77019] hover:text-[#F77019] transition-colors"
+              className="flex flex-col items-start gap-0.5 p-3 rounded-xl border border-dashed border-[#1D1C1C]/15 text-left hover:border-[#F77019] hover:bg-[#F77019]/5 transition-colors group"
             >
-              <Plus className="w-3.5 h-3.5" />
-              {TYPE_LABELS[t]}
+              <span className="flex items-center gap-1 text-[11px] font-black text-[#666] group-hover:text-[#F77019]">
+                <Plus className="w-3 h-3" />
+                {TYPE_LABELS[t]}
+              </span>
+              <span className="text-[9px] font-medium text-[#999] leading-snug">{TYPE_HINTS[t]}</span>
             </button>
           ))}
         </div>
       )}
 
-      {/* Sean Ellis 고정 질문 */}
+      {/* Sean Ellis 고정 질문 (Standard/Deep만) */}
       {showFixed && (
         <div className="rounded-xl border border-[#F77019]/30 bg-[#F77019]/5 p-4 flex flex-col gap-2">
           <div className="flex items-center gap-2">

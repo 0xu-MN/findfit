@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { AGE_GROUPS, DECISION_FACTORS, OCCUPATIONS, type RequestFormData } from './types'
+import { AGE_GROUPS, DECISION_FACTORS, JOB_ROLES, OCCUPATIONS, type RequestFormData } from './types'
 
 type Props = {
   data: RequestFormData
@@ -11,10 +11,13 @@ type Props = {
 export default function Step3Target({ data, onChange }: Props) {
   const [interestInput, setInterestInput] = useState('')
 
-  const toggle = (key: 'ageGroups' | 'occupations', val: string) => {
+  const toggle = (key: 'ageGroups' | 'occupations' | 'jobRoles', val: string) => {
     const arr = data[key]
     onChange({ [key]: arr.includes(val) ? arr.filter((v) => v !== val) : [...arr, val] } as Partial<RequestFormData>)
   }
+
+  // "활동 상태"에서 일하는 부류(직장인/프리랜서/자영업자/창업자)를 선택했을 때만 직군 입력이 의미 있음
+  const showJobRoles = ['직장인', '프리랜서', '자영업자', '창업자'].some((s) => data.occupations.includes(s))
 
   const addInterest = () => {
     const v = interestInput.trim()
@@ -51,8 +54,8 @@ export default function Step3Target({ data, onChange }: Props) {
         </div>
       </Field>
 
-      {/* 직군 */}
-      <Field label="직군" hint="복수 선택">
+      {/* 활동 상태 — 고용 형태/현재 무엇을 하고 있는지 */}
+      <Field label="활동 상태" hint="복수 선택">
         <div className="flex items-center gap-2 flex-wrap">
           {OCCUPATIONS.map((g) => {
             const active = data.occupations.includes(g)
@@ -64,6 +67,22 @@ export default function Step3Target({ data, onChange }: Props) {
           })}
         </div>
       </Field>
+
+      {/* 직군 — 활동 상태가 일하는 부류일 때만 의미 있게 노출 */}
+      {showJobRoles && (
+        <Field label="직군" hint="복수 선택 · 실제 하는 일">
+          <div className="flex items-center gap-2 flex-wrap">
+            {JOB_ROLES.map((r) => {
+              const active = data.jobRoles.includes(r)
+              return (
+                <Chip key={r} active={active} onClick={() => toggle('jobRoles', r)}>
+                  {r}
+                </Chip>
+              )
+            })}
+          </div>
+        </Field>
+      )}
 
       {/* 관심사 키워드 */}
       <Field label="관심사 키워드" hint={`${data.interests.length}/5`}>
@@ -78,7 +97,7 @@ export default function Step3Target({ data, onChange }: Props) {
                 addInterest()
               }
             }}
-            placeholder="키워드 입력 후 Enter"
+            placeholder="키워드 입력 후 Enter (매칭 알고리즘에 사용)"
             className="flex-1 h-10 rounded-xl bg-[#F5F5F5] border-none outline-none px-4 text-[11px]"
           />
           <button
@@ -108,7 +127,7 @@ export default function Step3Target({ data, onChange }: Props) {
           maxLength={100}
           value={data.targetContext}
           onChange={(e) => onChange({ targetContext: e.target.value })}
-          placeholder='예: "야근 후 퇴근길 대중교통 안에서"'
+          placeholder='어떤 순간에 이 제품이 필요한지 — 예: "야근 후 퇴근길 대중교통 안에서"'
           className="w-full rounded-xl bg-[#F5F5F5] border-none outline-none px-4 py-3 text-[11px] resize-none leading-relaxed"
         />
       </Field>
@@ -122,23 +141,6 @@ export default function Step3Target({ data, onChange }: Props) {
             </Chip>
           ))}
         </div>
-      </Field>
-
-      {/* 대체 방법 */}
-      <Field label="지금 이 문제를 해결하는 대체 방법">
-        <div className="flex items-center gap-2 flex-wrap">
-          <Chip active={data.hasAlternative === true} onClick={() => onChange({ hasAlternative: true })}>있음</Chip>
-          <Chip active={data.hasAlternative === false} onClick={() => onChange({ hasAlternative: false, alternativeDetail: '' })}>없음</Chip>
-        </div>
-        {data.hasAlternative === true && (
-          <input
-            type="text"
-            value={data.alternativeDetail}
-            onChange={(e) => onChange({ alternativeDetail: e.target.value })}
-            placeholder="어떤 방법인가요?"
-            className="w-full h-10 rounded-xl bg-[#F5F5F5] border-none outline-none px-4 text-[11px] mt-2"
-          />
-        )}
       </Field>
     </div>
   )

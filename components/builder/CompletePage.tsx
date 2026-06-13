@@ -50,9 +50,23 @@ export default function CompletePage() {
             </div>
             <div className="grid grid-cols-2 gap-4 text-[11px]">
               <Item label="제품명" value={data.productName || '—'} />
-              <Item label="의뢰 타입" value={data.requestType === 'survey' ? '설문형' : '체험형'} />
-              <Item label="평가단" value={`${data.evaluatorCount}명`} />
-              <Item label="완료 기한" value={`${data.deadlineHours}시간`} />
+              <Item
+                label="프로젝트 타입"
+                value={
+                  data.projectType === 'light'
+                    ? 'Light'
+                    : data.projectType === 'standard'
+                      ? 'Standard'
+                      : data.projectType === 'deep'
+                        ? 'Deep'
+                        : '—'
+                }
+              />
+              <Item
+                label="평가단"
+                value={data.projectType === 'light' ? '제한 없음' : `${data.evaluatorCount}명`}
+              />
+              <Item label="완료 기한" value={`최대 ${data.deadlineDays}일`} />
               <Item label="접수 ID" value={data.id.slice(0, 8)} mono />
               <Item label="접수 시각" value={new Date(data.updatedAt).toLocaleString('ko-KR')} />
             </div>

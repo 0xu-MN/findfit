@@ -1,16 +1,16 @@
 'use client'
 
 import { Check } from 'lucide-react'
-import { STEP_LABELS } from './types'
+
+export type StepperEntry = { step: number; label: string }
 
 type Props = {
+  steps: StepperEntry[]
   currentStep: number
   onJump?: (step: number) => void
 }
 
-export default function Stepper({ currentStep, onJump }: Props) {
-  const steps = Object.entries(STEP_LABELS).map(([n, label]) => ({ step: Number(n), label }))
-
+export default function Stepper({ steps, currentStep, onJump }: Props) {
   return (
     <div className="flex items-center gap-2 w-full max-w-[820px] text-[10px] font-bold pl-3 pr-2 py-3">
       {steps.map((s, i, arr) => {
@@ -26,7 +26,6 @@ export default function Stepper({ currentStep, onJump }: Props) {
               className="relative flex items-center justify-center flex-shrink-0"
               aria-current={active ? 'step' : undefined}
             >
-              {/* 현재 단계 — 작은 잔물결 (animate-tight-ping) */}
               {active && (
                 <span
                   className="absolute inset-0 rounded-full bg-[#F77019]/40 animate-tight-ping pointer-events-none"
@@ -34,7 +33,6 @@ export default function Stepper({ currentStep, onJump }: Props) {
                 />
               )}
 
-              {/* step 원 */}
               <span
                 className={`relative z-10 w-5 h-5 rounded-full flex items-center justify-center text-white transition-all duration-300 ${
                   active

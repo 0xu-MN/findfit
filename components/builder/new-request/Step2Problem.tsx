@@ -21,28 +21,18 @@ export default function Step2Problem({ data, onChange }: Props) {
         max={200}
         rows={4}
         value={data.problem}
-        placeholder="타겟 고객이 어떤 상황에서 겪는 불편인지 구체적으로 서술"
+        placeholder="타겟이 어떤 상황에서 겪는 구체적 불편 — 상황·빈도·감정까지 같이 적어주세요"
         onChange={(v) => onChange({ problem: v })}
       />
 
       <Textarea
-        label="지금 사람들은 이 문제를 어떻게 해결하나요?"
-        hint={`${data.currentSolution.length}/150`}
+        label="기존 대안과 한계"
+        hint={`${data.alternativeAndLimit.length}/150`}
         max={150}
         rows={3}
-        value={data.currentSolution}
-        placeholder="기존 대안과 방법"
-        onChange={(v) => onChange({ currentSolution: v })}
-      />
-
-      <Textarea
-        label="기존 대안의 한계"
-        hint={`${data.alternativeLimit.length}/100`}
-        max={100}
-        rows={2}
-        value={data.alternativeLimit}
-        placeholder="왜 기존 방법이 불충분한지"
-        onChange={(v) => onChange({ alternativeLimit: v })}
+        value={data.alternativeAndLimit}
+        placeholder="지금 사람들이 어떻게 해결하는지 + 그 방법의 단점"
+        onChange={(v) => onChange({ alternativeAndLimit: v })}
       />
 
       <Textarea
@@ -51,7 +41,7 @@ export default function Step2Problem({ data, onChange }: Props) {
         max={150}
         rows={3}
         value={data.ourDifference}
-        placeholder="'더 빠르다'보다 구체적으로 — 어떤 방식으로 다른가"
+        placeholder='"더 빠르다"보다 구체적으로 — 어떤 방식으로 다른가요?'
         onChange={(v) => onChange({ ourDifference: v })}
       />
     </div>

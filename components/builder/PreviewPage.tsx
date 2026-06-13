@@ -5,13 +5,15 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
 import Spinner from './new-request/Spinner'
+import { getDraft, saveDraft, submitRequest } from './new-request/storage'
 import {
-  EVALUATOR_TIERS,
+  PROJECT_TYPE_OPTIONS,
+  REVIEWER_COMMISSION_RATE,
   SEAN_ELLIS_QUESTION,
   STAGE_OPTIONS,
+  calculateCost,
   type RequestFormData,
 } from './new-request/types'
-import { getDraft, saveDraft, submitRequest } from './new-request/storage'
 
 const WALLET_BALANCE = 80000
 
@@ -112,7 +114,7 @@ export default function PreviewPage() {
           onClick={() => setTab('reviewer')}
           className={`px-5 py-2 rounded-lg transition-colors ${tab === 'reviewer' ? 'bg-white text-[#1D1C1C] shadow-sm' : 'text-[#999] hover:text-[#1D1C1C]'}`}
         >
-          리뷰어에게 보이는 모습
+          Reviewer에게 보이는 모습
         </button>
       </div>
 
@@ -150,8 +152,10 @@ export default function PreviewPage() {
                 <>
                   <Spinner size={14} /> 제출 중...
                 </>
+              ) : data.projectType === 'light' ? (
+                '프로젝트 시작하기'
               ) : (
-                '제출하기 (결제하기)'
+                '제출하기 (사전 승인)'
               )}
             </button>
             <button
@@ -185,64 +189,71 @@ export default function PreviewPage() {
 }
 
 function CreatorView({ data }: { data: RequestFormData }) {
-  const tier = EVALUATOR_TIERS.find((t) => t.value === data.evaluatorTier)!
+  const typeMeta = PROJECT_TYPE_OPTIONS.find((o) => o.value === data.projectType)
   const stage = STAGE_OPTIONS.find((s) => s.value === data.stage)
-  const typeLabel = data.requestType === 'survey' ? '설문형' : '체험형'
+  const cost = calculateCost(data)
 
-  const cashCost = tier.cash * data.evaluatorCount + (data.aiReport === 'deep' ? 5000 : 0)
-  const feeSubtotal = data.feePerEvaluator * data.evaluatorCount
-  const platformFee = Math.round(feeSubtotal * 0.075)
-  const vat = Math.round(platformFee * 0.1)
-  const totalCash = feeSubtotal + platformFee + vat
-
-  const questions = data.requestType === 'survey' ? data.questions : data.postQuestions
+  // 질문 목록 — Light/Standard는 questions, Deep는 postQuestions
+  const questions = data.projectType === 'deep' ? data.postQuestions : data.questions
+  const includeSeanEllis = data.projectType === 'standard' || data.projectType === 'deep'
 
   return (
     <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 flex flex-col gap-6 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
       <div className="grid grid-cols-2 gap-4 text-[11px]">
         <SummaryItem label="제품명" value={data.productName || '—'} />
-        <SummaryItem label="의뢰 타입" value={typeLabel} />
+        <SummaryItem label="프로젝트 타입" value={typeMeta?.title ?? '—'} />
         <SummaryItem label="단계" value={stage?.title ?? '—'} />
         <SummaryItem label="카테고리" value={data.categories.join(', ') || '—'} />
-        <SummaryItem label="평가단" value={`${tier.label} ${data.evaluatorCount}명`} />
-        <SummaryItem label="AI 리포트" value={data.aiReport === 'deep' ? '심층 포함' : '기본'} />
-        <SummaryItem label="완료 기한" value={`${data.deadlineHours}시간`} />
+        {(data.projectType === 'standard' || data.projectType === 'deep') && (
+          <>
+            <SummaryItem label="평가단" value={`${data.evaluatorCount}명`} />
+            <SummaryItem label="1인당 사례금" value={`${fmt(data.feePerEvaluator)}원`} />
+          </>
+        )}
+        <SummaryItem label="완료 기한" value={`최대 ${data.deadlineDays}일`} />
         <SummaryItem label="한 줄 소개" value={data.oneLineDesc || '—'} />
       </div>
 
       <div className="h-[1px] bg-[#EEEEEE]" />
 
       <div className="flex flex-col gap-3">
-        <h3 className="text-xs font-black">질문 목록 ({questions.length + 1}개 · Sean Ellis 포함)</h3>
+        <h3 className="text-xs font-black">
+          질문 목록 ({questions.length + (includeSeanEllis ? 1 : 0)}개{includeSeanEllis ? ' · Sean Ellis 포함' : ''})
+        </h3>
         <ol className="flex flex-col gap-2 text-[11px]">
           {questions.map((q, i) => (
             <li key={q.id} className="flex items-start gap-2">
               <span className="text-[#F77019] font-black w-6">Q{i + 1}.</span>
               <div className="flex-1">
                 <span className="text-[10px] font-black bg-[#F5F5F5] text-[#666] px-1.5 py-0.5 rounded mr-2">
-                  {q.type === 'multiple' ? '객관식' : q.type === 'text' ? '주관식' : '리커트'}
+                  {typeLabel(q.type)}
                 </span>
                 <span className="font-bold">{q.text || '(작성되지 않음)'}</span>
               </div>
             </li>
           ))}
-          <li className="flex items-start gap-2">
-            <span className="text-[#F77019] font-black w-6">Q{questions.length + 1}.</span>
-            <div className="flex-1 flex items-start gap-2">
-              <Lock className="w-3 h-3 text-[#F77019] mt-0.5 flex-shrink-0" />
-              <span className="font-bold">{SEAN_ELLIS_QUESTION.text}</span>
-            </div>
-          </li>
+          {includeSeanEllis && (
+            <li className="flex items-start gap-2">
+              <span className="text-[#F77019] font-black w-6">Q{questions.length + 1}.</span>
+              <div className="flex-1 flex items-start gap-2">
+                <Lock className="w-3 h-3 text-[#F77019] mt-0.5 flex-shrink-0" />
+                <span className="font-bold">{SEAN_ELLIS_QUESTION.text}</span>
+              </div>
+            </li>
+          )}
         </ol>
       </div>
 
-      {data.requestType === 'experience' && (
+      {data.projectType === 'deep' && (
         <>
           <div className="h-[1px] bg-[#EEEEEE]" />
           <div className="flex flex-col gap-2 text-[11px]">
             <h3 className="text-xs font-black">체험 설계</h3>
             <SummaryItem label="체험 링크" value={data.experienceUrl || '—'} />
-            <SummaryItem label="예상 체험 시간" value={data.experienceTime < 60 ? `${data.experienceTime}분` : '1시간+'} />
+            <SummaryItem
+              label="예상 체험 시간"
+              value={data.experienceTime < 60 ? `${data.experienceTime}분` : '1시간+'}
+            />
             <SummaryItem label="체험 기한" value={`${data.experienceDeadline}시간`} />
             <SummaryItem label="스크린샷 요청" value={data.screenshotRequired ? '예' : '아니오'} />
           </div>
@@ -252,17 +263,34 @@ function CreatorView({ data }: { data: RequestFormData }) {
       <div className="h-[1px] bg-[#EEEEEE]" />
 
       <div className="flex flex-col gap-2">
-        <h3 className="text-xs font-black">비용 명세서</h3>
+        <h3 className="text-xs font-black">비용 명세</h3>
         <div className="rounded-2xl bg-[#FAFAFA] border border-[#1D1C1C]/5 p-5 flex flex-col gap-2 text-[11px] font-bold">
-          <Row label="캐시 차감" value={`${fmt(cashCost)}C  (잔여: ${fmt(WALLET_BALANCE - cashCost)}C)`} />
-          <Row label="사례금 소계" value={`${fmt(data.feePerEvaluator)}원 × ${data.evaluatorCount}명 = ${fmt(feeSubtotal)}원`} />
-          <Row label="수수료 7.5%" value={`${fmt(platformFee)}원`} />
-          <Row label="부가세" value={`${fmt(vat)}원`} />
-          <div className="h-[1px] bg-[#EEEEEE] my-1" />
-          <div className="flex items-center justify-between">
-            <span className="text-[12px] font-black text-[#1D1C1C]">총 현금 결제</span>
-            <span className="text-[14px] font-black text-[#F77019]">{fmt(totalCash)}원</span>
-          </div>
+          <Row label="플랫폼 이용료 (캐시)" value={`${fmt(cost.cashCost)}C  (잔여 ${fmt(WALLET_BALANCE - cost.cashCost)}C)`} />
+          {cost.preAuthAmount > 0 && (
+            <>
+              <Row
+                label="사전 승인액"
+                value={`${fmt(data.feePerEvaluator)}원 × ${data.evaluatorCount}명 = ${fmt(cost.preAuthAmount)}원`}
+              />
+              <div className="flex items-center justify-between text-[10px] font-medium text-[#999]">
+                <span>└ 평가단 실 수령 (1인당)</span>
+                <span>{fmt(cost.reviewerNetPerPerson)}원</span>
+              </div>
+              <div className="flex items-center justify-between text-[10px] font-medium text-[#999]">
+                <span>└ FindFit 수수료 ({Math.round(REVIEWER_COMMISSION_RATE * 100)}%, Reviewer 차감)</span>
+                <span>{fmt(cost.platformCommissionTotal)}원</span>
+              </div>
+              <div className="h-[1px] bg-[#EEEEEE] my-1" />
+              <div className="rounded-lg bg-[#F77019]/5 border border-[#F77019]/15 px-3 py-2">
+                <p className="text-[10px] font-bold text-[#F77019] leading-relaxed">
+                  💡 사전 승인 = 카드 잠금. 리뷰 완료 후 실제 청구되며 미완료분은 자동 잠금 해제됩니다.
+                </p>
+              </div>
+            </>
+          )}
+          {data.projectType === 'light' && (
+            <Row label="사례금" value="없음" />
+          )}
         </div>
       </div>
     </div>
@@ -271,15 +299,24 @@ function CreatorView({ data }: { data: RequestFormData }) {
 
 function ReviewerView({ data }: { data: RequestFormData }) {
   const stage = STAGE_OPTIONS.find((s) => s.value === data.stage)
-  const questions = data.requestType === 'survey' ? data.questions : data.postQuestions
+  const cost = calculateCost(data)
+  const questions = data.projectType === 'deep' ? data.postQuestions : data.questions
+  const includeSeanEllis = data.projectType === 'standard' || data.projectType === 'deep'
 
-  // 평가단이 실제로 수령하는 금액: 사례금 - 평가단 측 수수료 7.5%
-  const evaluatorReceive = Math.round(data.feePerEvaluator * 0.925)
+  // 예상 소요 시간
+  const expectedTime =
+    data.projectType === 'deep'
+      ? data.experienceTime < 60
+        ? `체험 ${data.experienceTime}분 + 평가`
+        : '체험 1시간+ 평가'
+      : data.projectType === 'standard'
+        ? '10~15분'
+        : '3~5분 (Light)'
 
   return (
     <div className="rounded-3xl border-2 border-dashed border-[#1565C0]/40 bg-gradient-to-br from-[#F8FBFF] to-white p-8 flex flex-col gap-5 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
       <div className="flex items-center gap-2 text-[10px] font-black text-[#1565C0]">
-        <Lock className="w-3 h-3" /> 블라인드 뷰 · 평가단에게 실제로 보이는 화면
+        <Lock className="w-3 h-3" /> 블라인드 뷰 · Reviewer에게 실제로 보이는 화면
       </div>
 
       {/* 태그 */}
@@ -295,27 +332,31 @@ function ReviewerView({ data }: { data: RequestFormData }) {
       </div>
 
       {/* 한 줄 소개 */}
-      <p className="text-xl font-black leading-snug">"{data.oneLineDesc || '(한 줄 소개 미작성)'}"</p>
+      <p className="text-xl font-black leading-snug">&ldquo;{data.oneLineDesc || '(한 줄 소개 미작성)'}&rdquo;</p>
 
-      {/* 메타 */}
+      {/* 메타 — Light vs Standard/Deep */}
       <div className="flex items-center justify-between text-[11px] font-bold text-[#666] border-y border-[#1D1C1C]/5 py-3">
         <div className="flex flex-col gap-0.5">
           <span className="text-[9px] text-[#999]">예상 소요시간</span>
-          <span className="text-[#1D1C1C]">
-            {data.requestType === 'experience'
-              ? data.experienceTime < 60
-                ? `체험 ${data.experienceTime}분 + 평가`
-                : '체험 1시간+ 평가'
-              : '10~15분'}
-          </span>
+          <span className="text-[#1D1C1C]">{expectedTime}</span>
         </div>
         <div className="flex flex-col gap-0.5">
-          <span className="text-[9px] text-[#999]">사례금 (수수료 차감 후)</span>
-          <span className="text-[#F77019] font-black">{fmt(evaluatorReceive)}원</span>
+          <span className="text-[9px] text-[#999]">사례금</span>
+          {data.projectType === 'light' ? (
+            <span className="text-[#1D1C1C]">EXP 적립</span>
+          ) : (
+            <div className="flex flex-col items-start">
+              <span className="text-[#1D1C1C] line-through text-[10px] font-medium">
+                {fmt(data.feePerEvaluator)}원
+              </span>
+              <span className="text-[#F77019] font-black">실 수령 {fmt(cost.reviewerNetPerPerson)}원</span>
+              <span className="text-[8px] text-[#999] font-medium">(플랫폼 수수료 {Math.round(REVIEWER_COMMISSION_RATE * 100)}% 차감 후)</span>
+            </div>
+          )}
         </div>
         <div className="flex flex-col gap-0.5">
           <span className="text-[9px] text-[#999]">마감</span>
-          <span className="text-[#1D1C1C]">{data.deadlineHours}시간 후</span>
+          <span className="text-[#1D1C1C]">{data.deadlineDays}일 후</span>
         </div>
       </div>
 
@@ -329,16 +370,20 @@ function ReviewerView({ data }: { data: RequestFormData }) {
               <span className="font-bold flex-1">
                 {q.text || '(작성되지 않음)'}
                 {q.type === 'likert' && <span className="text-[#999] ml-1">(1~5점)</span>}
+                {q.type === 'yes_no' && <span className="text-[#999] ml-1">(예/아니오)</span>}
+                {q.type === 'ab_test' && <span className="text-[#999] ml-1">(A/B 선택)</span>}
               </span>
             </li>
           ))}
-          <li className="flex items-start gap-2">
-            <span className="text-[#1565C0] font-black w-6">{questions.length + 1}.</span>
-            <div className="flex-1 flex items-start gap-2">
-              <Lock className="w-3 h-3 text-[#F77019] mt-0.5 flex-shrink-0" />
-              <span className="font-bold">{SEAN_ELLIS_QUESTION.text}</span>
-            </div>
-          </li>
+          {includeSeanEllis && (
+            <li className="flex items-start gap-2">
+              <span className="text-[#1565C0] font-black w-6">{questions.length + 1}.</span>
+              <div className="flex-1 flex items-start gap-2">
+                <Lock className="w-3 h-3 text-[#F77019] mt-0.5 flex-shrink-0" />
+                <span className="font-bold">{SEAN_ELLIS_QUESTION.text}</span>
+              </div>
+            </li>
+          )}
         </ol>
       </div>
 
@@ -349,6 +394,20 @@ function ReviewerView({ data }: { data: RequestFormData }) {
       </div>
     </div>
   )
+}
+
+function typeLabel(t: string): string {
+  return (
+    {
+      multiple_choice: '객관식',
+      short_answer: '주관식',
+      likert: '리커트 5점',
+      ab_test: 'A/B 테스트',
+      keyword: '키워드 선택',
+      yes_no: '예/아니오',
+      sean_ellis: 'Sean Ellis',
+    } as Record<string, string>
+  )[t] ?? t
 }
 
 function SummaryItem({ label, value }: { label: string; value: string }) {
@@ -380,10 +439,7 @@ function ConfirmModal({
   onCancel: () => void
   onConfirm: () => void
 }) {
-  const feeSubtotal = data.feePerEvaluator * data.evaluatorCount
-  const platformFee = Math.round(feeSubtotal * 0.075)
-  const vat = Math.round(platformFee * 0.1)
-  const totalCash = feeSubtotal + platformFee + vat
+  const cost = calculateCost(data)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
@@ -391,9 +447,9 @@ function ConfirmModal({
         <div className="flex flex-col gap-2">
           <h2 className="text-xl font-black">진짜 제출하시겠어요?</h2>
           <p className="text-[12px] font-bold text-[#666] leading-relaxed">
-            제출 즉시 평가단 매칭이 시작되며, 매칭이 시작된 후에는 의뢰 내용 수정이 어렵습니다.
-            <br />
-            한 번 더 점검할 것이 있다면 취소하고 돌아가 편집할 수 있어요.
+            {data.projectType === 'light'
+              ? '제출 즉시 캐시가 차감되고 평가단 매칭이 시작됩니다.'
+              : '제출 즉시 캐시 차감 + PortOne 카드 사전 승인이 진행됩니다. 미완료분은 자동 잠금 해제되어 청구되지 않습니다.'}
           </p>
         </div>
 
@@ -402,14 +458,22 @@ function ConfirmModal({
             <span className="text-[#666]">제품명</span>
             <span className="text-[#1D1C1C]">{data.productName || '—'}</span>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-[#666]">평가단</span>
-            <span className="text-[#1D1C1C]">{data.evaluatorCount}명</span>
-          </div>
+          {(data.projectType === 'standard' || data.projectType === 'deep') && (
+            <div className="flex items-center justify-between">
+              <span className="text-[#666]">평가단</span>
+              <span className="text-[#1D1C1C]">{data.evaluatorCount}명</span>
+            </div>
+          )}
           <div className="flex items-center justify-between pt-2 mt-1 border-t border-[#EEEEEE]">
-            <span className="text-[12px] font-black text-[#1D1C1C]">결제 금액</span>
-            <span className="text-[14px] font-black text-[#F77019]">{fmt(totalCash)}원</span>
+            <span className="text-[#1D1C1C]">캐시 차감</span>
+            <span className="text-[#F77019] text-[13px] font-black">{fmt(cost.cashCost)}C</span>
           </div>
+          {cost.preAuthAmount > 0 && (
+            <div className="flex items-center justify-between">
+              <span className="text-[#1D1C1C]">카드 사전 승인</span>
+              <span className="text-[#F77019] text-[13px] font-black">{fmt(cost.preAuthAmount)}원</span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2">

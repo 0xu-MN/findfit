@@ -1,21 +1,21 @@
 'use client'
 
 import QuestionBuilder from './QuestionBuilder'
-import { SEAN_ELLIS_QUESTION, type RequestFormData } from './types'
+import { SEAN_ELLIS_QUESTION, STD_DEEP_MAX_WRITABLE, type RequestFormData } from './types'
 
 type Props = {
   data: RequestFormData
   onChange: (patch: Partial<RequestFormData>) => void
 }
 
-export default function Step4Survey({ data, onChange }: Props) {
+export default function Step4Standard({ data, onChange }: Props) {
   return (
     <div className="flex flex-col gap-5">
-      {/* 공통 영역 — 검증 목표 */}
+      {/* 공통 영역 — 검증 목표 + 가설 */}
       <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 flex flex-col gap-6 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
         <div className="flex items-center gap-2">
           <h2 className="text-lg font-black">검증 내용</h2>
-          <span className="text-[9px] font-black bg-[#F77019]/10 text-[#F77019] px-2 py-0.5 rounded">설문형</span>
+          <span className="text-[9px] font-black bg-[#F77019]/10 text-[#F77019] px-2 py-0.5 rounded">Standard</span>
         </div>
 
         <Textarea
@@ -39,19 +39,20 @@ export default function Step4Survey({ data, onChange }: Props) {
         />
       </div>
 
-      {/* 설문형 전용 — 질문 빌더 */}
+      {/* Standard 질문 빌더 */}
       <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 flex flex-col gap-6 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
         <div className="flex flex-col gap-1">
-          <h3 className="text-sm font-black">질문 설계</h3>
+          <h3 className="text-sm font-black">질문 설계 — 설문형 PSF/PMF 검증</h3>
           <p className="text-[10px] text-[#999] font-bold">
-            평가단이 제품 설명을 읽고 바로 답변할 질문을 작성하세요. Sean Ellis Test 1개가 자동 포함되어 최대 9개까지 작성 가능.
+            평가단이 제품 설명을 읽고 바로 답변할 질문. Sean Ellis Test 자동 포함하여 작성 가능 최대 {STD_DEEP_MAX_WRITABLE}개
           </p>
         </div>
 
         <QuestionBuilder
           questions={data.questions}
           onChange={(qs) => onChange({ questions: qs })}
-          max={9}
+          max={STD_DEEP_MAX_WRITABLE}
+          allowedTypes={['multiple_choice', 'short_answer', 'likert']}
           showFixed={SEAN_ELLIS_QUESTION}
         />
       </div>
