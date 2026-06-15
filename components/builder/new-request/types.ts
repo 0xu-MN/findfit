@@ -101,10 +101,10 @@ export type RequestFormData = {
 export const CATEGORIES = ['앱', '게임', '웹', 'SaaS', '커머스', '헬스', '에듀', '핀테크', '푸드', '부동산', '기타']
 
 export const STAGE_OPTIONS: { value: Stage; title: string; sub: string }[] = [
-  { value: 'idea', title: '아이디에이션', sub: '구체화 논의' },
-  { value: 'prototype', title: '프로토타입', sub: '목업/와이어프레임' },
-  { value: 'beta', title: '베타', sub: '초기 사용자 테스트' },
-  { value: 'launched', title: '출시 후', sub: '시장 안착' },
+  { value: 'idea',      title: '아이디어',    sub: '아직 만들지 않은 단계' },
+  { value: 'prototype', title: '프로토타입',  sub: '목업이나 와이어프레임이 있는 단계' },
+  { value: 'beta',      title: '베타',        sub: '초기 사용자가 써보고 있는 단계' },
+  { value: 'launched',  title: '출시 후',     sub: '정식으로 운영 중인 단계' },
 ]
 
 export const AGE_GROUPS = ['10대', '20대', '30대', '40대', '50대', '60대+']
@@ -277,10 +277,43 @@ export const SEAN_ELLIS_QUESTION: Question = {
   isFixed: true,
 }
 
+// PSF 단계(아이디어/프로토타입)에서 Standard에 자동 포함되는 필수 질문 4개
+export const PSF_STANDARD_QUESTIONS: Question[] = [
+  {
+    id: 'psf-1',
+    type: 'multiple_choice',
+    text: '이 문제를 직접 겪어보신 적이 있나요?',
+    options: ['자주 겪는다', '가끔 겪는다', '거의 없다', '겪어본 적 없다'],
+    isFixed: true,
+  },
+  {
+    id: 'psf-2',
+    type: 'short_answer',
+    text: '현재는 이 문제를 어떻게 해결하고 계신가요?',
+    isFixed: true,
+  },
+  {
+    id: 'psf-3',
+    type: 'multiple_choice',
+    text: '이런 솔루션이 있다면 사용해보시겠어요?',
+    options: ['반드시 사용한다', '사용해볼 것 같다', '잘 모르겠다', '사용하지 않을 것 같다'],
+    isFixed: true,
+  },
+  {
+    id: 'psf-4',
+    type: 'multiple_choice',
+    text: '이 문제는 얼마나 자주 발생하나요?',
+    options: ['매일', '주 1~2회', '월 1~2회', '거의 없음'],
+    isFixed: true,
+  },
+]
+
 // Light 질문 최대 개수 (Sean Ellis 미포함)
 export const LIGHT_MAX_QUESTIONS = 5
 // Standard/Deep 작성 가능 질문 (Sean Ellis 자동 포함되어 총 10개 = 작성 9개)
 export const STD_DEEP_MAX_WRITABLE = 9
+// PSF 모드에서 4개 필수 질문이 자동 포함되므로 작성 가능 최대 = 9 - 4 = 5
+export const PSF_MAX_WRITABLE = STD_DEEP_MAX_WRITABLE - PSF_STANDARD_QUESTIONS.length
 
 export function createEmptyDraft(): RequestFormData {
   const now = new Date().toISOString()

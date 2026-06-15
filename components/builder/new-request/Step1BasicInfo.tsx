@@ -1,5 +1,6 @@
 'use client'
 
+import { getCompatibility } from '@/lib/constants/compatibilityMatrix'
 import {
   CATEGORIES,
   PROJECT_TYPE_OPTIONS,
@@ -127,7 +128,17 @@ export default function Step1BasicInfo({ data, onChange }: Props) {
               <button
                 key={s.value}
                 type="button"
-                onClick={() => onChange({ stage: s.value as Stage })}
+                onClick={() => {
+                  const newStage = s.value as Stage
+                  const patch: Partial<RequestFormData> = { stage: newStage }
+                  // 아이디어 단계로 변경 시 Deep이 선택돼 있으면 자동 해제
+                  if (newStage === 'idea' && data.projectType === 'deep') {
+                    patch.projectType = null
+                    patch.questions = []
+                    patch.postQuestions = []
+                  }
+                  onChange(patch)
+                }}
                 className={`flex flex-col p-4 rounded-xl text-left transition-colors ${
                   active ? 'bg-[#F77019]/10 border border-[#F77019]' : 'bg-[#F5F5F5] border border-transparent hover:border-[#1D1C1C]/10'
                 }`}
@@ -162,36 +173,57 @@ export default function Step1BasicInfo({ data, onChange }: Props) {
         <div className="grid grid-cols-3 gap-3">
           {PROJECT_TYPE_OPTIONS.map((opt) => {
             const active = data.projectType === opt.value
+            const compat = getCompatibility(data.stage, opt.value as ProjectType)
+            const isDisabled = compat === 'disabled'
+            const isDiscouraged = compat === 'discouraged'
             return (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => selectType(opt.value)}
-                className={`flex flex-col p-5 rounded-2xl text-left transition-colors ${
-                  active ? 'bg-[#F77019]/10 border border-[#F77019]' : 'bg-[#F5F5F5] border border-transparent hover:border-[#1D1C1C]/10'
-                }`}
-              >
-                <span className={`text-sm font-black ${active ? 'text-[#F77019]' : 'text-[#1D1C1C]'}`}>{opt.title}</span>
-                <span className={`text-[11px] mt-2 font-bold ${active ? 'text-[#F77019]/80' : 'text-[#666]'}`}>
-                  {opt.shortDesc}
-                </span>
-                <span className={`text-[10px] mt-1 ${active ? 'text-[#F77019]/60' : 'text-[#999]'}`}>{opt.detail}</span>
-                <div className="h-[1px] bg-[#1D1C1C]/5 my-3" />
-                <div className="flex flex-col gap-1 text-[10px] font-bold">
-                  <div className="flex items-center justify-between">
-                    <span className={active ? 'text-[#F77019]/60' : 'text-[#999]'}>이용료</span>
-                    <span className={active ? 'text-[#F77019]' : 'text-[#1D1C1C]'}>{opt.cashCost}</span>
+              <div key={opt.value} className="relative group">
+                <button
+                  type="button"
+                  disabled={isDisabled}
+                  onClick={() => !isDisabled && selectType(opt.value)}
+                  className={`w-full flex flex-col p-5 rounded-2xl text-left transition-colors ${
+                    isDisabled
+                      ? 'bg-[#F5F5F5] border border-transparent opacity-40 cursor-not-allowed'
+                      : active
+                        ? 'bg-[#F77019]/10 border border-[#F77019]'
+                        : 'bg-[#F5F5F5] border border-transparent hover:border-[#1D1C1C]/10'
+                  }`}
+                >
+                  <span className={`text-sm font-black ${active && !isDisabled ? 'text-[#F77019]' : 'text-[#1D1C1C]'}`}>{opt.title}</span>
+                  <span className={`text-[11px] mt-2 font-bold ${active && !isDisabled ? 'text-[#F77019]/80' : 'text-[#666]'}`}>
+                    {opt.shortDesc}
+                  </span>
+                  <span className={`text-[10px] mt-1 ${active && !isDisabled ? 'text-[#F77019]/60' : 'text-[#999]'}`}>{opt.detail}</span>
+                  <div className="h-[1px] bg-[#1D1C1C]/5 my-3" />
+                  <div className="flex flex-col gap-1 text-[10px] font-bold">
+                    <div className="flex items-center justify-between">
+                      <span className={active && !isDisabled ? 'text-[#F77019]/60' : 'text-[#999]'}>이용료</span>
+                      <span className={active && !isDisabled ? 'text-[#F77019]' : 'text-[#1D1C1C]'}>{opt.cashCost}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className={active && !isDisabled ? 'text-[#F77019]/60' : 'text-[#999]'}>사례금</span>
+                      <span className={active && !isDisabled ? 'text-[#F77019]' : 'text-[#1D1C1C]'}>{opt.honorariumNote}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className={active && !isDisabled ? 'text-[#F77019]/60' : 'text-[#999]'}>최대 기간</span>
+                      <span className={active && !isDisabled ? 'text-[#F77019]' : 'text-[#1D1C1C]'}>{opt.maxDays}일</span>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className={active ? 'text-[#F77019]/60' : 'text-[#999]'}>사례금</span>
-                    <span className={active ? 'text-[#F77019]' : 'text-[#1D1C1C]'}>{opt.honorariumNote}</span>
+                  {isDiscouraged && (
+                    <p className="text-[9px] text-[#F77019]/80 mt-2 border-t border-[#F77019]/20 pt-2">
+                      실제로 운영 중인 서비스라면, 더 꼼꼼하게 확인하는 Standard를 추천해요
+                    </p>
+                  )}
+                </button>
+                {/* 아이디어 단계에서 Deep 선택 시도 시 툴팁 */}
+                {isDisabled && (
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 rounded-xl bg-[#1D1C1C] text-white text-[10px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                    체험할 대상이 필요해 아이디어 단계에서는 선택할 수 없어요
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[#1D1C1C]" />
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className={active ? 'text-[#F77019]/60' : 'text-[#999]'}>최대 기간</span>
-                    <span className={active ? 'text-[#F77019]' : 'text-[#1D1C1C]'}>{opt.maxDays}일</span>
-                  </div>
-                </div>
-              </button>
+                )}
+              </div>
             )
           })}
         </div>

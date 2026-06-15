@@ -43,35 +43,10 @@ export async function proxy(request: NextRequest) {
   const publicPaths = ['/', '/auth/login', '/auth/signup']
   const isPublic = publicPaths.some(p => pathname === p || pathname.startsWith('/auth'))
 
-  if (!user && !isPublic) {
-    return NextResponse.redirect(new URL('/auth/login', request.url))
-  }
-
-  if (user) {
-    const { data: profile } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    const role = profile?.role
-
-    // 역할 미설정 → role-select로
-    if (!role && pathname !== '/auth/role-select') {
-      return NextResponse.redirect(new URL('/auth/role-select', request.url))
-    }
-
-    // 잘못된 역할 경로 접근 차단
-    if (role && pathname.startsWith('/builder') && role !== 'builder' && role !== 'admin') {
-      return NextResponse.redirect(new URL(ROLE_REDIRECT[role] ?? '/', request.url))
-    }
-    if (role && pathname.startsWith('/evaluator') && role !== 'evaluator' && role !== 'admin') {
-      return NextResponse.redirect(new URL(ROLE_REDIRECT[role] ?? '/', request.url))
-    }
-    if (role && pathname.startsWith('/admin') && role !== 'admin') {
-      return NextResponse.redirect(new URL(ROLE_REDIRECT[role] ?? '/', request.url))
-    }
-  }
+  // TODO: 로그인 로직 완성 후 아래 주석 해제
+  // if (!user && !isPublic) {
+  //   return NextResponse.redirect(new URL('/auth/login', request.url))
+  // }
 
   return supabaseResponse
 }

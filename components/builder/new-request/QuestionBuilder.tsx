@@ -1,6 +1,7 @@
 'use client'
 
 import { Lock, Plus, Trash2 } from 'lucide-react'
+import { SEAN_ELLIS_DESC } from '@/lib/constants/plainLanguage'
 import { generateId } from './storage'
 import type { Question, QuestionType } from './types'
 
@@ -193,12 +194,13 @@ export default function QuestionBuilder({ questions, onChange, max, allowedTypes
         <div className="rounded-xl border border-[#F77019]/30 bg-[#F77019]/5 p-4 flex flex-col gap-2">
           <div className="flex items-center gap-2">
             <Lock className="w-3.5 h-3.5 text-[#F77019]" />
-            <span className="text-[10px] font-black text-[#F77019]">Sean Ellis Test · 자동 포함 (삭제·수정 불가)</span>
+            <span className="text-[10px] font-black text-[#F77019]">만족도 핵심 질문 · 자동 포함 (삭제·수정 불가)</span>
           </div>
           <p className="text-[11px] font-bold text-[#1D1C1C]">{showFixed.text}</p>
           <ul className="text-[10px] text-[#666] font-bold pl-3 flex flex-col gap-0.5">
             {showFixed.options?.map((o, i) => <li key={i}>· {o}</li>)}
           </ul>
+          <p className="text-[10px] font-bold text-[#F77019]/70 leading-relaxed mt-1">{SEAN_ELLIS_DESC}</p>
         </div>
       )}
     </div>
