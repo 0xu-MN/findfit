@@ -131,14 +131,14 @@ const newsItems = [
 
 export default function SharedFeedPanel() {
   const [activeFilter, setActiveFilter] = useState('전체')
-  const { isExpanded: ctxExpanded } = useRightPanel()
+  const { isExpanded: ctxExpanded, hasProvider } = useRightPanel()
 
   // 패널 너비 감지 — fallback (단독 페이지 호환)
   const containerRef = useRef<HTMLDivElement>(null)
   const [widthExpanded, setWidthExpanded] = useState(false)
 
   useEffect(() => {
-    if (!containerRef.current) return
+    if (hasProvider || !containerRef.current) return
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         setWidthExpanded(entry.contentRect.width > 700)
@@ -146,9 +146,10 @@ export default function SharedFeedPanel() {
     })
     observer.observe(containerRef.current)
     return () => observer.disconnect()
-  }, [])
+  }, [hasProvider])
 
-  const isExpanded = ctxExpanded || widthExpanded
+  // Context가 있으면 Context, 없으면 너비 측정 fallback
+  const isExpanded = hasProvider ? ctxExpanded : widthExpanded
   const isNarrow = !isExpanded // 축소 모드일 때 반응형 적용
 
   const filtered = activeFilter === '전체'

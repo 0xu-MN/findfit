@@ -14,11 +14,11 @@ const RightPanelContext = createContext<RightPanelCtx | null>(null)
 
 export const RightPanelProvider = RightPanelContext.Provider
 
-export function useRightPanel(): RightPanelCtx {
+export function useRightPanel(): RightPanelCtx & { hasProvider: boolean } {
   const ctx = useContext(RightPanelContext)
   if (!ctx) {
-    // 컨텍스트가 없는 경우 (단독 페이지) 기본값
-    return { tab: 'main', setTab: () => {}, isExpanded: false }
+    // 컨텍스트가 없는 경우 (단독 페이지) — hasProvider=false 로 호출부가 fallback 처리 가능
+    return { tab: 'main', setTab: () => {}, isExpanded: false, hasProvider: false }
   }
-  return ctx
+  return { ...ctx, hasProvider: true }
 }

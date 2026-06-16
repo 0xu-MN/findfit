@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { ArrowRight, Sparkles } from 'lucide-react'
+import { useRightPanel } from './RightPanelContext'
 
 const rotatingWords = ['고객의 목소리', '정직한 피드백', '시장 검증', '실제 소비자', '검증된 데이터']
 const quickChips   = ['단백질 쉐이크', '비건 간식', '여성 청결제', '홈트레이닝 기구', '스킨케어']
@@ -32,20 +33,27 @@ const pillStats = [
 ]
 
 export default function SharedMainPanel() {
+  // Context — 패널 확장/축소 1순위 신호 (DashboardLayout이 isLeftOpen 토글 시 즉시 반영)
+  const { isExpanded: ctxExpanded, hasProvider } = useRightPanel()
+
   const containerRef = useRef<HTMLDivElement>(null)
-  const [isWide,    setIsWide]    = useState(false)
+  const [widthWide, setWidthWide] = useState(false)
   const [wordIdx,   setWordIdx]   = useState(0)
   const [wordVis,   setWordVis]   = useState(true)
   const [search,    setSearch]    = useState('')
   const [searched,  setSearched]  = useState(false)
   const [liveCount, setLiveCount] = useState(1248)
 
+  // ResizeObserver — 단독 페이지(컨텍스트 없는 경우) fallback 전용
   useEffect(() => {
-    if (!containerRef.current) return
-    const ro = new ResizeObserver(e => setIsWide(e[0].contentRect.width > 680))
+    if (hasProvider || !containerRef.current) return
+    const ro = new ResizeObserver(e => setWidthWide(e[0].contentRect.width > 680))
     ro.observe(containerRef.current)
     return () => ro.disconnect()
-  }, [])
+  }, [hasProvider])
+
+  // 확장 여부 — Context가 있으면 Context 단독, 없으면 너비 측정 fallback
+  const isWide = hasProvider ? ctxExpanded : widthWide
 
   useEffect(() => {
     const iv = setInterval(() => {

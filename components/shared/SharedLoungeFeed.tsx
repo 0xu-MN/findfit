@@ -122,14 +122,14 @@ const loungePosts: LoungePost[] = [
 export default function SharedLoungeFeed() {
   // SharedLoungeFeed는 DashboardLayout에서 '라운지' 탭일 때만 호출됨
   // (메인 탭은 SharedMainPanel, 피드 탭은 SharedFeedPanel이 담당)
-  const { isExpanded: ctxExpanded } = useRightPanel()
+  const { isExpanded: ctxExpanded, hasProvider } = useRightPanel()
 
   // 패널 너비 감지 (Context 외 fallback — 단독 페이지 호환)
   const containerRef = useRef<HTMLDivElement>(null)
   const [widthExpanded, setWidthExpanded] = useState(false)
 
   useEffect(() => {
-    if (!containerRef.current) return
+    if (hasProvider || !containerRef.current) return
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         setWidthExpanded(entry.contentRect.width > 900)
@@ -137,9 +137,10 @@ export default function SharedLoungeFeed() {
     })
     observer.observe(containerRef.current)
     return () => observer.disconnect()
-  }, [])
+  }, [hasProvider])
 
-  const isExpanded = ctxExpanded || widthExpanded
+  // Context가 있으면 Context, 없으면 너비 측정 fallback
+  const isExpanded = hasProvider ? ctxExpanded : widthExpanded
 
   // 수축/확장 모두 동일한 loungePosts 데이터 + 트위터 스타일
   // 차이는 밀도뿐 (compact prop으로 사이즈 조절)
