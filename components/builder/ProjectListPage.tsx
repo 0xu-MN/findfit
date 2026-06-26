@@ -150,9 +150,10 @@ export default function ProjectListPage() {
 
           <div className="flex flex-col gap-3">
             {hydrated && submitted.map((s) => (
-              <div
+              <button
                 key={s.id}
-                className="bg-white border border-[#1D1C1C]/5 rounded-xl p-4 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer group"
+                onClick={() => router.push(`/builder/projects/${s.id}`)}
+                className="bg-white border border-[#1D1C1C]/5 rounded-xl p-4 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer group text-left"
               >
                 <div className="flex items-start justify-between mb-1">
                   <h3 className="text-xs font-extrabold group-hover:text-[#F77019] transition-colors line-clamp-1 pr-4">
@@ -173,11 +174,11 @@ export default function ProjectListPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 mt-1 pt-3 border-t border-[#1D1C1C]/5 text-[10px] text-[#999] font-bold hover:text-[#1D1C1C] transition-colors">
+                <div className="flex items-center gap-2 mt-1 pt-3 border-t border-[#1D1C1C]/5 text-[10px] text-[#999] font-bold group-hover:text-[#F77019] transition-colors">
                   <FileText className="w-3.5 h-3.5" />
                   실시간 결과 보기
                 </div>
-              </div>
+              </button>
             ))}
 
             {hydrated && submitted.length === 0 && (

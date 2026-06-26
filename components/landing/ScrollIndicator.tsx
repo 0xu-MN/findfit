@@ -7,7 +7,7 @@ const creatorSections = [
   { id: 'painpoint-section', label: '공감' },
   { id: 'features-section',  label: '기능' },
   { id: 'howworks-section',  label: '방법' },
-  { id: 'faq-section',       label: 'FAQ' },
+  { id: 'trust-section',     label: '신뢰' },
   { id: 'role-section',      label: '역할' },
 ]
 

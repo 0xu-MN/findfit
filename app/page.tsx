@@ -6,7 +6,7 @@ import HeroSection from '@/components/landing/HeroSection'
 import PainPointSection from '@/components/landing/PainPointSection'
 import FeaturesSection from '@/components/landing/FeaturesSection'
 import HowItWorksSection from '@/components/landing/HowItWorksSection'
-import FAQSection from '@/components/landing/FAQSection'
+import TrustSection from '@/components/landing/TrustSection'
 import RoleSection from '@/components/landing/RoleSection'
 import ScrollIndicator from '@/components/landing/ScrollIndicator'
 import ReviewerPeek from '@/components/landing/ReviewerPeek'
@@ -14,13 +14,6 @@ import ReviewerLanding from '@/components/landing/ReviewerLanding'
 import Footer from '@/components/landing/Footer'
 
 type View = 'creator' | 'reviewer'
-
-const creatorFAQ = [
-  { q: '검증 의뢰는 어떻게 시작하나요?', a: '캐시를 충전하고 6단계 위자드를 따라 의뢰를 등록하면 돼요. 방법론을 몰라도 안내를 따라가면 5분 안에 완료할 수 있어요.' },
-  { q: '리뷰어는 어떤 사람들인가요?', a: '관심 카테고리가 일치하는 실무 경력자들이에요. 일반/전문가/도메인전문가 등급별로 구성되어 있어요.' },
-  { q: '결과는 언제 받을 수 있나요?', a: '의뢰 등록 후 72시간 이내에 AI 리포트로 전달돼요. 리뷰어가 모두 완료되면 자동으로 생성돼요.' },
-  { q: '환불은 가능한가요?', a: '리뷰어 매칭 전까지는 전액 환불이 가능해요. 매칭 후 진행된 리뷰 건수에 대해서는 차등 환불이 적용돼요.' },
-]
 
 export default function LandingPage() {
   const [view, setView] = useState<View>('creator')
@@ -73,12 +66,7 @@ export default function LandingPage() {
 
         <HowItWorksSection />
 
-        <FAQSection
-          id="faq-section"
-          dark={false}
-          title="자주 묻는 질문"
-          items={creatorFAQ}
-        />
+        <TrustSection id="trust-section" />
 
         <section id="role-section" className="snap-section">
           <RoleSection onSeeReviewer={() => switchTo('reviewer')} />
