@@ -9,7 +9,6 @@ import Spinner from './new-request/Spinner'
 import Step1BasicInfo from './new-request/Step1BasicInfo'
 import Step2Problem from './new-request/Step2Problem'
 import Step3Target from './new-request/Step3Target'
-import Step4Deep from './new-request/Step4Deep'
 import Step4Light from './new-request/Step4Light'
 import Step4Standard from './new-request/Step4Standard'
 import Step5Attachments from './new-request/Step5Attachments'
@@ -18,12 +17,13 @@ import Stepper, { type StepperEntry } from './new-request/Stepper'
 import { getDraft, saveDraft } from './new-request/storage'
 import {
   STEP_KEY_LABELS,
-  calculateDeepDeadline,
   createEmptyDraft,
   getFlow,
   getStepKey,
   type RequestFormData,
+  CATEGORIES,
 } from './new-request/types'
+import Step0Modal from './new-request/Step0Modal'
 
 const WALLET_BALANCE = 80000 // 임시: 추후 Supabase wallet 테이블에서 조회
 
@@ -37,14 +37,49 @@ export default function NewRequestPage() {
   const [savedFlash, setSavedFlash] = useState(false)
   const [saving, setSaving] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [isStep0Open, setIsStep0Open] = useState(false)
 
   useEffect(() => {
     if (draftIdFromUrl) {
       const found = getDraft(draftIdFromUrl)
       if (found) setData(found)
+    } else {
+      // Only show Step0Modal on fresh creation: no draftId and no agentSession
+      const agentSession = searchParams.get('agentSession')
+      if (!agentSession) {
+        setIsStep0Open(true)
+      }
     }
     setHydrated(true)
-  }, [draftIdFromUrl])
+  }, [draftIdFromUrl, searchParams])
+
+  // Agent 대화 컨텍스트에서 정보 자동 기입
+  useEffect(() => {
+    const agentSession = searchParams.get('agentSession')
+    if (agentSession && hydrated) {
+      try {
+        const rawContext = sessionStorage.getItem(`agent_context_${agentSession}`)
+        if (rawContext) {
+          const context = JSON.parse(rawContext)
+          setData(prev => {
+            const patch: Partial<RequestFormData> = {}
+            if (context.category) {
+              const matchedCat = CATEGORIES.find(c => c.toLowerCase() === context.category.toLowerCase()) || '기타'
+              patch.categories = [matchedCat]
+            }
+            if (context.keywords && context.keywords.length > 0) {
+              patch.interests = context.keywords
+              patch.oneLineDesc = `${context.keywords.join(', ')} 관련 서비스`
+              patch.problem = `${context.keywords.join(', ')} 분야에서 새로운 기회를 창출하고자 합니다.`
+            }
+            return { ...prev, ...patch }
+          })
+        }
+      } catch (err) {
+        console.error('Failed to parse agent context', err)
+      }
+    }
+  }, [searchParams, hydrated])
 
   // 동적 단계 흐름 — Light는 4단계, Standard/Deep는 6단계
   const flow = getFlow(data.projectType)
@@ -110,8 +145,6 @@ export default function NewRequestPage() {
         if (data.projectType === 'light' && !data.lightQuestionStyle) {
           return '질문 스타일을 먼저 선택하세요 (A/B · 키워드 · 예/아니오 중 하나)'
         }
-        if (data.projectType === 'deep' && !data.experienceUrl.trim()) return '체험 링크를 입력하세요'
-        if (data.projectType === 'deep' && !data.experienceGuide.trim()) return '체험 가이드를 입력하세요'
         return null
       case 'cost':
         if (!data.projectType) return null
@@ -122,13 +155,6 @@ export default function NewRequestPage() {
           if (data.feePerEvaluator < 1000) return '1인당 사례금은 최소 1,000원 이상'
           const cashNeeded = 1800 * data.evaluatorCount
           if (WALLET_BALANCE < cashNeeded) return '캐시가 부족합니다. 충전이 필요합니다.'
-          // Deep: 체험 기간이 리뷰 완료 기한을 넘지 않는지 검증
-          if (data.projectType === 'deep') {
-            const bd = calculateDeepDeadline(data.experienceDeadline, data.deadlineDays)
-            if (!bd.isValid) {
-              return `평가 작성 시간이 부족합니다. 체험 ${bd.experienceDays}일 + 평가 작성 ≥1일 필요`
-            }
-          }
         }
         return null
       default:
@@ -138,6 +164,7 @@ export default function NewRequestPage() {
 
   return (
     <div className="w-full flex flex-col gap-6 text-[#1D1C1C]">
+      <Step0Modal isOpen={isStep0Open} onClose={() => setIsStep0Open(false)} />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex flex-col gap-1.5">
@@ -176,14 +203,11 @@ export default function NewRequestPage() {
               {currentKey === 'questions' && data.projectType === 'standard' && (
                 <Step4Standard data={data} onChange={updateData} />
               )}
-              {currentKey === 'questions' && data.projectType === 'deep' && (
-                <Step4Deep data={data} onChange={updateData} />
-              )}
               {currentKey === 'questions' && !data.projectType && (
                 <div className="rounded-3xl border border-[#F77019]/30 bg-[#F77019]/5 p-8 flex flex-col items-center gap-3 text-center">
                   <p className="text-sm font-black text-[#F77019]">프로젝트 타입을 먼저 선택해주세요</p>
                   <p className="text-[11px] font-bold text-[#666]">
-                    Step 1에서 Light / Standard / Deep 중 하나를 선택해야 검증 내용을 설계할 수 있습니다.
+                    Step 1에서 Light / Standard 중 하나를 선택해야 검증 내용을 설계할 수 있습니다.
                   </p>
                   <button
                     type="button"

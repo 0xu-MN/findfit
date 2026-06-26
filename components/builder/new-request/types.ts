@@ -1,4 +1,4 @@
-export type ProjectType = 'light' | 'standard' | 'deep'
+export type ProjectType = 'light' | 'standard'
 export type Stage = 'idea' | 'prototype' | 'beta' | 'launched'
 export type DecisionFactor = 'price' | 'convenience' | 'trust' | 'feature' | 'design' | 'etc'
 export type DistributionMethod = 'later' | 'equal' | 'differential' | 'top_n' | 'custom'
@@ -184,16 +184,6 @@ export const PROJECT_TYPE_OPTIONS: {
     maxDays: 10,
     minReviewers: 10,
   },
-  {
-    value: 'deep',
-    title: 'Deep',
-    shortDesc: '직접 써보고 평가',
-    detail: '앱·게임·웹 체험 후 평가',
-    cashCost: '1,800C / 명',
-    honorariumNote: '사례금 자율 설정',
-    maxDays: 10,
-    minReviewers: 10,
-  },
 ]
 
 export const REVIEWER_COUNTS = [10, 20, 30, 50, 100] // Standard/Deep
@@ -222,7 +212,6 @@ export const STEP_KEY_LABELS: Record<StepKey, string> = {
 export const STEP_FLOWS: Record<ProjectType, StepKey[]> = {
   light: ['basic', 'problem', 'questions', 'cost'],
   standard: ['basic', 'problem', 'target', 'questions', 'attachments', 'cost'],
-  deep: ['basic', 'problem', 'target', 'questions', 'attachments', 'cost'],
 }
 
 // 기본 흐름 (projectType 미선택 시 — 6단계 fallback)
@@ -452,12 +441,11 @@ export function migrateDraft(raw: unknown): RequestFormData {
 
   // requestType → projectType
   let projectType: ProjectType | null = empty.projectType
-  if (old.projectType === 'light' || old.projectType === 'standard' || old.projectType === 'deep') {
+  if (old.projectType === 'light' || old.projectType === 'standard') {
     projectType = old.projectType
-  } else if (old.requestType === 'survey') {
+  } else if (old.requestType === 'survey' || old.requestType === 'experience') {
+    // 'experience' (구 deep)는 standard로 마이그레이션
     projectType = 'standard'
-  } else if (old.requestType === 'experience') {
-    projectType = 'deep'
   }
 
   // currentSolution + alternativeLimit → alternativeAndLimit

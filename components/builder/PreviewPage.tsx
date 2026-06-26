@@ -193,9 +193,8 @@ function CreatorView({ data }: { data: RequestFormData }) {
   const stage = STAGE_OPTIONS.find((s) => s.value === data.stage)
   const cost = calculateCost(data)
 
-  // 질문 목록 — Light/Standard는 questions, Deep는 postQuestions
-  const questions = data.projectType === 'deep' ? data.postQuestions : data.questions
-  const includeSeanEllis = data.projectType === 'standard' || data.projectType === 'deep'
+  const questions = data.questions
+  const includeSeanEllis = data.projectType === 'standard'
 
   return (
     <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 flex flex-col gap-6 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
@@ -204,7 +203,7 @@ function CreatorView({ data }: { data: RequestFormData }) {
         <SummaryItem label="프로젝트 타입" value={typeMeta?.title ?? '—'} />
         <SummaryItem label="단계" value={stage?.title ?? '—'} />
         <SummaryItem label="카테고리" value={data.categories.join(', ') || '—'} />
-        {(data.projectType === 'standard' || data.projectType === 'deep') && (
+        {data.projectType === 'standard' && (
           <>
             <SummaryItem label="평가단" value={`${data.evaluatorCount}명`} />
             <SummaryItem label="1인당 사례금" value={`${fmt(data.feePerEvaluator)}원`} />
@@ -244,21 +243,6 @@ function CreatorView({ data }: { data: RequestFormData }) {
         </ol>
       </div>
 
-      {data.projectType === 'deep' && (
-        <>
-          <div className="h-[1px] bg-[#EEEEEE]" />
-          <div className="flex flex-col gap-2 text-[11px]">
-            <h3 className="text-xs font-black">체험 설계</h3>
-            <SummaryItem label="체험 링크" value={data.experienceUrl || '—'} />
-            <SummaryItem
-              label="예상 체험 시간"
-              value={data.experienceTime < 60 ? `${data.experienceTime}분` : '1시간+'}
-            />
-            <SummaryItem label="체험 기한" value={`${data.experienceDeadline}시간`} />
-            <SummaryItem label="스크린샷 요청" value={data.screenshotRequired ? '예' : '아니오'} />
-          </div>
-        </>
-      )}
 
       <div className="h-[1px] bg-[#EEEEEE]" />
 
@@ -300,18 +284,10 @@ function CreatorView({ data }: { data: RequestFormData }) {
 function ReviewerView({ data }: { data: RequestFormData }) {
   const stage = STAGE_OPTIONS.find((s) => s.value === data.stage)
   const cost = calculateCost(data)
-  const questions = data.projectType === 'deep' ? data.postQuestions : data.questions
-  const includeSeanEllis = data.projectType === 'standard' || data.projectType === 'deep'
+  const questions = data.questions
+  const includeSeanEllis = data.projectType === 'standard'
 
-  // 예상 소요 시간
-  const expectedTime =
-    data.projectType === 'deep'
-      ? data.experienceTime < 60
-        ? `체험 ${data.experienceTime}분 + 평가`
-        : '체험 1시간+ 평가'
-      : data.projectType === 'standard'
-        ? '10~15분'
-        : '3~5분 (Light)'
+  const expectedTime = data.projectType === 'standard' ? '10~15분' : '3~5분 (Light)'
 
   return (
     <div className="rounded-3xl border-2 border-dashed border-[#1565C0]/40 bg-gradient-to-br from-[#F8FBFF] to-white p-8 flex flex-col gap-5 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
@@ -458,7 +434,7 @@ function ConfirmModal({
             <span className="text-[#666]">제품명</span>
             <span className="text-[#1D1C1C]">{data.productName || '—'}</span>
           </div>
-          {(data.projectType === 'standard' || data.projectType === 'deep') && (
+          {data.projectType === 'standard' && (
             <div className="flex items-center justify-between">
               <span className="text-[#666]">평가단</span>
               <span className="text-[#1D1C1C]">{data.evaluatorCount}명</span>

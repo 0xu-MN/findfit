@@ -9,7 +9,6 @@ import {
   REVIEWER_COMMISSION_RATE,
   TARGET_REVIEWER_ROLES,
   calculateCost,
-  calculateDeepDeadline,
   type RequestFormData,
 } from '@/components/builder/new-request/types'
 
@@ -30,7 +29,7 @@ export default function ReviewerFeedPage() {
   const [myRole, setMyRole] = useState<string>('PM')
   const [hydrated, setHydrated] = useState(false)
   const [submitted, setSubmitted] = useState<RequestFormData[]>([])
-  const [typeFilter, setTypeFilter] = useState<'all' | 'light' | 'standard' | 'deep'>('all')
+  const [typeFilter, setTypeFilter] = useState<'all' | 'light' | 'standard'>('all')
 
   useEffect(() => {
     setSubmitted(listSubmitted())
@@ -189,11 +188,6 @@ function ProjectCard({ project, recommended }: { project: RequestFormData; recom
   const cost = calculateCost(project)
   const typeMeta = PROJECT_TYPE_OPTIONS.find((o) => o.value === project.projectType)
 
-  // Deep — 체험기간 + 평가 작성 기간 분할 표시
-  const deepBd =
-    project.projectType === 'deep'
-      ? calculateDeepDeadline(project.experienceDeadline, project.deadlineDays)
-      : null
 
   return (
     <article
@@ -253,16 +247,10 @@ function ProjectCard({ project, recommended }: { project: RequestFormData; recom
 
         <div className="flex flex-col gap-0.5 items-end">
           <span className="text-[9px] text-[#999] font-bold">기한</span>
-          {deepBd ? (
-            <span className="text-[11px] font-bold text-[#1D1C1C]">
-              체험 {deepBd.experienceDays}일 + 평가 {deepBd.reviewWritingDays}일
-            </span>
-          ) : (
-            <div className="flex items-center gap-1">
-              <Clock className="w-3 h-3 text-[#666]" />
-              <span className="text-[11px] font-bold text-[#1D1C1C]">최대 {project.deadlineDays}일</span>
-            </div>
-          )}
+          <div className="flex items-center gap-1">
+            <Clock className="w-3 h-3 text-[#666]" />
+            <span className="text-[11px] font-bold text-[#1D1C1C]">최대 {project.deadlineDays}일</span>
+          </div>
         </div>
       </div>
 

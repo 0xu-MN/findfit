@@ -45,6 +45,16 @@ export default function DashboardLayout({ role, children, rightPanel }: Dashboar
     }
   }, [role])
 
+  useEffect(() => {
+    if (mounted && typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('agent') === 'explore') {
+        setRightTab('main')
+        setIsLeftOpen(false) // Collapse left panel to expand right panel
+      }
+    }
+  }, [mounted, pathname])
+
   const handleConfirmClose = () => {
     setShowConfirm(false)
     sessionStorage.setItem(`has_seen_confirm_${role}`, 'true')

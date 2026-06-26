@@ -33,7 +33,7 @@ export default function RequestSummaryPanel({ data }: Props) {
           </>
         )}
 
-        {(data.projectType === 'standard' || data.projectType === 'deep') && (
+        {data.projectType === 'standard' && (
           <>
             <Row label="평가단" value={`${data.evaluatorCount}명`} highlight />
             <Row label="1인당 사례금" value={`${fmt(data.feePerEvaluator)}원`} />

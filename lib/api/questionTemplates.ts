@@ -24,7 +24,7 @@ export async function getQuestionSet(
   psfPmfType: 'psf' | 'pmf'
 ): Promise<QuestionSet> {
   const supabase = createClient()
-  const maxQuestions: Record<ProjectType, number> = { light: 5, standard: 9, deep: 9 }
+  const maxQuestions: Record<ProjectType, number> = { light: 5, standard: 9 }
 
   const { data: required = [] } = await supabase
     .from('question_templates')
@@ -34,18 +34,7 @@ export async function getQuestionSet(
     .eq('is_required', true)
     .order('order_index')
 
-  let allRequired = [...(required ?? [])]
-
-  // Deep + PMF: Sean Ellis도 함께 조회해서 합침
-  if (projectType === 'deep' && psfPmfType === 'pmf') {
-    const { data: seanEllis = [] } = await supabase
-      .from('question_templates')
-      .select('*')
-      .eq('project_type', 'standard')
-      .eq('psf_pmf_type', 'pmf')
-      .eq('is_required', true)
-    allRequired = [...allRequired, ...(seanEllis ?? [])]
-  }
+  const allRequired = [...(required ?? [])]
 
   const { data: recommended = [] } = await supabase
     .from('question_templates')

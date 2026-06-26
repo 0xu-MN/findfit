@@ -132,11 +132,6 @@ export default function Step1BasicInfo({ data, onChange }: Props) {
                   const newStage = s.value as Stage
                   const patch: Partial<RequestFormData> = { stage: newStage }
                   // 아이디어 단계로 변경 시 Deep이 선택돼 있으면 자동 해제
-                  if (newStage === 'idea' && data.projectType === 'deep') {
-                    patch.projectType = null
-                    patch.questions = []
-                    patch.postQuestions = []
-                  }
                   onChange(patch)
                 }}
                 className={`flex flex-col p-4 rounded-xl text-left transition-colors ${

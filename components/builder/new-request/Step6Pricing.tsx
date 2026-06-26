@@ -8,7 +8,6 @@ import {
   REVIEWER_COMMISSION_RATE,
   TARGET_REVIEWER_ROLES,
   calculateCost,
-  calculateDeepDeadline,
   type DistributionMethod,
   type RequestFormData,
 } from './types'
@@ -187,7 +186,7 @@ function StdDeepPricing({
       {/* 완료 기한 — Deep는 체험기간 + 평가작성 기간 합산 표시 */}
       <Field
         label="리뷰 완료 기한"
-        hint={data.projectType === 'deep' ? '체험 기간 + 평가 작성 기간 합산' : '등록일부터 최대 10일'}
+        hint="등록일부터 최대 10일"
       >
         <div className="grid grid-cols-3 gap-2">
           {[5, 7, 10].map((d) => {
@@ -207,13 +206,6 @@ function StdDeepPricing({
           })}
         </div>
 
-        {/* Deep — 체험기간 + 평가작성 기간 브레이크다운 */}
-        {data.projectType === 'deep' && (
-          <DeepDeadlineBreakdownBox
-            experienceHours={data.experienceDeadline}
-            totalDays={data.deadlineDays}
-          />
-        )}
       </Field>
 
       {/* 원하는 평가단 직군 — 매칭 기준 */}
@@ -352,55 +344,3 @@ function Row({ label, value, valueClass }: { label: string; value: string; value
 
 /* ─────────────────────────────────────────────────────── */
 /*  Deep — 체험기간 + 평가작성 기간 브레이크다운                */
-/* ─────────────────────────────────────────────────────── */
-
-function DeepDeadlineBreakdownBox({
-  experienceHours,
-  totalDays,
-}: {
-  experienceHours: number
-  totalDays: number
-}) {
-  const breakdown = calculateDeepDeadline(experienceHours, totalDays)
-  const expPct = (breakdown.experienceDays / breakdown.totalDays) * 100
-  const reviewPct = Math.max(0, (breakdown.reviewWritingDays / breakdown.totalDays) * 100)
-
-  return (
-    <div
-      className={`rounded-xl p-3 flex flex-col gap-2 mt-2 border ${
-        breakdown.isValid ? 'bg-[#F5F5F5] border-[#1D1C1C]/5' : 'bg-red-50 border-red-200'
-      }`}
-    >
-      <div className="flex items-center justify-between text-[10px] font-bold">
-        <span className="text-[#666]">기간 분할</span>
-        <span className={breakdown.isValid ? 'text-[#1D1C1C]' : 'text-red-600'}>
-          체험 {breakdown.experienceDays}일 + 평가 작성 {breakdown.reviewWritingDays}일 = 총 {breakdown.totalDays}일
-        </span>
-      </div>
-
-      {/* 시각화 바 */}
-      <div className="w-full h-2 rounded-full bg-white overflow-hidden flex">
-        <div className="h-full bg-[#1565C0]" style={{ width: `${expPct}%` }} />
-        <div className="h-full bg-[#F77019]" style={{ width: `${reviewPct}%` }} />
-      </div>
-      <div className="flex items-center justify-between text-[9px] font-bold">
-        <div className="flex items-center gap-1">
-          <span className="w-1.5 h-1.5 rounded-sm bg-[#1565C0]" />
-          <span className="text-[#1565C0]">
-            체험 ({experienceHours}h ≈ {breakdown.experienceDays}일)
-          </span>
-        </div>
-        <div className="flex items-center gap-1">
-          <span className="w-1.5 h-1.5 rounded-sm bg-[#F77019]" />
-          <span className="text-[#F77019]">평가 작성 ({breakdown.reviewWritingDays}일)</span>
-        </div>
-      </div>
-
-      {!breakdown.isValid && (
-        <p className="text-[10px] font-bold text-red-600 leading-relaxed mt-1">
-          ⚠ 평가 작성 시간이 1일 미만입니다. 리뷰 완료 기한을 늘리거나 체험 기간을 줄여주세요.
-        </p>
-      )}
-    </div>
-  )
-}
