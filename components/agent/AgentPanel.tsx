@@ -94,22 +94,90 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
 
   // ─── 축소 모드 ───
   if (!isExpanded) {
+    const hasContext = context.phase > 0 || !!context.category
+    const phasePct = Math.round((Math.max(0, context.phase - 1) / 3) * 100)
+
     return (
       <div className="w-full h-full flex flex-col select-none overflow-hidden">
         {/* 헤더 */}
-        <div className="flex-shrink-0 px-5 pt-6 pb-3 flex flex-col items-center gap-2">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg, #F77019, #FF8F45)', boxShadow: '0 4px 12px rgba(247,112,25,0.25)' }}>
-              <Bot className="w-4 h-4 text-white" />
+        <div className="flex-shrink-0 px-5 pt-5 pb-3 flex items-center gap-2">
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center"
+            style={{ background: 'linear-gradient(135deg, #F77019, #FF8F45)', boxShadow: '0 4px 12px rgba(247,112,25,0.25)' }}>
+            <Bot className="w-4 h-4 text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <span className="text-[13px] font-black text-[#1D1C1C]">FindFit Agent</span>
+            <div className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E] animate-pulse" />
+              <span className="text-[9px] font-bold text-[#999]">온라인</span>
             </div>
-            <div>
-              <span className="text-[13px] font-black text-[#1D1C1C]">FindFit Agent</span>
-              <div className="flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E] animate-pulse" />
-                <span className="text-[9px] font-bold text-[#999]">온라인</span>
+          </div>
+        </div>
+
+        {/* ── 탐색 현황 (축소 모드 인라인) ── */}
+        <div className="flex-shrink-0 px-4 pb-2">
+          <div className="rounded-2xl border border-[#F77019]/15 bg-[#F77019]/5 px-3 py-2.5 flex flex-col gap-2">
+            {/* 헤더 row */}
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] font-black text-[#F77019] uppercase tracking-wide">탐색 현황</span>
+              <span className="text-[9px] font-bold text-[#999]">{phaseLabel}</span>
+            </div>
+
+            {/* 프로그레스 바 */}
+            <div className="w-full h-1 bg-[#F77019]/15 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-[#F77019] rounded-full transition-all duration-500"
+                style={{ width: `${phasePct}%` }}
+              />
+            </div>
+
+            {/* 단계 라벨 dots */}
+            <div className="flex items-center gap-0.5">
+              {(['분야', '시장', '방향', '완료'] as const).map((label, i) => {
+                const done = context.phase > i + 1
+                const active = context.phase === i + 1
+                return (
+                  <div key={label} className="flex items-center gap-0.5 flex-1">
+                    <span className={`text-[8px] font-bold transition-colors ${
+                      done ? 'text-[#F77019]' : active ? 'text-[#F77019]' : 'text-[#CCC]'
+                    }`}>
+                      {label}
+                    </span>
+                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ml-0.5 ${
+                      done ? 'bg-[#F77019]' : active ? 'bg-[#F77019] scale-110' : 'bg-[#E0E0E0]'
+                    }`} />
+                    {i < 3 && <span className="flex-1 h-px bg-[#E0E0E0] mx-0.5" />}
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* 관심 분야 + 탐색 방향 */}
+            {hasContext && (
+              <div className="flex items-start gap-2 pt-1 border-t border-[#F77019]/10">
+                {context.category && (
+                  <span className="text-[9px] font-black bg-[#F77019]/15 text-[#F77019] px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                    {context.category}
+                  </span>
+                )}
+                {context.direction && (
+                  <span className="text-[9px] font-bold text-[#666] leading-relaxed line-clamp-2 flex-1">
+                    {context.direction}
+                  </span>
+                )}
               </div>
-            </div>
+            )}
+
+            {/* 레퍼런스 */}
+            {(context.references ?? []).length > 0 && (
+              <div className="flex flex-wrap gap-1 pt-0.5">
+                {context.references!.slice(0, 3).map((ref, i) => (
+                  <span key={i} className="text-[8px] font-bold bg-white border border-[#1D1C1C]/10 px-1.5 py-0.5 rounded-full text-[#666] truncate max-w-[80px]">
+                    {ref.name}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

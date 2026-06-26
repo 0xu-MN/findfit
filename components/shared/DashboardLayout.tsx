@@ -50,7 +50,7 @@ export default function DashboardLayout({ role, children, rightPanel }: Dashboar
       const params = new URLSearchParams(window.location.search)
       if (params.get('agent') === 'explore') {
         setRightTab('main')
-        setIsLeftOpen(false) // Collapse left panel to expand right panel
+        // 강제 확장 제거 — 사용자가 직접 핸들 클릭으로 확장
       }
     }
   }, [mounted, pathname])
