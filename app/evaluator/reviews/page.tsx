@@ -3,29 +3,40 @@
 import DashboardLayout from '@/components/shared/DashboardLayout'
 import SharedLoungeFeed from '@/components/shared/SharedLoungeFeed'
 import { createClient } from '@/lib/supabase/client'
-import { CheckCircle2, Clock, Loader2 } from 'lucide-react'
+import { CheckCircle2, Clock, Loader2, Pencil, XCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+
+type MatchStatus = 'pending' | 'accepted' | 'completed' | 'dropped'
 
 type Match = {
   id: string
   project_id: string
   nickname: string | null
+  status: MatchStatus
+  applied_at: string | null
   accepted_at: string | null
-  submitted_at: string | null
+  completed_at: string | null
   projects?: {
     title: string
-    status: string
-    review_type: string | null
-    deadline: string | null
+    project_type: string | null
   } | null
 }
 
-const STATUS_LABEL: Record<string, { label: string; color: string }> = {
-  active:    { label: '진행 중',   color: '#1565C0' },
-  closed:    { label: '마감',      color: '#999' },
-  completed: { label: '완료',      color: '#2E7D32' },
-  draft:     { label: '준비 중',   color: '#999' },
+const STATUS_CONFIG: Record<MatchStatus, {
+  label: string; color: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Icon: any
+}> = {
+  pending:   { label: '검토 중',       color: '#1565C0', Icon: Clock        },
+  accepted:  { label: '평가 작성 필요', color: '#F77019', Icon: Pencil       },
+  completed: { label: '제출 완료',     color: '#2E7D32', Icon: CheckCircle2 },
+  dropped:   { label: '거절됨',        color: '#999',    Icon: XCircle      },
+}
+
+function dateStr(iso: string | null) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('ko-KR')
 }
 
 function ReviewsContent() {
@@ -42,18 +53,76 @@ function ReviewsContent() {
 
       const { data } = await supabase
         .from('project_matches')
-        .select('*, projects(title, status, review_type, deadline)')
+        .select('id, project_id, nickname, status, applied_at, accepted_at, completed_at, projects(title, project_type)')
         .eq('reviewer_id', user.id)
-        .order('accepted_at', { ascending: false })
+        .order('applied_at', { ascending: false })
 
       setMatches(data ?? [])
       setLoading(false)
     }
     load()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const pending = matches.filter((m) => !m.submitted_at)
-  const done = matches.filter((m) => m.submitted_at)
+  const accepted  = matches.filter((m) => m.status === 'accepted')
+  const pending   = matches.filter((m) => m.status === 'pending')
+  const completed = matches.filter((m) => m.status === 'completed')
+  const dropped   = matches.filter((m) => m.status === 'dropped')
+
+  const renderGroup = (title: string, items: Match[], clickable: boolean) => {
+    if (items.length === 0) return null
+    return (
+      <section className="flex flex-col gap-2">
+        <p className="text-[11px] font-black text-[#999] uppercase tracking-wider">
+          {title} ({items.length})
+        </p>
+        <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white overflow-hidden shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
+          <div className="divide-y divide-[#1D1C1C]/5">
+            {items.map((m) => {
+              const cfg = STATUS_CONFIG[m.status]
+              const Tag = clickable ? 'button' : 'div'
+              return (
+                <Tag
+                  key={m.id}
+                  onClick={clickable ? () => router.push(`/evaluator/review/${m.project_id}`) : undefined}
+                  className={`w-full flex items-center gap-3 px-6 py-4 transition-colors text-left ${
+                    clickable ? 'hover:bg-[#FAFAFA] cursor-pointer' : 'cursor-default'
+                  }`}
+                >
+                  <div
+                    className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                    style={{ background: `${cfg.color}15` }}
+                  >
+                    <cfg.Icon className="w-4 h-4" style={{ color: cfg.color }} />
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-black text-[#1D1C1C] truncate">
+                      {m.projects?.title ?? '프로젝트'}
+                    </p>
+                    <p className="text-[10px] text-[#999] font-bold mt-0.5">
+                      {m.nickname && `${m.nickname} · `}
+                      {m.status === 'pending'   && `지원일 ${dateStr(m.applied_at)}`}
+                      {m.status === 'accepted'  && `수락일 ${dateStr(m.accepted_at)}`}
+                      {m.status === 'completed' && `제출일 ${dateStr(m.completed_at)}`}
+                      {m.status === 'dropped'   && '이번에는 매칭이 어려웠어요'}
+                    </p>
+                  </div>
+
+                  <span
+                    className="text-[10px] font-black px-2.5 py-1 rounded-lg flex-shrink-0"
+                    style={{ color: cfg.color, background: `${cfg.color}12` }}
+                  >
+                    {cfg.label}
+                  </span>
+                </Tag>
+              )
+            })}
+          </div>
+        </div>
+      </section>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -78,75 +147,10 @@ function ReviewsContent() {
         </div>
       ) : (
         <>
-          {/* 미제출 */}
-          {pending.length > 0 && (
-            <section className="flex flex-col gap-2">
-              <p className="text-[11px] font-black text-[#999] uppercase tracking-wider">리뷰 작성 필요 ({pending.length})</p>
-              <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white overflow-hidden shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
-                <div className="divide-y divide-[#1D1C1C]/5">
-                  {pending.map((m) => {
-                    const s = STATUS_LABEL[m.projects?.status ?? ''] ?? { label: m.projects?.status ?? '—', color: '#999' }
-                    const deadline = m.projects?.deadline
-                    return (
-                      <button
-                        key={m.id}
-                        onClick={() => router.push(`/evaluator/review/${m.project_id}`)}
-                        className="w-full flex items-center gap-3 px-6 py-4 hover:bg-[#FAFAFA] transition-colors text-left"
-                      >
-                        <div className="w-8 h-8 rounded-full bg-[#1565C0]/10 flex items-center justify-center flex-shrink-0">
-                          <Clock className="w-4 h-4 text-[#1565C0]" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[11px] font-black text-[#1D1C1C] truncate">
-                            {m.projects?.title ?? '프로젝트'}
-                          </p>
-                          <p className="text-[10px] text-[#999] font-bold mt-0.5">
-                            닉네임: {m.nickname ?? '—'}
-                            {deadline && ` · 마감 ${new Date(deadline).toLocaleDateString('ko-KR')}`}
-                          </p>
-                        </div>
-                        <span
-                          className="text-[10px] font-black px-2.5 py-1 rounded-lg flex-shrink-0"
-                          style={{ color: s.color, background: `${s.color}10` }}
-                        >
-                          {s.label}
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            </section>
-          )}
-
-          {/* 제출 완료 */}
-          {done.length > 0 && (
-            <section className="flex flex-col gap-2">
-              <p className="text-[11px] font-black text-[#999] uppercase tracking-wider">제출 완료 ({done.length})</p>
-              <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white overflow-hidden shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
-                <div className="divide-y divide-[#1D1C1C]/5">
-                  {done.map((m) => (
-                    <div key={m.id} className="flex items-center gap-3 px-6 py-4">
-                      <div className="w-8 h-8 rounded-full bg-green-50 flex items-center justify-center flex-shrink-0">
-                        <CheckCircle2 className="w-4 h-4 text-green-600" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[11px] font-black text-[#1D1C1C] truncate">
-                          {m.projects?.title ?? '프로젝트'}
-                        </p>
-                        <p className="text-[10px] text-[#999] font-bold mt-0.5">
-                          제출 {m.submitted_at ? new Date(m.submitted_at).toLocaleDateString('ko-KR') : '—'}
-                        </p>
-                      </div>
-                      <span className="text-[10px] font-black text-green-600 bg-green-50 px-2.5 py-1 rounded-lg flex-shrink-0">
-                        제출 완료
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </section>
-          )}
+          {renderGroup('평가 작성 필요', accepted, true)}
+          {renderGroup('검토 중', pending, false)}
+          {renderGroup('제출 완료', completed, false)}
+          {renderGroup('거절됨', dropped, false)}
         </>
       )}
     </div>
