@@ -16,6 +16,11 @@ interface AgentPanelProps {
   isExpanded?: boolean
 }
 
+// 단계별 레이블: 인덱스 = phase (0~4)
+const PHASE_LABELS = ['대화 시작', '아이디어 파악', '단계 파악', '타겟 파악', '검증 준비'] as const
+// 축소/확장 모드 진행 dots 레이블
+const DOT_LABELS = ['아이디어', '단계', '타겟', '완료'] as const
+
 export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -44,7 +49,6 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
     }
   }, [messages, isTyping])
 
-  // 공통 응답 처리 (텍스트 입력 or 토스트 선택 모두 처리)
   const processInput = useCallback((value: string, isToastSelection: boolean) => {
     if (isTyping) return
 
@@ -81,6 +85,7 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
 
   const handleCTA = useCallback(() => {
     const sessionId = `agent-${Date.now()}`
+    // 대화에서 파악한 카테고리·단계·타겟을 wizard로 전달
     sessionStorage.setItem(`agent_context_${sessionId}`, JSON.stringify(context))
     router.push(`/builder/new-request?agentSession=${sessionId}`)
   }, [context, router])
@@ -90,12 +95,12 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
     ? messages[messages.length - 1 - lastAssistantIndex]?.id
     : null
 
-  const phaseLabel = ['탐색 중', '탐색 중', '분석 완료', '레퍼런스 확인', '완료'][context.phase] ?? '탐색 중'
+  const phaseLabel = PHASE_LABELS[context.phase] ?? '탐색 중'
+  const phasePct = Math.round((context.phase / 4) * 100)
 
   // ─── 축소 모드 ───
   if (!isExpanded) {
-    const hasContext = context.phase > 0 || !!context.category
-    const phasePct = Math.round((Math.max(0, context.phase - 1) / 3) * 100)
+    const hasContext = context.phase > 0 || !!context.ideaSummary
 
     return (
       <div className="w-full h-full flex flex-col select-none overflow-hidden">
@@ -114,16 +119,14 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
           </div>
         </div>
 
-        {/* ── 탐색 현황 (축소 모드 인라인) ── */}
+        {/* 탐색 현황 (축소 모드 인라인) */}
         <div className="flex-shrink-0 px-4 pb-2">
           <div className="rounded-2xl border border-[#F77019]/15 bg-[#F77019]/5 px-3 py-2.5 flex flex-col gap-2">
-            {/* 헤더 row */}
             <div className="flex items-center justify-between">
               <span className="text-[9px] font-black text-[#F77019] uppercase tracking-wide">탐색 현황</span>
               <span className="text-[9px] font-bold text-[#999]">{phaseLabel}</span>
             </div>
 
-            {/* 프로그레스 바 */}
             <div className="w-full h-1 bg-[#F77019]/15 rounded-full overflow-hidden">
               <div
                 className="h-full bg-[#F77019] rounded-full transition-all duration-500"
@@ -131,15 +134,15 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
               />
             </div>
 
-            {/* 단계 라벨 dots */}
+            {/* 단계 dots */}
             <div className="flex items-center gap-0.5">
-              {(['분야', '시장', '방향', '완료'] as const).map((label, i) => {
+              {DOT_LABELS.map((label, i) => {
                 const done = context.phase > i + 1
                 const active = context.phase === i + 1
                 return (
                   <div key={label} className="flex items-center gap-0.5 flex-1">
                     <span className={`text-[8px] font-bold transition-colors ${
-                      done ? 'text-[#F77019]' : active ? 'text-[#F77019]' : 'text-[#CCC]'
+                      done || active ? 'text-[#F77019]' : 'text-[#CCC]'
                     }`}>
                       {label}
                     </span>
@@ -152,7 +155,7 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
               })}
             </div>
 
-            {/* 관심 분야 + 탐색 방향 */}
+            {/* 아이디어 요약 + 카테고리 */}
             {hasContext && (
               <div className="flex items-start gap-2 pt-1 border-t border-[#F77019]/10">
                 {context.category && (
@@ -160,22 +163,11 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
                     {context.category}
                   </span>
                 )}
-                {context.direction && (
+                {context.ideaSummary && (
                   <span className="text-[9px] font-bold text-[#666] leading-relaxed line-clamp-2 flex-1">
-                    {context.direction}
+                    {context.ideaSummary}
                   </span>
                 )}
-              </div>
-            )}
-
-            {/* 레퍼런스 */}
-            {(context.references ?? []).length > 0 && (
-              <div className="flex flex-wrap gap-1 pt-0.5">
-                {context.references!.slice(0, 3).map((ref, i) => (
-                  <span key={i} className="text-[8px] font-bold bg-white border border-[#1D1C1C]/10 px-1.5 py-0.5 rounded-full text-[#666] truncate max-w-[80px]">
-                    {ref.name}
-                  </span>
-                ))}
               </div>
             )}
           </div>
@@ -208,7 +200,7 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSend()}
-              placeholder="직접 입력하거나 위에서 선택하세요"
+              placeholder="아이디어를 자유롭게 말씀해주세요"
               className="flex-1 bg-transparent text-[12px] font-medium text-[#1D1C1C] placeholder-[#BBB] outline-none min-w-0"
             />
             <button
@@ -237,7 +229,7 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
           </div>
           <div>
             <h2 className="text-[18px] font-black text-[#1D1C1C]">FindFit Agent</h2>
-            <p className="text-[11px] font-bold text-[#999]">아이템 탐색 · 트렌드 분석 · 타사 레퍼런스</p>
+            <p className="text-[11px] font-bold text-[#999]">아이디어 이해 · 시장 맥락 파악 · 검증 등록 안내</p>
           </div>
           <div className="ml-auto flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-[#22C55E] animate-pulse" />
@@ -276,7 +268,7 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSend()}
-                placeholder="예) 20대 여성을 타겟한 단백질 쉐이크를 출시하려고 해요"
+                placeholder="예) 20대 여성을 위한 단백질 쉐이크 구독 서비스를 만들려고 해요"
                 className="flex-1 bg-transparent text-[13px] font-medium text-[#1D1C1C] placeholder-[#C0C0C0] outline-none min-w-0"
               />
               <button
@@ -301,7 +293,7 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
           <div className="rounded-xl border border-[#F77019]/20 bg-[#F77019]/5 p-3 flex flex-col gap-2">
             <span className="text-[9px] font-bold text-[#F77019]">진행 단계</span>
             <div className="flex items-center gap-1.5">
-              {(['분야 선택', '시장 분석', '방향 결정', '완료'] as const).map((label, i) => (
+              {DOT_LABELS.map((label, i) => (
                 <div key={label} className="flex items-center gap-1">
                   <span className={`w-2 h-2 rounded-full transition-all ${
                     context.phase > i + 1
@@ -317,35 +309,43 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
             <span className="text-[10px] font-black text-[#F77019]">{phaseLabel}</span>
           </div>
 
-          {/* 관심 분야 */}
+          {/* 아이디어 */}
           <div className="rounded-xl border border-[#1D1C1C]/8 bg-white p-3 flex flex-col gap-1.5">
-            <span className="text-[9px] font-bold text-[#999]">관심 분야</span>
-            <span className="text-[13px] font-black text-[#1D1C1C]">
-              {context.category ?? '대화로 파악 중...'}
+            <span className="text-[9px] font-bold text-[#999]">아이디어</span>
+            <span className="text-[11px] font-bold text-[#1D1C1C] leading-relaxed">
+              {context.ideaSummary ?? '대화로 파악 중...'}
             </span>
           </div>
 
-          {/* 탐색 방향 */}
-          {context.direction && (
+          {/* 감지된 분야 */}
+          {context.category && (
             <div className="rounded-xl border border-[#1D1C1C]/8 bg-white p-3 flex flex-col gap-1.5">
-              <span className="text-[9px] font-bold text-[#999]">탐색 방향</span>
-              <span className="text-[11px] font-bold text-[#1D1C1C] leading-relaxed">{context.direction}</span>
+              <span className="text-[9px] font-bold text-[#999]">분야</span>
+              <span className="text-[13px] font-black text-[#1D1C1C]">{context.category}</span>
             </div>
           )}
 
-          {/* 타사 레퍼런스 */}
-          <div className="rounded-xl border border-[#1D1C1C]/8 bg-white p-3 flex flex-col gap-1.5">
-            <span className="text-[9px] font-bold text-[#999]">타사 레퍼런스</span>
-            {(context.references ?? []).length > 0
-              ? context.references!.map((ref, i) => (
-                  <div key={i} className="flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#F77019] flex-shrink-0" />
-                    <span className="text-[10px] font-bold text-[#1D1C1C] truncate">{ref.name}</span>
-                  </div>
-                ))
-              : <span className="text-[10px] font-medium text-[#CCC]">아직 없어요</span>
-            }
-          </div>
+          {/* 단계 */}
+          {context.stage && (
+            <div className="rounded-xl border border-[#1D1C1C]/8 bg-white p-3 flex flex-col gap-1.5">
+              <span className="text-[9px] font-bold text-[#999]">현재 단계</span>
+              <span className="text-[11px] font-bold text-[#1D1C1C]">{context.stage}</span>
+              {context.psf !== undefined && (
+                <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full self-start"
+                  style={{ background: context.psf ? '#1565C010' : '#F7701910', color: context.psf ? '#1565C0' : '#F77019' }}>
+                  {context.psf ? 'PSF 검증' : 'PMF 검증'}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* 타겟 고객 */}
+          {context.targetCustomer && (
+            <div className="rounded-xl border border-[#1D1C1C]/8 bg-white p-3 flex flex-col gap-1.5">
+              <span className="text-[9px] font-bold text-[#999]">타겟 고객</span>
+              <span className="text-[11px] font-bold text-[#1D1C1C] leading-relaxed">{context.targetCustomer}</span>
+            </div>
+          )}
         </div>
       </div>
     </div>
