@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { ExternalLink, TrendingUp, Minus, TrendingDown, CheckCircle2 } from 'lucide-react'
 import type {
+  LightReference,
   ReferenceData,
   TrendKeyword,
   ToastOption,
@@ -165,6 +166,32 @@ export function AgentReferenceCards({ references }: { references: ReferenceData[
 }
 
 /* ─────────────────────────────────────────────────────── */
+/*  라이트 레퍼런스 (Phase 4: 이름 + 한 줄 요약만)          */
+/* ─────────────────────────────────────────────────────── */
+
+export function AgentLightReferenceList({ refs }: { refs: LightReference[] }) {
+  return (
+    <div className="flex flex-col gap-1.5 mt-2 mb-1">
+      {refs.map((ref, i) => (
+        <div
+          key={i}
+          className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-white border border-[#1D1C1C]/8"
+        >
+          <span className="text-[9px] font-black text-[#999] mt-0.5 flex-shrink-0">{i + 1}</span>
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <span className="text-[11px] font-black text-[#1D1C1C] truncate">{ref.name}</span>
+            <span className="text-[10px] font-medium text-[#666] leading-relaxed">{ref.summary}</span>
+          </div>
+        </div>
+      ))}
+      <p className="text-[9px] font-bold text-[#999] px-1 mt-0.5">
+        💡 가격·강점·약점 심층 분석은 검증 리포트에서 확인하세요
+      </p>
+    </div>
+  )
+}
+
+/* ─────────────────────────────────────────────────────── */
 /*  트렌드 키워드 블록                                      */
 /* ─────────────────────────────────────────────────────── */
 
@@ -217,7 +244,7 @@ export function AgentCTA({ onClick }: { onClick: () => void }) {
         boxShadow: '0 6px 20px rgba(247,112,25,0.3)',
       }}
     >
-      🚀 지금 바로 등록하기
+      🚀 지금 등록하고 실제 리뷰어에게 검증받기
     </button>
   )
 }
@@ -284,8 +311,11 @@ export function AgentMessageBubble({
         {/* 트렌드 블록 */}
         {message.trends && <AgentTrendBlock trends={message.trends} />}
 
-        {/* 레퍼런스 카드 */}
-        {message.references && <AgentReferenceCards references={message.references} />}
+        {/* 라이트 레퍼런스 (Phase 4: 이름+요약만) */}
+        {message.lightReferences && <AgentLightReferenceList refs={message.lightReferences} />}
+
+        {/* 풀 레퍼런스 카드 — 채팅에서는 사용 안 함 (사이드바 전용) */}
+        {!message.lightReferences && message.references && <AgentReferenceCards references={message.references} />}
 
         {/* 토스트 선택지 - 최신 메시지만 활성화 */}
         {message.toastOptions && onToastSelect && (

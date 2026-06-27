@@ -1,4 +1,4 @@
-// Agent Phase 1~4 목업 데이터 (v3.1 기획 기반)
+// Agent Phase 1~4 목업 데이터 (v3.3 기획 기반)
 // 실제 API 연동 시 이 파일의 함수들을 API 호출로 교체합니다.
 
 export type AgentMessageRole = 'user' | 'assistant'
@@ -8,6 +8,11 @@ export type ToastOption = {
   label: string
   emoji?: string
   value: string
+}
+
+export type LightReference = {
+  name: string
+  summary: string
 }
 
 export type ReferenceData = {
@@ -39,6 +44,7 @@ export type AgentContext = {
   keywords?: string[]
   marketData?: MarketData
   direction?: string
+  targetCustomer?: string
   references?: ReferenceData[]
 }
 
@@ -50,7 +56,8 @@ export type AgentMessage = {
   // 특수 블록
   toastOptions?: ToastOption[]
   toastType?: 'single' | 'multi'
-  references?: ReferenceData[]
+  lightReferences?: LightReference[]   // Phase 4: 이름+한 줄 요약만 (가격/강점/약점 없음)
+  references?: ReferenceData[]          // 사이드바 context 전달용 (채팅에서 렌더 안 함)
   trends?: TrendKeyword[]
   marketData?: MarketData
   showCTA?: boolean
@@ -75,7 +82,7 @@ const STAGE_OPTIONS: ToastOption[] = [
   { id: 'launched', label: '이미 출시했어요',     emoji: '🚀', value: 'launched' },
 ]
 
-// ─── 카테고리별 재확인 질문 선택지 (Phase 3) ─────────────────
+// ─── Phase 2: 방향 선택지 ─────────────────────────────
 
 const DIRECTION_OPTIONS: Record<string, ToastOption[]> = {
   health: [
@@ -103,35 +110,75 @@ const DIRECTION_OPTIONS: Record<string, ToastOption[]> = {
     { id: 'senior',  label: '시니어 디지털',      emoji: '👴', value: '시니어 디지털 교육' },
   ],
   default: [
-    { id: 'b2c',     label: 'B2C 소비자 서비스',  emoji: '👤', value: 'B2C 소비자 서비스' },
-    { id: 'b2b',     label: 'B2B 기업 솔루션',   emoji: '🏢', value: 'B2B 기업 솔루션' },
-    { id: 'platform',label: '중개 플랫폼',        emoji: '🔗', value: '중개 플랫폼' },
-    { id: 'sub',     label: '구독 서비스',        emoji: '🔄', value: '구독 서비스' },
+    { id: 'b2c',      label: 'B2C 소비자 서비스',  emoji: '👤', value: 'B2C 소비자 서비스' },
+    { id: 'b2b',      label: 'B2B 기업 솔루션',   emoji: '🏢', value: 'B2B 기업 솔루션' },
+    { id: 'platform', label: '중개 플랫폼',        emoji: '🔗', value: '중개 플랫폼' },
+    { id: 'sub',      label: '구독 서비스',        emoji: '🔄', value: '구독 서비스' },
   ],
 }
 
-// ─── 목업 레퍼런스 데이터 ─────────────────────────────
+// ─── Phase 4: 라이트 레퍼런스 (이름 + 한 줄 요약만) ─────────
+// 가격 / 강점 / 약점 심층 분석은 절대 포함하지 않음 → 리포트에서만 공개
 
-const MOCK_REFERENCES: Record<string, ReferenceData[]> = {
+const LIGHT_REFERENCES: Record<string, LightReference[]> = {
   health: [
-    { name: 'FitFolio', target: '20~30대 운동 초보 여성', price: '월 9,900원 구독', pros: '개인 맞춤 운동 루틴 + 식단 AI 추천', cons: '오프라인 연계 부족, 커뮤니티 미약' },
-    { name: 'BodyBuddy', target: '30~40대 직장인 남녀', price: '1회 체험 무료 / 월 14,900원', pros: 'PT 매칭 + 실시간 자세 교정', cons: '지역 제한 (서울 강남 위주)' },
-    { name: 'NutriTrack', target: '20~40대 건강 관심층', price: '기본 무료 / 프로 월 7,900원', pros: '바코드 스캔 영양 분석, 대형 DB', cons: '한국 식품 DB 부족, UI 올드' },
+    { name: 'FitFolio',   summary: '개인 맞춤 운동·식단 AI 추천 구독 앱' },
+    { name: 'BodyBuddy',  summary: 'PT 매칭 + 실시간 자세 교정 서비스' },
+    { name: 'NutriTrack', summary: '바코드 스캔 기반 영양 분석 앱' },
+  ],
+  food: [
+    { name: '오늘의식탁',       summary: '레시피 + 장보기 원스톱 밀키트 앱' },
+    { name: 'Yummly',           summary: 'AI 레시피 추천 + 스마트 가전 연동 글로벌 앱' },
+    { name: '마켓컬리 컬리로그', summary: '프리미엄 식품 리뷰 커뮤니티' },
+  ],
+  edu: [
+    { name: '클래스101', summary: '크리에이터 중심 다양한 분야 구독 강의 플랫폼' },
+    { name: '인프런',    summary: 'IT 직군 특화 강의 + 로드맵 플랫폼' },
+    { name: 'Udemy',     summary: '글로벌 최대 온라인 강의 마켓플레이스' },
+  ],
+  app: [
+    { name: 'Notion',          summary: '올인원 생산성 + 협업 워크스페이스 SaaS' },
+    { name: 'Typeform',        summary: 'UI 특화 폼 빌더 + 데이터 수집 플랫폼' },
+    { name: 'Make (Integromat)', summary: '노코드 업무 자동화 연동 플랫폼' },
+  ],
+  fintech: [
+    { name: '토스',       summary: '국내 최대 간편 금융 슈퍼앱' },
+    { name: 'Rainist',    summary: '가계부 + 자산 관리 앱 뱅크샐러드' },
+    { name: '카카오페이', summary: '간편결제 + 금융상품 중개 플랫폼' },
+  ],
+  default: [
+    { name: 'ValidatorAI', summary: 'AI 멘토 대화형 아이디어 검증 플랫폼 (글로벌)' },
+    { name: 'IDEAGACHA',   summary: '아이디어 탐색 + 트렌드 분석 서비스 (국내)' },
+    { name: '오픈서베이',  summary: '기업/마케터 대상 정량 리서치 패널 플랫폼' },
+  ],
+}
+
+// 사이드바 표시용 전체 레퍼런스 (채팅 메시지에는 사용 안 함)
+const FULL_REFERENCES: Record<string, ReferenceData[]> = {
+  health: [
+    { name: 'FitFolio',   target: '20~30대 운동 초보 여성', price: '월 9,900원 구독', pros: '개인 맞춤 운동 루틴 + 식단 AI 추천', cons: '오프라인 연계 부족, 커뮤니티 미약' },
+    { name: 'BodyBuddy',  target: '30~40대 직장인 남녀',   price: '1회 체험 무료 / 월 14,900원', pros: 'PT 매칭 + 실시간 자세 교정', cons: '지역 제한 (서울 강남 위주)' },
+    { name: 'NutriTrack', target: '20~40대 건강 관심층',   price: '기본 무료 / 프로 월 7,900원', pros: '바코드 스캔 영양 분석, 대형 DB', cons: '한국 식품 DB 부족, UI 올드' },
   ],
   food: [
     { name: '마켓컬리 컬리로그', target: '30~40대 프리미엄 식품 관심층', price: '별도 없음', pros: '프리미엄 식품 리뷰 커뮤니티', cons: '마켓컬리 종속, 독립 서비스 아님' },
-    { name: '오늘의식탁', target: '25~45세 자취/신혼 남녀', price: '무료 / 밀키트 구매 연계', pros: '레시피 + 장보기 원스톱', cons: '밀키트 브랜드 편중' },
-    { name: 'Yummly', target: '20~40대 글로벌 유저', price: '무료 / Pro 월 $4.99', pros: 'AI 레시피 추천, 스마트 가전 연동', cons: '한국 음식 레시피 부족' },
+    { name: '오늘의식탁',       target: '25~45세 자취/신혼 남녀',       price: '무료 / 밀키트 구매 연계', pros: '레시피 + 장보기 원스톱', cons: '밀키트 브랜드 편중' },
+    { name: 'Yummly',           target: '20~40대 글로벌 유저',          price: '무료 / Pro 월 $4.99', pros: 'AI 레시피 추천, 스마트 가전 연동', cons: '한국 음식 레시피 부족' },
   ],
   edu: [
     { name: '클래스101', target: '20~40대 자기계발 관심층', price: '구독 월 14,900원', pros: '다양한 분야, 크리에이터 중심', cons: '수료율 낮음, 퀄리티 편차' },
-    { name: '인프런', target: '개발자/디자이너/기획자', price: '강의별 1~15만원', pros: 'IT 전문 강의 풍부, 로드맵', cons: '비IT 콘텐츠 부족' },
-    { name: 'Udemy', target: '글로벌 직장인/학생', price: '강의별 $10~$200', pros: '방대한 강의 수, 할인 행사', cons: '한국어 강의 부족, 퀄리티 천차만별' },
+    { name: '인프런',    target: '개발자/디자이너/기획자',  price: '강의별 1~15만원', pros: 'IT 전문 강의 풍부, 로드맵', cons: '비IT 콘텐츠 부족' },
+    { name: 'Udemy',     target: '글로벌 직장인/학생',      price: '강의별 $10~$200', pros: '방대한 강의 수, 할인 행사', cons: '한국어 강의 부족, 퀄리티 천차만별' },
+  ],
+  app: [
+    { name: 'Notion',           target: '스타트업/팀/개인 사용자', price: '무료 / Pro 월 $16', pros: '유연한 블록 에디터, 강력한 DB', cons: '학습곡선 높음, 오프라인 미지원' },
+    { name: 'Typeform',         target: '마케터/기획자',           price: '무료 / Plus 월 $25', pros: '높은 완료율, 대화형 UX', cons: '복잡한 로직 구성 어려움' },
+    { name: 'Make (Integromat)', target: '개발자/운영자',          price: 'Free / Pro 월 $9', pros: '2,000+ 앱 연동, 강력한 자동화', cons: '비개발자 진입장벽 높음' },
   ],
   default: [
     { name: 'ValidatorAI', target: '글로벌 창업 준비자', price: '기본 무료 / Pro 월 $29', pros: '20만+ 유저, AI 멘토 대화형', cons: '실제 사람 검증 없음' },
-    { name: 'IDEAGACHA', target: '국내 창업 준비자', price: '무료', pros: '아이디어 탐색 + 트렌드', cons: '실제 사람 검증 없음, 2026 초기 서비스' },
-    { name: '오픈서베이', target: '기업/마케터', price: '수십~수백만원', pros: '정량적 리서치, 패널 규모', cons: '비용 과다 — 초기 창업자 부적합' },
+    { name: 'IDEAGACHA',   target: '국내 창업 준비자',  price: '무료', pros: '아이디어 탐색 + 트렌드', cons: '실제 사람 검증 없음, 2026 초기 서비스' },
+    { name: '오픈서베이',  target: '기업/마케터',       price: '수십~수백만원', pros: '정량적 리서치, 패널 규모', cons: '비용 과다 — 초기 창업자 부적합' },
   ],
 }
 
@@ -194,6 +241,12 @@ export function getGreeting(exploreMode = false): AgentMessage {
 }
 
 // ─── Phase별 응답 생성 ─────────────────────────────
+//
+// Phase 1-a : 분야 선택 → 단계 선택 요청          (phase: 1, category 추가)
+// Phase 1-b : 단계 선택 → 시장 데이터 + 방향 선택  (phase: 2)
+// Phase 2   : 방향 선택 → 타겟 고객 팔로업 질문    (phase: 3)  ← 레퍼런스 없음
+// Phase 3   : 타겟 고객 답변 → 라이트 레퍼런스 + CTA (phase: 4)
+// Phase 4+  : 자유 대화 + CTA 재표시
 
 export function generatePhaseResponse(
   userInput: string,
@@ -203,7 +256,7 @@ export function generatePhaseResponse(
 
   const phase = context.phase
 
-  // Phase 1-a: 분야 선택 → 단계 선택 요청
+  // ── Phase 1-a: 분야 선택 ──
   if (phase === 1 && !context.category) {
     const category = isToastSelection ? userInput : matchCategory(userInput)
     const categoryLabel = CATEGORY_OPTIONS.find(o => o.value === category)?.label ?? userInput
@@ -221,7 +274,7 @@ export function generatePhaseResponse(
     }
   }
 
-  // Phase 1-b: 단계 선택 → 시장 데이터 수집 (Phase 2)
+  // ── Phase 1-b: 단계 선택 → 시장 데이터 + 방향 선택 ──
   if (phase === 1 && context.category && !context.stage) {
     const stage = userInput
     const categoryKey = matchCategory(context.category ?? '')
@@ -251,37 +304,64 @@ export function generatePhaseResponse(
     }
   }
 
-  // Phase 2 → Phase 3: 방향 선택 → 타사 레퍼런스 + CTA
+  // ── Phase 2: 방향 선택 → 타겟 고객 팔로업 질문 (레퍼런스 없음) ──
   if (phase === 2) {
     const direction = userInput
-    const categoryKey = matchCategory(context.category ?? '')
-    const references = MOCK_REFERENCES[categoryKey] ?? MOCK_REFERENCES.default
+    return {
+      message: {
+        id: genId(),
+        role: 'assistant',
+        content:
+          `**${direction}** 방향으로 가시는군요! 💡\n\n` +
+          `한 가지만 더 여쭤볼게요 — 핵심 타겟 고객은 어떻게 생각하고 계세요?\n\n` +
+          `예) 20대 직장인 여성, 초등학생 자녀를 둔 40대 부모, 1인 창업자 등\n` +
+          `직접 입력해주세요 ✏️`,
+        timestamp: new Date().toISOString(),
+      },
+      updatedContext: { ...context, direction, phase: 3 },
+    }
+  }
 
-    const content =
-      `"**${direction}**" 방향으로 비슷한 서비스를 찾아봤어요 👇\n\n` +
-      `경쟁사들의 강점과 약점을 참고해서 차별화 포인트를 잡아보세요.\n\n` +
-      `이 방향으로 **실제 사람들의 반응**을 확인해볼까요?\n` +
-      `검증 의뢰를 등록하면 72시간 안에 전문가 피드백을 받을 수 있어요 🚀`
+  // ── Phase 3: 타겟 고객 답변 → 라이트 레퍼런스 + CTA ──
+  if (phase === 3) {
+    const targetCustomer = userInput
+    const categoryKey = matchCategory(context.category ?? '')
+    const lightRefs = (LIGHT_REFERENCES[categoryKey] ?? LIGHT_REFERENCES.default).slice(0, 3)
+    const fullRefs  = FULL_REFERENCES[categoryKey] ?? FULL_REFERENCES.default
 
     return {
       message: {
         id: genId(),
         role: 'assistant',
-        content,
+        content:
+          `**${targetCustomer}** 타겟이군요! 잘 정리됐어요 🎯\n\n` +
+          `비슷한 방향의 서비스 ${lightRefs.length}개를 찾아봤어요 🔍\n` +
+          `가격·강점·약점 심층 분석은 검증 리포트에서 확인하실 수 있어요 📋`,
         timestamp: new Date().toISOString(),
-        references,
+        lightReferences: lightRefs,
         showCTA: true,
       },
-      updatedContext: { ...context, direction, references, phase: 3 },
+      updatedContext: {
+        ...context,
+        targetCustomer,
+        references: fullRefs,
+        phase: 4,
+      },
     }
   }
 
-  // Phase 3+: 자유 대화
+  // ── Phase 4+: 자유 대화 + CTA 재표시 ──
   return {
     message: {
       id: genId(),
       role: 'assistant',
-      content: `좋은 방향이에요! 💡\n\n지금까지 정리된 내용:\n• **분야**: ${context.category}\n• **단계**: ${context.stage}\n• **방향**: ${context.direction ?? userInput}\n\n바로 검증 의뢰를 등록해보세요. 72시간 내 실제 사람들의 반응을 확인할 수 있어요.`,
+      content:
+        `지금까지 탐색한 내용을 정리해드릴게요 💡\n\n` +
+        `• **분야**: ${context.category ?? '—'}\n` +
+        `• **단계**: ${context.stage ?? '—'}\n` +
+        `• **방향**: ${context.direction ?? '—'}\n` +
+        `• **타겟**: ${context.targetCustomer ?? userInput}\n\n` +
+        `실제 리뷰어에게 검증받으면 72시간 안에 전문가 피드백을 받을 수 있어요 🚀`,
       timestamp: new Date().toISOString(),
       showCTA: true,
     },
