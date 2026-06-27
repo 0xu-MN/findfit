@@ -1,16 +1,20 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const ROLE_REDIRECT: Record<string, string> = {
-  builder: '/builder/dashboard',
-  evaluator: '/evaluator/dashboard',
-  admin: '/admin/requests',
-}
-
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
+  const { pathname } = request.nextUrl
 
-  // Supabase 환경변수 미설정 시 인증 건너뜀 (랜딩페이지 등 정상 렌더링)
+  // /admin 라우트 보호 (로그인 페이지 제외)
+  if (pathname.startsWith('/admin') && pathname !== '/admin/login') {
+    const token = request.cookies.get('findfit-admin-token')?.value
+    const secret = process.env.ADMIN_SECRET_KEY
+    if (!secret || token !== secret) {
+      return NextResponse.redirect(new URL('/admin/login', request.url))
+    }
+  }
+
+  // Supabase 환경변수 미설정 시 인증 건너뜀
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   if (!supabaseUrl || !supabaseAnonKey) {
@@ -36,17 +40,7 @@ export async function proxy(request: NextRequest) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
-  const { pathname } = request.nextUrl
-
-  // 인증 없이 접근 가능한 경로
-  const publicPaths = ['/', '/auth/login', '/auth/signup']
-  const isPublic = publicPaths.some(p => pathname === p || pathname.startsWith('/auth'))
-
-  // TODO: 로그인 로직 완성 후 아래 주석 해제
-  // if (!user && !isPublic) {
-  //   return NextResponse.redirect(new URL('/auth/login', request.url))
-  // }
+  await supabase.auth.getUser()
 
   return supabaseResponse
 }
