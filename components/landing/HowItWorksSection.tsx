@@ -1,154 +1,278 @@
 'use client'
 
-import { useState } from 'react'
-import { Lightbulb, Users, LineChart, Plus, Minus } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { useScroll, useMotionValueEvent } from 'framer-motion'
 
 const steps = [
   {
     n: '01',
-    title: '아이디어 올리기',
-    desc: '5분 안에 제품을 간단히 소개하면 끝. 방법론을 몰라도 6단계 위자드가 안내해드려요.',
-    icon: Lightbulb,
+    title: '프로젝트 등록',
+    desc: '아이디어·서비스 정보를 입력하고 공개 범위와 리뷰 유형을 설정해요',
+    tag: '스탠다드 / 라이트 선택 가능',
   },
   {
     n: '02',
-    title: '전문 리뷰어 자동 매칭',
-    desc: '관심 분야가 맞는 리뷰어들에게 알림이 자동으로 전달돼요. 직접 모집하지 않아도 돼요.',
-    icon: Users,
+    title: '리뷰어 매칭',
+    desc: 'FindFit이 조건에 맞는 리뷰어를 자동으로 연결하고 NDA 동의를 처리해요',
+    tag: '타겟 기반 필터링 적용',
   },
   {
     n: '03',
-    title: 'AI 리포트 수령',
-    desc: '72시간 안에 계속/피봇/중단 판단 근거가 담긴 리포트를 받아볼 수 있어요.',
-    icon: LineChart,
+    title: '피드백 수집',
+    desc: '리뷰어들이 상세 평가와 의견을 작성해요. 진행 상황을 실시간으로 확인할 수 있어요',
+    tag: 'NDA 보호 상태로 진행',
+  },
+  {
+    n: '04',
+    title: 'AI 분석 리포트',
+    desc: 'AI가 피드백 패턴을 분석해 핵심 인사이트와 우선순위 개선 사항을 정리해요',
+    tag: 'PDF 다운로드 / 공유 링크 제공',
   },
 ]
 
-export default function HowItWorksSection() {
-  const [openIndex, setOpenIndex] = useState<number>(0)
+const SEG = 1 / steps.length
+
+function clamp(v: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, v))
+}
+
+type Pt = { x: number; y: number }
+
+function dist(a: Pt, b: Pt) {
+  return Math.hypot(a.x - b.x, a.y - b.y)
+}
+
+// Builds an SVG path through the waypoints, rounding every interior corner
+// with radius r. Straight segments in between stay crisp.
+function roundedPath(pts: Pt[], r: number) {
+  if (pts.length < 2) return ''
+  let d = `M ${pts[0].x} ${pts[0].y}`
+  for (let i = 1; i < pts.length - 1; i++) {
+    const p = pts[i]
+    const prev = pts[i - 1]
+    const next = pts[i + 1]
+    const dp = dist(p, prev)
+    const dn = dist(p, next)
+    const rr = Math.max(0, Math.min(r, dp / 2, dn / 2))
+    const a = { x: p.x + ((prev.x - p.x) / dp) * rr, y: p.y + ((prev.y - p.y) / dp) * rr }
+    const b = { x: p.x + ((next.x - p.x) / dn) * rr, y: p.y + ((next.y - p.y) / dn) * rr }
+    d += ` L ${a.x} ${a.y} Q ${p.x} ${p.y} ${b.x} ${b.y}`
+  }
+  const last = pts[pts.length - 1]
+  d += ` L ${last.x} ${last.y}`
+  return d
+}
+
+function FullStep({
+  step,
+  index,
+  size,
+  progress,
+}: {
+  step: (typeof steps)[number]
+  index: number
+  size: { w: number; h: number }
+  progress: number
+}) {
+  const a0 = index * SEG
+  const a3 = (index + 1) * SEG
+  const margin = SEG * 0.18
+  const a1 = a0 + margin
+  const a2 = a3 - margin
+
+  const fadeIn = clamp((progress - a0) / (a1 - a0), 0, 1)
+  const fadeOut = clamp((a3 - progress) / (a3 - a2), 0, 1)
+  const isFirst = index === 0
+  const isLast = index === steps.length - 1
+  const opacity = isFirst ? fadeOut : isLast ? fadeIn : Math.min(fadeIn, fadeOut)
+  const y = isFirst ? (1 - fadeOut) * -40 : isLast ? (1 - fadeIn) * 40 : (1 - fadeIn) * 40 + (1 - fadeOut) * -40
+
+  // The orange portion of the line grows in lock-step with scroll across
+  // this step's whole dwell, finishing right as the exit fade begins.
+  const drawFrac = clamp((progress - a0) / (a2 - a0), 0, 1)
+
+  const isLeft = index % 2 === 0
+  const { w, h } = size
+
+  // Line drops in vertically from dead center at the top, bulges left or
+  // right past the number, then returns to dead center at the bottom.
+  // Every step shares the same entry/exit anchor, so as one step's line
+  // fades out and the next fades in, the center stays put — no left/right
+  // jump between steps, just one continuous line sliding down.
+  const xCenter = w * 0.5
+  const xFar = isLeft ? w * 0.24 : w * 0.76
+  const yA = h * 0.32
+  const yB = h * 0.6
+  const r = Math.min(w, h) * 0.09
+
+  const d = roundedPath(
+    [
+      { x: xCenter, y: 0 },
+      { x: xCenter, y: yA },
+      { x: xFar, y: yA },
+      { x: xFar, y: yB },
+      { x: xCenter, y: yB },
+      { x: xCenter, y: h },
+    ],
+    r
+  )
+
+  // Sits on the belly of the line, where it bulges out to xFar.
+  const numberY = (yA + yB) / 2
 
   return (
-    <section id="howworks-section" className="bg-[#F5F5F5] snap-section overflow-hidden">
-      <div className="max-w-[1280px] mx-auto h-full flex items-center">
-        <div className="w-full flex flex-col md:flex-row min-h-[100vh] items-stretch">
+    <div className="absolute inset-0 pointer-events-none" style={{ opacity, transform: `translateY(${y}px)` }}>
+      <svg className="absolute inset-0" width={w} height={h} viewBox={`0 0 ${w} ${h}`} fill="none">
+        <path d={d} stroke="rgba(255,255,255,0.12)" strokeWidth={1.5} />
+        <path
+          d={d}
+          stroke="#F77019"
+          strokeWidth={1.5}
+          strokeLinecap="round"
+          pathLength={100}
+          strokeDasharray={100}
+          strokeDashoffset={100 * (1 - drawFrac)}
+        />
+      </svg>
 
-          {/* ── Left: Brand Watermark Column ── */}
-          <div className="relative hidden md:flex w-[220px] lg:w-[260px] shrink-0 py-20 pl-10 pr-6 select-none">
-            {/* FINDFIT vertical watermark */}
-            <div
-              className="absolute bottom-[15%] left-0 right-0 flex items-end justify-center pointer-events-none"
-              aria-hidden
+      <div
+        className="absolute flex items-center gap-5"
+        style={{
+          top: numberY,
+          left: isLeft ? xFar + 24 : undefined,
+          right: isLeft ? undefined : w - xFar + 24,
+          transform: 'translateY(-50%)',
+          flexDirection: isLeft ? 'row' : 'row-reverse',
+        }}
+      >
+        <span
+          className="font-thin leading-none text-white shrink-0"
+          style={{ fontSize: 'clamp(56px, 8vw, 120px)' }}
+        >
+          {step.n}
+        </span>
+        <div className={isLeft ? 'text-left' : 'text-right'} style={{ maxWidth: 'min(24vw, 300px)' }}>
+          <h3 className="text-white font-medium leading-snug mb-2 break-keep" style={{ fontSize: 'clamp(18px, 1.8vw, 24px)' }}>
+            {step.title}
+          </h3>
+          <p className="text-white/45 font-light leading-relaxed mb-3 break-keep" style={{ fontSize: 'clamp(13px, 1.1vw, 15px)' }}>
+            {step.desc}
+          </p>
+          <span className="text-[11px] text-[#F77019]/80 font-medium tracking-wide">{step.tag}</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function HowItWorksSection() {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const stageRef = useRef<HTMLDivElement>(null)
+  const mobileRef = useRef<HTMLDivElement>(null)
+  const [size, setSize] = useState<{ w: number; h: number } | null>(null)
+  const [progress, setProgress] = useState(0)
+
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ['start start', 'end end'],
+  })
+
+  useMotionValueEvent(scrollYProgress, 'change', (v) => setProgress(v))
+
+  useEffect(() => {
+    const el = stageRef.current
+    if (!el) return
+    const measure = () => {
+      const rect = el.getBoundingClientRect()
+      if (rect.width > 0 && rect.height > 0) setSize({ w: rect.width, h: rect.height })
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    const root = mobileRef.current
+    if (!root) return
+    const targets = root.querySelectorAll('.fade-up-init')
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible')
+            observer.unobserve(entry.target)
+          }
+        })
+      },
+      { threshold: 0.15 }
+    )
+    targets.forEach((t) => observer.observe(t))
+    return () => observer.disconnect()
+  }, [])
+
+  return (
+    <section id="howworks-section" className="snap-section-auto bg-black relative">
+      {/* ── Desktop: pinned, one full-bleed step at a time ── */}
+      <div ref={containerRef} className="hidden md:block relative" style={{ height: `${steps.length * 100}vh` }}>
+        <div className="sticky top-0 h-screen w-full flex flex-col overflow-hidden px-10 lg:px-20 py-16">
+          {/* Heading */}
+          <div className="max-w-[1280px] mx-auto w-full shrink-0 mb-6">
+            <span className="inline-block text-[12px] font-black tracking-[0.15em] text-[#F77019] mb-4">
+              How it works
+            </span>
+            <h2
+              className="font-black leading-[1.25] tracking-tight text-white mb-5"
+              style={{ fontSize: 'clamp(28px, 3.2vw, 44px)' }}
             >
-              <span
-                className="text-[clamp(72px,9vw,108px)] font-black leading-none tracking-tighter text-[#1D1C1C]/[0.055] whitespace-nowrap"
-                style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
-              >
-                FINDFIT
-              </span>
-            </div>
+              4단계로 완성되는
+              <br />
+              고객 검증 사이클
+            </h2>
+            <p className="text-white/50 text-[15px] md:text-base max-w-[420px]">
+              등록부터 결과 분석까지, FindFit이 전 과정을 안내합니다.
+            </p>
           </div>
 
-          {/* ── Right: Content ── */}
-          <div className="flex-1 flex flex-col justify-center py-16 md:py-20 px-6 md:pl-12 md:pr-16 lg:pr-24">
-
-            {/* Heading */}
-            <div className="mb-14">
-              <span
-                className="inline-block text-[10px] font-black tracking-[0.22em] uppercase px-3 py-1.5 rounded-full mb-5"
-                style={{ background: 'rgba(247,112,25,0.10)', color: '#F77019' }}
-              >
-                How it works
-              </span>
-              <h2
-                className="font-black leading-[1.15] tracking-tight text-[#1D1C1C] mb-5"
-                style={{ fontSize: 'clamp(28px, 3.5vw, 52px)' }}
-              >
-                딱 3단계로 끝납니다
-              </h2>
-              <p className="text-[#888] text-[15px] md:text-base leading-relaxed max-w-[400px]">
-                복잡한 리서치 없이도 전문가급 검증을 72시간 안에 완료해요.
-              </p>
-            </div>
-
-            {/* Accordion */}
-            <div className="flex flex-col gap-0">
-              {steps.map((step, idx) => {
-                const Icon = step.icon
-                const isOpen = openIndex === idx
-                return (
-                  <div key={step.n} className="group">
-                    {/* Row button */}
-                    <button
-                      onClick={() => setOpenIndex(isOpen ? -1 : idx)}
-                      className="w-full flex items-center justify-between py-5 text-left focus:outline-none"
-                      aria-expanded={isOpen}
-                    >
-                      <div className="flex items-center gap-5">
-                        {/* Step number */}
-                        <span
-                          className="text-[13px] font-black tabular-nums transition-colors duration-300"
-                          style={{ color: isOpen ? '#F77019' : 'rgba(29,28,28,0.25)', letterSpacing: '0.04em' }}
-                        >
-                          {step.n}
-                        </span>
-                        {/* Title */}
-                        <h3
-                          className="font-bold transition-colors duration-300"
-                          style={{
-                            fontSize: 'clamp(16px, 1.5vw, 22px)',
-                            color: isOpen ? '#1D1C1C' : 'rgba(29,28,28,0.55)',
-                          }}
-                        >
-                          {step.title}
-                        </h3>
-                      </div>
-
-                      {/* Toggle icon */}
-                      <div
-                        className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-all duration-300"
-                        style={{
-                          background: isOpen ? '#F77019' : 'rgba(29,28,28,0.06)',
-                          color: isOpen ? '#fff' : '#1D1C1C',
-                        }}
-                      >
-                        {isOpen
-                          ? <Minus className="w-4 h-4" strokeWidth={2.5} />
-                          : <Plus className="w-4 h-4" strokeWidth={2.5} />
-                        }
-                      </div>
-                    </button>
-
-                    {/* Expanded panel */}
-                    <div
-                      className="overflow-hidden transition-all duration-500 ease-in-out"
-                      style={{ maxHeight: isOpen ? '300px' : '0px', opacity: isOpen ? 1 : 0 }}
-                    >
-                      <div className="pb-8 pl-[calc(13px+20px)] flex items-start gap-8">
-                        {/* Icon pill */}
-                        <div
-                          className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0"
-                          style={{ background: 'rgba(247,112,25,0.09)', color: '#F77019' }}
-                        >
-                          <Icon className="w-5 h-5" strokeWidth={2.5} />
-                        </div>
-                        {/* Description */}
-                        <p className="text-[#555] leading-relaxed text-[15px] pt-1 max-w-none break-keep">
-                          {step.desc}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Separator — only between items, never after last */}
-                    {idx < steps.length - 1 && (
-                      <div className="h-px w-full" style={{ background: 'rgba(29,28,28,0.07)' }} />
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-
+          {/* Full-bleed step stage */}
+          <div ref={stageRef} className="max-w-[1280px] mx-auto w-full flex-1 relative min-h-0">
+            {size &&
+              steps.map((step, i) => (
+                <FullStep key={step.n} step={step} index={i} size={size} progress={progress} />
+              ))}
           </div>
+        </div>
+      </div>
 
+      {/* ── Mobile: static vertical fallback ── */}
+      <div ref={mobileRef} className="md:hidden py-20 px-6">
+        <div className="mb-14 fade-up-init">
+          <span className="inline-block text-[12px] font-black tracking-[0.15em] text-[#F77019] mb-4">
+            How it works
+          </span>
+          <h2 className="font-black leading-[1.25] tracking-tight text-white mb-5" style={{ fontSize: 'clamp(26px, 7vw, 34px)' }}>
+            4단계로 완성되는
+            <br />
+            고객 검증 사이클
+          </h2>
+          <p className="text-white/50 text-[15px] max-w-[360px]">
+            등록부터 결과 분석까지, FindFit이 전 과정을 안내합니다.
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-10">
+          {steps.map((step, i) => (
+            <div key={step.n} className={`fade-up-init delay-${i + 1} flex gap-5`}>
+              <div className="w-12 h-12 rounded-full border-2 border-[#F77019] flex items-center justify-center shrink-0 font-black text-[#F77019] tabular-nums">
+                {step.n}
+              </div>
+              <div>
+                <h3 className="text-white font-bold text-[17px] mb-2">{step.title}</h3>
+                <p className="text-white/50 text-[13px] leading-relaxed mb-3 break-keep">{step.desc}</p>
+                <span className="text-[11px] text-[#F77019]/80 font-medium tracking-wide">{step.tag}</span>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </section>
