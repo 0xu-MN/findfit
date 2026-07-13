@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import { useScroll, useMotionValueEvent } from 'framer-motion'
+import { useRef, useState, useEffect } from 'react'
+import { motion, AnimatePresence, useScroll, useTransform, useMotionValueEvent } from 'framer-motion'
 
 const steps = [
   {
@@ -30,146 +30,48 @@ const steps = [
   },
 ]
 
-const SEG = 1 / steps.length
+// ─── SVG snake constants ────────────────────────────────────────────────────
+// R=120 keeps the height:width ratio ~2:1, so the snake fills the column nicely
+const VW  = 500
+const CX  = VW / 2   // 250
+const R   = 120      // semicircle radius → XR=370, XL=130
+const PAD = 40
+const VH  = PAD + steps.length * 2 * R + PAD   // 40 + 960 + 40 = 1040
 
-function clamp(v: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, v))
-}
+const XR = CX + R   // 370
+const XL = CX - R   // 130
 
-type Pt = { x: number; y: number }
-
-function dist(a: Pt, b: Pt) {
-  return Math.hypot(a.x - b.x, a.y - b.y)
-}
-
-// Builds an SVG path through the waypoints, rounding every interior corner
-// with radius r. Straight segments in between stay crisp.
-function roundedPath(pts: Pt[], r: number) {
-  if (pts.length < 2) return ''
-  let d = `M ${pts[0].x} ${pts[0].y}`
-  for (let i = 1; i < pts.length - 1; i++) {
-    const p = pts[i]
-    const prev = pts[i - 1]
-    const next = pts[i + 1]
-    const dp = dist(p, prev)
-    const dn = dist(p, next)
-    const rr = Math.max(0, Math.min(r, dp / 2, dn / 2))
-    const a = { x: p.x + ((prev.x - p.x) / dp) * rr, y: p.y + ((prev.y - p.y) / dp) * rr }
-    const b = { x: p.x + ((next.x - p.x) / dn) * rr, y: p.y + ((next.y - p.y) / dn) * rr }
-    d += ` L ${a.x} ${a.y} Q ${p.x} ${p.y} ${b.x} ${b.y}`
+// No straight segments between arcs — pure S-curve
+function buildPath(): string {
+  const parts: string[] = [`M ${CX} 0`, `L ${CX} ${PAD}`]
+  for (let i = 0; i < steps.length; i++) {
+    const sweep = i % 2 === 0 ? 1 : 0
+    const yEnd  = PAD + (i + 1) * 2 * R
+    parts.push(`A ${R} ${R} 0 0 ${sweep} ${CX} ${yEnd}`)
   }
-  const last = pts[pts.length - 1]
-  d += ` L ${last.x} ${last.y}`
-  return d
+  parts.push(`L ${CX} ${VH}`)
+  return parts.join(' ')
 }
 
-function FullStep({
-  step,
-  index,
-  size,
-  progress,
-}: {
-  step: (typeof steps)[number]
-  index: number
-  size: { w: number; h: number }
-  progress: number
-}) {
-  const a0 = index * SEG
-  const a3 = (index + 1) * SEG
-  const margin = SEG * 0.18
-  const a1 = a0 + margin
-  const a2 = a3 - margin
+const PATH_D = buildPath()
 
-  const fadeIn = clamp((progress - a0) / (a1 - a0), 0, 1)
-  const fadeOut = clamp((a3 - progress) / (a3 - a2), 0, 1)
-  const isFirst = index === 0
-  const isLast = index === steps.length - 1
-  const opacity = isFirst ? fadeOut : isLast ? fadeIn : Math.min(fadeIn, fadeOut)
-  const y = isFirst ? (1 - fadeOut) * -40 : isLast ? (1 - fadeIn) * 40 : (1 - fadeIn) * 40 + (1 - fadeOut) * -40
+// Belly % positions (SVG-space → container %)
+const BELLY = steps.map((_, i) => ({
+  isRight: i % 2 === 0,
+  xPct: ((i % 2 === 0 ? XR : XL) / VW) * 100,
+  yPct: ((PAD + i * 2 * R + R) / VH) * 100,
+}))
 
-  // The orange portion of the line grows in lock-step with scroll across
-  // this step's whole dwell, finishing right as the exit fade begins.
-  const drawFrac = clamp((progress - a0) / (a2 - a0), 0, 1)
+// Scroll fractions when orange tip reaches each belly
+const ARC_LEN  = Math.PI * R
+const TOT_LEN  = 2 * PAD + steps.length * ARC_LEN
+const THRESHOLDS = steps.map((_, i) => (PAD + (i + 0.5) * ARC_LEN) / TOT_LEN)
 
-  const isLeft = index % 2 === 0
-  const { w, h } = size
-
-  // Line drops in vertically from dead center at the top, bulges left or
-  // right past the number, then returns to dead center at the bottom.
-  // Every step shares the same entry/exit anchor, so as one step's line
-  // fades out and the next fades in, the center stays put — no left/right
-  // jump between steps, just one continuous line sliding down.
-  const xCenter = w * 0.5
-  const xFar = isLeft ? w * 0.24 : w * 0.76
-  const yA = h * 0.32
-  const yB = h * 0.6
-  const r = Math.min(w, h) * 0.09
-
-  const d = roundedPath(
-    [
-      { x: xCenter, y: 0 },
-      { x: xCenter, y: yA },
-      { x: xFar, y: yA },
-      { x: xFar, y: yB },
-      { x: xCenter, y: yB },
-      { x: xCenter, y: h },
-    ],
-    r
-  )
-
-  // Sits on the belly of the line, where it bulges out to xFar.
-  const numberY = (yA + yB) / 2
-
-  return (
-    <div className="absolute inset-0 pointer-events-none" style={{ opacity, transform: `translateY(${y}px)` }}>
-      <svg className="absolute inset-0" width={w} height={h} viewBox={`0 0 ${w} ${h}`} fill="none">
-        <path d={d} stroke="rgba(255,255,255,0.12)" strokeWidth={1.5} />
-        <path
-          d={d}
-          stroke="#F77019"
-          strokeWidth={1.5}
-          strokeLinecap="round"
-          pathLength={100}
-          strokeDasharray={100}
-          strokeDashoffset={100 * (1 - drawFrac)}
-        />
-      </svg>
-
-      <div
-        className="absolute flex items-center gap-5"
-        style={{
-          top: numberY,
-          left: isLeft ? xFar + 24 : undefined,
-          right: isLeft ? undefined : w - xFar + 24,
-          transform: 'translateY(-50%)',
-          flexDirection: isLeft ? 'row' : 'row-reverse',
-        }}
-      >
-        <span
-          className="font-thin leading-none text-white shrink-0"
-          style={{ fontSize: 'clamp(56px, 8vw, 120px)' }}
-        >
-          {step.n}
-        </span>
-        <div className={isLeft ? 'text-left' : 'text-right'} style={{ maxWidth: 'min(24vw, 300px)' }}>
-          <h3 className="text-white font-medium leading-snug mb-2 break-keep" style={{ fontSize: 'clamp(18px, 1.8vw, 24px)' }}>
-            {step.title}
-          </h3>
-          <p className="text-white/45 font-light leading-relaxed mb-3 break-keep" style={{ fontSize: 'clamp(13px, 1.1vw, 15px)' }}>
-            {step.desc}
-          </p>
-          <span className="text-[11px] text-[#F77019]/80 font-medium tracking-wide">{step.tag}</span>
-        </div>
-      </div>
-    </div>
-  )
-}
-
+// ─── Main ──────────────────────────────────────────────────────────────────
 export default function HowItWorksSection() {
   const containerRef = useRef<HTMLDivElement>(null)
-  const stageRef = useRef<HTMLDivElement>(null)
-  const mobileRef = useRef<HTMLDivElement>(null)
-  const [size, setSize] = useState<{ w: number; h: number } | null>(null)
+  const pathRef      = useRef<SVGPathElement>(null)
+  const [pathLen, setPathLen]   = useState(0)
   const [progress, setProgress] = useState(0)
 
   const { scrollYProgress } = useScroll({
@@ -177,93 +79,183 @@ export default function HowItWorksSection() {
     offset: ['start start', 'end end'],
   })
 
-  useMotionValueEvent(scrollYProgress, 'change', (v) => setProgress(v))
-
   useEffect(() => {
-    const el = stageRef.current
-    if (!el) return
-    const measure = () => {
-      const rect = el.getBoundingClientRect()
-      if (rect.width > 0 && rect.height > 0) setSize({ w: rect.width, h: rect.height })
-    }
-    measure()
-    const observer = new ResizeObserver(measure)
-    observer.observe(el)
-    return () => observer.disconnect()
+    if (pathRef.current) setPathLen(pathRef.current.getTotalLength())
   }, [])
 
-  useEffect(() => {
-    const root = mobileRef.current
-    if (!root) return
-    const targets = root.querySelectorAll('.fade-up-init')
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('visible')
-            observer.unobserve(entry.target)
-          }
-        })
-      },
-      { threshold: 0.15 }
-    )
-    targets.forEach((t) => observer.observe(t))
-    return () => observer.disconnect()
-  }, [])
+  useMotionValueEvent(scrollYProgress, 'change', setProgress)
+
+  const orangeOffset = useTransform(
+    scrollYProgress,
+    [0, 1],
+    pathLen > 0 ? [pathLen, 0] : [0, 0],
+  )
+
+  const activeStep = steps.reduce<number>((acc, _, i) => (progress >= THRESHOLDS[i] ? i : acc), -1)
 
   return (
     <section id="howworks-section" className="snap-section-auto bg-black relative">
-      {/* ── Desktop: pinned, one full-bleed step at a time ── */}
-      <div ref={containerRef} className="hidden md:block relative" style={{ height: `${steps.length * 100}vh` }}>
-        <div className="sticky top-0 h-screen w-full flex flex-col overflow-hidden px-10 lg:px-20 py-16">
-          {/* Heading */}
-          <div className="max-w-[1280px] mx-auto w-full shrink-0 mb-6">
-            <span className="inline-block text-[12px] font-black tracking-[0.15em] text-[#F77019] mb-4">
-              How it works
-            </span>
-            <h2
-              className="font-black leading-[1.25] tracking-tight text-white mb-5"
-              style={{ fontSize: 'clamp(28px, 3.2vw, 44px)' }}
-            >
-              4단계로 완성되는
-              <br />
-              고객 검증 사이클
-            </h2>
-            <p className="text-white/50 text-[15px] md:text-base max-w-[420px]">
-              등록부터 결과 분석까지, FindFit이 전 과정을 안내합니다.
-            </p>
-          </div>
 
-          {/* Full-bleed step stage */}
-          <div ref={stageRef} className="max-w-[1280px] mx-auto w-full flex-1 relative min-h-0">
-            {size &&
-              steps.map((step, i) => (
-                <FullStep key={step.n} step={step} index={i} size={size} progress={progress} />
-              ))}
+      {/* ── Desktop: scroll-driven ── */}
+      <div
+        ref={containerRef}
+        className="hidden md:block relative"
+        style={{ height: `${steps.length * 100}vh` }}
+      >
+        {/*
+          Height chain:
+          sticky (h-screen)
+          → max-w wrapper (h-full = 100vh, py-16 → content area = 100vh - 128px)
+          → right column (h-full = same)
+          → snake container (h-full → has explicit px height reference)
+        */}
+        <div className="sticky top-0 h-screen overflow-hidden flex items-center justify-center px-8 lg:px-14">
+          <div className="w-full max-w-[1100px] h-full flex items-center gap-12 lg:gap-16 py-16">
+
+            {/* LEFT — large step content */}
+            <div className="flex-1 flex flex-col justify-center">
+              <div className="mb-10">
+                <span className="text-[11px] font-black tracking-[0.18em] text-[#F77019] block mb-2">
+                  How it works
+                </span>
+                <h2
+                  className="font-black leading-[1.2] tracking-tight text-white"
+                  style={{ fontSize: 'clamp(22px, 2.6vw, 36px)' }}
+                >
+                  4단계로 완성되는
+                  <br />
+                  고객 검증 사이클
+                </h2>
+              </div>
+
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeStep}
+                  initial={{ opacity: 0, y: 28 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.18, ease: [0.2, 0, 0, 1] }}
+                >
+                  {activeStep >= 0 ? (
+                    <div>
+                      <p className="text-[#F77019] text-xs font-bold tracking-[0.2em] mb-5">
+                        STEP {steps[activeStep].n}
+                      </p>
+                      <h3
+                        className="text-white font-black leading-tight tracking-tight break-keep mb-5"
+                        style={{ fontSize: 'clamp(32px, 4vw, 58px)' }}
+                      >
+                        {steps[activeStep].title}
+                      </h3>
+                      <p
+                        className="text-white/55 font-light leading-relaxed break-keep max-w-[440px]"
+                        style={{ fontSize: 'clamp(15px, 1.3vw, 18px)' }}
+                      >
+                        {steps[activeStep].desc}
+                      </p>
+                      <span className="inline-block mt-6 text-[11px] text-[#F77019]/70 font-semibold tracking-[0.15em]">
+                        {steps[activeStep].tag}
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="text-white/25 text-base font-light">
+                      스크롤을 내려주세요 ↓
+                    </p>
+                  )}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+
+            {/* RIGHT — snake animation
+                h-full inherits the 100vh - 128px from the py-16 wrapper above */}
+            <div className="shrink-0 h-full flex items-center" style={{ width: '42%' }}>
+              {/* aspectRatio constrains the width from the explicit h-full height */}
+              <div
+                className="relative h-full mx-auto"
+                style={{ aspectRatio: `${VW} / ${VH}`, maxWidth: '100%' }}
+              >
+                <svg
+                  className="absolute inset-0 w-full h-full"
+                  viewBox={`0 0 ${VW} ${VH}`}
+                  preserveAspectRatio="none"
+                  fill="none"
+                >
+                  <path ref={pathRef} d={PATH_D} stroke="none" fill="none" />
+                  <path d={PATH_D} stroke="rgba(255,255,255,0.14)" strokeWidth={1.5} strokeLinecap="round" />
+                  {pathLen > 0 && (
+                    <motion.path
+                      d={PATH_D}
+                      stroke="#F77019"
+                      strokeWidth={1.5}
+                      strokeLinecap="round"
+                      strokeDasharray={pathLen}
+                      style={{ strokeDashoffset: orangeOffset }}
+                    />
+                  )}
+                </svg>
+
+                {/* Step indicators anchored to each belly */}
+                {BELLY.map(({ xPct, yPct, isRight }, i) => (
+                  <motion.div
+                    key={i}
+                    className="absolute flex items-center pointer-events-none"
+                    style={{
+                      left:          `${xPct}%`,
+                      top:           `${yPct}%`,
+                      transform:     `translate(${isRight ? '-100%' : '0%'}, -50%)`,
+                      flexDirection: isRight ? 'row-reverse' : 'row',
+                      gap:           '5px',
+                      paddingRight:  isRight ? '4px' : 0,
+                      paddingLeft:   isRight ? 0 : '4px',
+                    }}
+                    animate={{ opacity: i <= activeStep ? 1 : 0.18 }}
+                    transition={{ duration: 0.15 }}
+                  >
+                    <span
+                      className="text-white leading-none tabular-nums shrink-0 select-none"
+                      style={{ fontSize: 'clamp(20px, 2.5vw, 36px)', fontWeight: 100, letterSpacing: '-0.04em' }}
+                    >
+                      {steps[i].n}
+                    </span>
+                    <span
+                      className="text-white/55 font-medium break-keep"
+                      style={{ fontSize: 'clamp(7px, 0.7vw, 10px)', maxWidth: '70px', lineHeight: 1.3 }}
+                    >
+                      {steps[i].title}
+                    </span>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
 
-      {/* ── Mobile: static vertical fallback ── */}
-      <div ref={mobileRef} className="md:hidden py-20 px-6">
-        <div className="mb-14 fade-up-init">
+      {/* ── Mobile: fade-in list ── */}
+      <div className="md:hidden py-20 px-6">
+        <div className="mb-14">
           <span className="inline-block text-[12px] font-black tracking-[0.15em] text-[#F77019] mb-4">
             How it works
           </span>
           <h2 className="font-black leading-[1.25] tracking-tight text-white mb-5" style={{ fontSize: 'clamp(26px, 7vw, 34px)' }}>
-            4단계로 완성되는
-            <br />
-            고객 검증 사이클
+            4단계로 완성되는<br />고객 검증 사이클
           </h2>
           <p className="text-white/50 text-[15px] max-w-[360px]">
             등록부터 결과 분석까지, FindFit이 전 과정을 안내합니다.
           </p>
         </div>
-
         <div className="flex flex-col gap-10">
           {steps.map((step, i) => (
-            <div key={step.n} className={`fade-up-init delay-${i + 1} flex gap-5`}>
-              <div className="w-12 h-12 rounded-full border-2 border-[#F77019] flex items-center justify-center shrink-0 font-black text-[#F77019] tabular-nums">
+            <motion.div
+              key={step.n}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-10% 0px' }}
+              transition={{ duration: 0.5, delay: i * 0.1 }}
+              className="flex gap-5"
+            >
+              <div className="w-11 h-11 rounded-full border border-white/20 flex items-center justify-center shrink-0 text-white/60 text-sm tabular-nums">
                 {step.n}
               </div>
               <div>
@@ -271,10 +263,11 @@ export default function HowItWorksSection() {
                 <p className="text-white/50 text-[13px] leading-relaxed mb-3 break-keep">{step.desc}</p>
                 <span className="text-[11px] text-[#F77019]/80 font-medium tracking-wide">{step.tag}</span>
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
       </div>
+
     </section>
   )
 }
