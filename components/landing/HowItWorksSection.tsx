@@ -21,10 +21,10 @@ const SVG_W = 100
 const CX        = 50    // container centre
 const HOLLOW_H  = 44     // vertical span of one hollow
 const RY        = HOLLOW_H / 2                          // 22
-const H_LEN     = 36     // horizontal shelf between hollows — long enough that hollows reach the container edges
+const H_LEN     = 48     // horizontal shelf between hollows — lengthened further
 const D         = H_LEN / 2   // each hollow sits this far left/right of centre, alternating
-const PAD_T     = 38     // entry straight, above the first hollow (shortened again)
-const PAD_B     = 38     // exit straight, below the last hollow (shortened again)
+const PAD_T     = 26     // entry straight, above the first hollow (shortened again)
+const PAD_B     = 26     // exit straight, below the last hollow (shortened again)
 const CORNER    = 7      // small fixed corner that blends a vertical tangent into a horizontal one (and back)
 
 const SVG_H = PAD_T + steps.length * HOLLOW_H + PAD_B
@@ -141,11 +141,11 @@ export default function HowItWorksSection() {
   // each hollow's outer apex lands right at the container edge (full header
   // width, logo-start to button-end) without clipping.
   const rxMain = useMemo(() => {
-    if (!vh || !cw) return 24
+    if (!vh || !cw) return 20
     const ryPx = RY * (MOVING_VH / 100) * vh / SVG_H
     const pxPerUnitX = cw / SVG_W
     const circularRx = ryPx / pxPerUnitX
-    return Math.min(48 - D, Math.max(16, circularRx))
+    return Math.min(48 - D, Math.max(12, circularRx))
   }, [vh, cw])
 
   const pathD = useMemo(() => buildPath(rxMain), [rxMain])
@@ -275,14 +275,14 @@ export default function HowItWorksSection() {
                         maxWidth: 'min(40vw, 460px)',
                       }}
                     >
-                      {/* Step number — tall/condensed, cropped at the top so it reads as
-                          "peeking in" from above the title, not a full digit */}
+                      {/* Step number — tall/condensed, cropped at the BOTTOM so its lower
+                          half sits behind the title (title overlaps it, drawn on top) */}
                       <div
                         style={{
                           height: 'clamp(38px, 4.4vw, 66px)',
                           overflow: 'hidden',
                           display: 'flex',
-                          alignItems: 'flex-end',
+                          alignItems: 'flex-start',
                           justifyContent: isLeftHollow ? 'flex-start' : 'flex-end',
                         }}
                       >
@@ -294,15 +294,15 @@ export default function HowItWorksSection() {
                             lineHeight: 1,
                             letterSpacing: '-0.03em',
                             transform: 'scaleX(0.78)',
-                            transformOrigin: isLeftHollow ? 'left bottom' : 'right bottom',
+                            transformOrigin: isLeftHollow ? 'left top' : 'right top',
                           }}
                         >
                           {step.n}
                         </span>
                       </div>
 
-                      {/* Text block — directly under the cropped number */}
-                      <div style={{ textAlign: isLeftHollow ? 'left' : 'right', marginTop: '0.2em' }}>
+                      {/* Text block — pulled up to overlap the cropped number's lower half */}
+                      <div style={{ textAlign: isLeftHollow ? 'left' : 'right', marginTop: '-0.55em', position: 'relative' }}>
                         <h3
                           className="text-white font-semibold leading-snug break-keep"
                           style={{ fontSize: 'clamp(22px, 2.6vw, 36px)', marginBottom: '0.4em' }}
