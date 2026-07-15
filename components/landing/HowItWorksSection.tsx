@@ -112,7 +112,7 @@ export default function HowItWorksSection() {
   const [vh, setVh]                 = useState(0)
   const [cw, setCw]                 = useState(0)
   const [activeStep, setActiveStep] = useState(-1)
-  const lastStepRef = useRef(0)
+  const [maxRevealed, setMaxRevealed] = useState(-1)  // once a step has appeared it stays visible
 
   useEffect(() => {
     const update = () => {
@@ -188,7 +188,7 @@ export default function HowItWorksSection() {
     for (let i = 0; i < stepLenFrac.length; i++) {
       if (Math.abs(p - stepLenFrac[i]) < ACTIVE_WINDOW) s = i
     }
-    if (s >= 0) lastStepRef.current = s
+    if (s >= 0) setMaxRevealed((prev) => Math.max(prev, s))
     setActiveStep(s)
   })
 
@@ -257,10 +257,10 @@ export default function HowItWorksSection() {
 
               {/* Step labels — anchored in each hollow's OPEN mouth (concave side), clear of the line */}
               {steps.map((step, i) => {
-                const sweep     = i % 2 === 0 ? 1 : 0
+                const sweep      = i % 2 === 0 ? 1 : 0
                 const bulgeSign  = sweep === 1 ? 1 : -1   // the curve's solid material bulges this way from hx
-                const isActive   = activeStep === i
-                const fromBelow  = lastStepRef.current <= i && !isActive
+                const isRevealed = i <= maxRevealed        // stays visible once shown, doesn't disappear on the next step
+                const fromBelow  = activeStep < i && !isRevealed
 
                 // hx<50 → hollow sits on the LEFT and bulges further left (outward);
                 // hx>50 → hollow sits on the RIGHT and bulges further right (outward).
@@ -288,8 +288,8 @@ export default function HowItWorksSection() {
                     <motion.div
                       className="flex flex-col"
                       animate={{
-                        opacity: isActive ? 1 : 0,
-                        y:       isActive ? 0 : fromBelow ? 20 : -20,
+                        opacity: isRevealed ? 1 : 0,
+                        y:       isRevealed ? 0 : fromBelow ? 20 : -20,
                       }}
                       transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
                       style={{
@@ -301,7 +301,7 @@ export default function HowItWorksSection() {
                           half sits behind the title (title overlaps it, drawn on top) */}
                       <div
                         style={{
-                          height: 'clamp(54px, 6.4vw, 100px)',
+                          height: 'clamp(58px, 6.84vw, 104px)',  // ~90% of the number's font-size — only the last ~1/10 is cropped
                           overflow: 'hidden',
                           display: 'flex',
                           alignItems: 'flex-start',
