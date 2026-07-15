@@ -23,9 +23,9 @@ const HOLLOW_H  = 44     // vertical span of one hollow
 const RY        = HOLLOW_H / 2                          // 22
 const H_LEN     = 36     // horizontal shelf between hollows — long enough that hollows reach the container edges
 const D         = H_LEN / 2   // each hollow sits this far left/right of centre, alternating
-const PAD_T     = 100    // entry straight, above the first hollow
-const PAD_B     = 100    // exit straight, below the last hollow
-const CORNER    = 7      // small fixed corner that blends the entry/exit vertical tangent into the first/last hollow's horizontal tangent
+const PAD_T     = 75     // entry straight, above the first hollow (shortened)
+const PAD_B     = 75     // exit straight, below the last hollow (shortened)
+const CORNER    = 7      // small fixed corner that blends a vertical tangent into a horizontal one (and back)
 
 const SVG_H = PAD_T + steps.length * HOLLOW_H + PAD_B
 
@@ -39,13 +39,15 @@ const SVG_H = PAD_T + steps.length * HOLLOW_H + PAD_B
 const START_X = CX - D  // hollow 0's centre
 
 function buildPath(rx: number): string {
-  // Hollow 0 sits left-of-centre (START_X) and must bulge further LEFT
-  // (sweep=0) so its own exit tangent naturally points right, toward hollow
-  // 1's centre — hence the entry corner approaches from the right (+CORNER).
+  // Entry: straight down the true centre (CX=50%), then a corner bends the
+  // tangent from vertical to horizontal-left, followed by a short shelf that
+  // glides straight into hollow 0's own centre (START_X) — so the entry line
+  // itself stays exactly centred on screen even though the hollows don't.
   const parts: string[] = [
-    `M ${START_X + CORNER} 0`,
-    `L ${START_X + CORNER} ${PAD_T - CORNER}`,
-    `A ${CORNER} ${CORNER} 0 0 1 ${START_X} ${PAD_T}`,
+    `M ${CX} 0`,
+    `L ${CX} ${PAD_T - CORNER}`,
+    `A ${CORNER} ${CORNER} 0 0 1 ${CX - CORNER} ${PAD_T}`,
+    `L ${START_X} ${PAD_T}`,
   ]
   let x = START_X
   let y = PAD_T
@@ -54,14 +56,22 @@ function buildPath(rx: number): string {
     parts.push(`A ${rx} ${RY} 0 0 ${sweep} ${x} ${y + HOLLOW_H}`)
     y += HOLLOW_H
     const exitSign = sweep === 1 ? -1 : 1     // direction the hollow's exit tangent already points
-    x += exitSign * H_LEN
-    parts.push(`L ${x} ${y}`)                 // horizontal shelf, no corner needed
+
+    if (i < steps.length - 1) {
+      x += exitSign * H_LEN
+      parts.push(`L ${x} ${y}`)               // full shelf to the next hollow's centre
+    } else {
+      // Exit: only shelf HALFWAY back toward centre (this tangent points
+      // toward CX for the last hollow), then a mirrored corner + straight
+      // drop lands exactly on CX — keeping the exit line centred too.
+      x += exitSign * (D - CORNER)
+      parts.push(
+        `L ${x} ${y}`,
+        `A ${CORNER} ${CORNER} 0 0 0 ${CX} ${y + CORNER}`,
+        `L ${CX} ${SVG_H}`,
+      )
+    }
   }
-  // For an even step count this naturally lands back at x = START_X
-  parts.push(
-    `A ${CORNER} ${CORNER} 0 0 0 ${x - CORNER} ${SVG_H - PAD_B + CORNER}`,
-    `L ${x - CORNER} ${SVG_H}`,
-  )
   return parts.join(' ')
 }
 
