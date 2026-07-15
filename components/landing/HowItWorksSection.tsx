@@ -23,8 +23,8 @@ const HOLLOW_H  = 44     // vertical span of one hollow
 const RY        = HOLLOW_H / 2                          // 22
 const H_LEN     = 36     // horizontal shelf between hollows — long enough that hollows reach the container edges
 const D         = H_LEN / 2   // each hollow sits this far left/right of centre, alternating
-const PAD_T     = 75     // entry straight, above the first hollow (shortened)
-const PAD_B     = 75     // exit straight, below the last hollow (shortened)
+const PAD_T     = 38     // entry straight, above the first hollow (shortened again)
+const PAD_B     = 38     // exit straight, below the last hollow (shortened again)
 const CORNER    = 7      // small fixed corner that blends a vertical tangent into a horizontal one (and back)
 
 const SVG_H = PAD_T + steps.length * HOLLOW_H + PAD_B
@@ -272,14 +272,14 @@ export default function HowItWorksSection() {
                       style={{
                         flexDirection: isLeftHollow ? 'row' : 'row-reverse',
                         alignItems: 'flex-start',
-                        gap: 'clamp(8px, 1vw, 14px)',
-                        maxWidth: 'min(30vw, 320px)',
+                        gap: 'clamp(10px, 1.3vw, 18px)',
+                        maxWidth: 'min(40vw, 460px)',
                       }}
                     >
                       {/* Large thin step number — sits on the hollow's own side */}
                       <span
                         className="text-white/90 leading-none tabular-nums select-none shrink-0"
-                        style={{ fontSize: 'clamp(36px, 4.2vw, 58px)', fontWeight: 700, letterSpacing: '-0.04em' }}
+                        style={{ fontSize: 'clamp(52px, 6.4vw, 92px)', fontWeight: 700, letterSpacing: '-0.04em' }}
                       >
                         {step.n}
                       </span>
@@ -288,19 +288,19 @@ export default function HowItWorksSection() {
                       <div style={{ textAlign: isLeftHollow ? 'left' : 'right' }}>
                         <h3
                           className="text-white font-semibold leading-snug break-keep"
-                          style={{ fontSize: 'clamp(15px, 1.7vw, 23px)', marginBottom: '0.45em' }}
+                          style={{ fontSize: 'clamp(22px, 2.6vw, 36px)', marginBottom: '0.4em' }}
                         >
                           {step.title}
                         </h3>
                         <p
                           className="text-white/45 font-light leading-relaxed break-keep"
-                          style={{ fontSize: 'clamp(11px, 1vw, 14px)', marginBottom: '0.5em' }}
+                          style={{ fontSize: 'clamp(14px, 1.35vw, 19px)', marginBottom: '0.55em' }}
                         >
                           {step.desc}
                         </p>
                         <span
                           className="text-[#F77019]/70 font-semibold tracking-widest"
-                          style={{ fontSize: 'clamp(8px, 0.7vw, 10px)' }}
+                          style={{ fontSize: 'clamp(10px, 0.85vw, 12px)' }}
                         >
                           {step.tag}
                         </span>
