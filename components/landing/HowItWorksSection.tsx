@@ -18,49 +18,58 @@ const steps = [
 // The ONLY vertical straight runs are the entry (top) and exit (bottom).
 const SVG_W = 100
 
-const CX        = 50    // centre line — where the entry/exit straight lines sit
+const CX        = 50    // container centre
 const HOLLOW_H  = 44     // vertical span of one hollow
 const RY        = HOLLOW_H / 2                          // 22
-const H_LEN     = 26     // horizontal shelf between hollows — clearly longer than the hollow now
-const PAD_T     = 100    // entry straight, above step 1
-const PAD_B     = 100    // exit straight, below the last step
+const H_LEN     = 36     // horizontal shelf between hollows — long enough that hollows reach the container edges
+const D         = H_LEN / 2   // each hollow sits this far left/right of centre, alternating
+const PAD_T     = 100    // entry straight, above the first hollow
+const PAD_B     = 100    // exit straight, below the last hollow
 const CORNER    = 7      // small fixed corner that blends the entry/exit vertical tangent into the first/last hollow's horizontal tangent
 
 const SVG_H = PAD_T + steps.length * HOLLOW_H + PAD_B
 
-// A hollow's own start/end tangent is horizontal (it's a semicircle whose two
-// endpoints share the same x), so it glides directly into a horizontal shelf
-// with zero extra corner — the shelf itself is just the straight continuation.
-// Only the very first (vertical→horizontal) and very last (horizontal→vertical)
-// transitions need the small CORNER blend.
+// Hollows alternate between 50-D (left) and 50+D (right), each bulging further
+// OUTWARD (away from centre) — this is the only bulge direction for which the
+// connecting shelf's natural exit tangent actually points toward the next
+// hollow, so it falls out of the tangent geometry, not a free style choice.
+// Left/right hollows' outer edges land close to the container edges (≈ header
+// width). A hollow's start/end tangent is already horizontal, so it glides
+// straight into the shelf with no extra corner — only entry/exit need CORNER.
+const START_X = CX - D  // hollow 0's centre
+
 function buildPath(rx: number): string {
+  // Hollow 0 sits left-of-centre (START_X) and must bulge further LEFT
+  // (sweep=0) so its own exit tangent naturally points right, toward hollow
+  // 1's centre — hence the entry corner approaches from the right (+CORNER).
   const parts: string[] = [
-    `M ${CX - CORNER} 0`,
-    `L ${CX - CORNER} ${PAD_T - CORNER}`,
-    `A ${CORNER} ${CORNER} 0 0 0 ${CX} ${PAD_T}`,
+    `M ${START_X + CORNER} 0`,
+    `L ${START_X + CORNER} ${PAD_T - CORNER}`,
+    `A ${CORNER} ${CORNER} 0 0 1 ${START_X} ${PAD_T}`,
   ]
-  let x = CX
+  let x = START_X
   let y = PAD_T
   for (let i = 0; i < steps.length; i++) {
-    const sweep = i % 2 === 0 ? 1 : 0        // bulge direction of this hollow
+    const sweep = i % 2 === 0 ? 0 : 1        // bulge direction of this hollow (outward from centre)
     parts.push(`A ${rx} ${RY} 0 0 ${sweep} ${x} ${y + HOLLOW_H}`)
     y += HOLLOW_H
     const exitSign = sweep === 1 ? -1 : 1     // direction the hollow's exit tangent already points
     x += exitSign * H_LEN
     parts.push(`L ${x} ${y}`)                 // horizontal shelf, no corner needed
   }
+  // For an even step count this naturally lands back at x = START_X
   parts.push(
-    `A ${CORNER} ${CORNER} 0 0 1 ${CX + CORNER} ${SVG_H - PAD_B + CORNER}`,
-    `L ${CX + CORNER} ${SVG_H}`,
+    `A ${CORNER} ${CORNER} 0 0 0 ${x - CORNER} ${SVG_H - PAD_B + CORNER}`,
+    `L ${x - CORNER} ${SVG_H}`,
   )
   return parts.join(' ')
 }
 
 // Local x-centre (SVG units = %) of hollow i — used to anchor its label
 function hollowCenterX(i: number): number {
-  let x = CX
+  let x = START_X
   for (let k = 0; k < i; k++) {
-    const sweep = k % 2 === 0 ? 1 : 0
+    const sweep = k % 2 === 0 ? 0 : 1
     x += (sweep === 1 ? -1 : 1) * H_LEN
   }
   return x
@@ -117,14 +126,15 @@ export default function HowItWorksSection() {
   // preserveAspectRatio="none" scales x and y independently, which flattens a
   // naive circular arc into an ellipse. Pick rx so the ON-SCREEN x-radius
   // equals the on-screen y-radius, so the hollow renders as a true circle
-  // regardless of viewport aspect ratio — then clamp so hollow + shelf still
-  // fit inside the container (rx + H_LEN must stay under ~47% of the width).
+  // regardless of viewport aspect ratio — then clamp so D + rx ≈ 48, meaning
+  // each hollow's outer apex lands right at the container edge (full header
+  // width, logo-start to button-end) without clipping.
   const rxMain = useMemo(() => {
-    if (!vh || !cw) return 17
+    if (!vh || !cw) return 24
     const ryPx = RY * (MOVING_VH / 100) * vh / SVG_H
     const pxPerUnitX = cw / SVG_W
     const circularRx = ryPx / pxPerUnitX
-    return Math.min(45 - H_LEN, Math.max(13, circularRx))
+    return Math.min(48 - D, Math.max(16, circularRx))
   }, [vh, cw])
 
   const pathD = useMemo(() => buildPath(rxMain), [rxMain])
@@ -215,24 +225,30 @@ export default function HowItWorksSection() {
               {/* Step labels — anchored in each hollow's OPEN mouth (concave side), clear of the line */}
               {steps.map((step, i) => {
                 const sweep     = i % 2 === 0 ? 1 : 0
-                const bulgeSign = sweep === 1 ? 1 : -1   // the curve's solid material bulges this way from hx
-                const isRight   = bulgeSign === -1        // open mouth is the OPPOSITE side of the bulge
-                const isActive  = activeStep === i
-                const fromBelow = lastStepRef.current <= i && !isActive
+                const bulgeSign  = sweep === 1 ? 1 : -1   // the curve's solid material bulges this way from hx
+                const isActive   = activeStep === i
+                const fromBelow  = lastStepRef.current <= i && !isActive
 
-                // Anchor inside the open mouth — offset away from hx opposite the
-                // bulge, comfortably past the curve so text never touches it.
+                // hx<50 → hollow sits on the LEFT and bulges further left (outward);
+                // hx>50 → hollow sits on the RIGHT and bulges further right (outward).
+                // The number anchors at the safe boundary on the hollow's own side
+                // (matching which side the hollow is on), and the text block trails
+                // inward from it — both stay clear of the curve, which bulges the
+                // opposite way (outward), away from this whole label.
                 const hx = hollowCenterX(i)
-                const anchorX = hx - bulgeSign * rxMain * 0.55
+                const isLeftHollow = hx < CX
+                const boundary = hx - bulgeSign * rxMain * 0.55  // safe edge, just past the curve, on the inward side
 
                 return (
                   <div
                     key={i}
                     className="absolute"
                     style={{
-                      top:       `${bellyYPct(i)}%`,
-                      left:      `${anchorX.toFixed(2)}%`,
-                      transform: 'translate(-50%, -50%)',
+                      top: `${bellyYPct(i)}%`,
+                      ...(isLeftHollow
+                        ? { left: `${boundary.toFixed(2)}%` }
+                        : { right: `${(100 - boundary).toFixed(2)}%` }),
+                      transform: 'translateY(-50%)',
                       pointerEvents: 'none',
                     }}
                   >
@@ -244,14 +260,22 @@ export default function HowItWorksSection() {
                       }}
                       transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
                       style={{
-                        flexDirection: isRight ? 'row' : 'row-reverse',
+                        flexDirection: isLeftHollow ? 'row' : 'row-reverse',
                         alignItems: 'flex-start',
                         gap: 'clamp(8px, 1vw, 14px)',
                         maxWidth: 'min(30vw, 320px)',
                       }}
                     >
-                      {/* Text block — left-aligned when the hollow opens right, right-aligned when it opens left */}
-                      <div style={{ textAlign: isRight ? 'left' : 'right' }}>
+                      {/* Large thin step number — sits on the hollow's own side */}
+                      <span
+                        className="text-white/90 leading-none tabular-nums select-none shrink-0"
+                        style={{ fontSize: 'clamp(36px, 4.2vw, 58px)', fontWeight: 700, letterSpacing: '-0.04em' }}
+                      >
+                        {step.n}
+                      </span>
+
+                      {/* Text block — trails inward from the number, aligned to match */}
+                      <div style={{ textAlign: isLeftHollow ? 'left' : 'right' }}>
                         <h3
                           className="text-white font-semibold leading-snug break-keep"
                           style={{ fontSize: 'clamp(15px, 1.7vw, 23px)', marginBottom: '0.45em' }}
@@ -271,14 +295,6 @@ export default function HowItWorksSection() {
                           {step.tag}
                         </span>
                       </div>
-
-                      {/* Large thin step number */}
-                      <span
-                        className="text-white/90 leading-none tabular-nums select-none shrink-0"
-                        style={{ fontSize: 'clamp(36px, 4.2vw, 58px)', fontWeight: 700, letterSpacing: '-0.04em' }}
-                      >
-                        {step.n}
-                      </span>
                     </motion.div>
                   </div>
                 )
