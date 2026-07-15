@@ -87,12 +87,6 @@ function hollowCenterX(i: number): number {
 
 // ─── Scroll geometry ──────────────────────────────────────────────────────────
 const MOVING_VH = Math.round(SVG_H * 0.956)  // keeps the same vh-per-svg-unit pacing as before
-const VH_COEFF  = MOVING_VH / SVG_H
-
-// belly[i] (hollow centre) position inside the moving div, in vh
-function bellyDivVh(i: number) {
-  return (PAD_T + i * HOLLOW_H + RY) * VH_COEFF
-}
 
 // Edge-align the path to the section itself: at scroll=0 the very top of the
 // path (SVG y=0, the entry line's tip) sits exactly at the sticky viewport's
@@ -103,10 +97,6 @@ const SNAKE_END   = (100 - MOVING_VH) / 100
 
 const CONTAINER_VH = MOVING_VH
 
-// scroll progress at which belly[i] crosses the viewport centre
-const STEP_P = steps.map(
-  (_, i) => ((50 - bellyDivVh(i)) / 100 - SNAKE_START) / (SNAKE_END - SNAKE_START),
-)
 const ACTIVE_WINDOW = 0.1  // ± progress range in which a step counts as active
 
 // Label anchor (% of moving div height) — hollow centre
@@ -150,21 +140,53 @@ export default function HowItWorksSection() {
 
   const pathD = useMemo(() => buildPath(rxMain), [rxMain])
 
+  // The orange line is drawn by LENGTH fraction (= scroll progress p, linearly),
+  // not by scroll position — so "line reaches the hollow's middle" has to be
+  // measured the same way: find, for each hollow, the length-fraction at which
+  // the path actually visits that hollow's apex point (the visual centre of
+  // the loop), by sampling the real rendered path.
+  const [stepLenFrac, setStepLenFrac] = useState<number[]>(() => steps.map(() => 0))
+
   useEffect(() => {
-    if (pathRef.current) setPathLen(pathRef.current.getTotalLength())
-  }, [pathD])
+    if (!pathRef.current) return
+    const len = pathRef.current.getTotalLength()
+    setPathLen(len)
+    if (len === 0) return
+    const path = pathRef.current
+    const SAMPLES = 800
+    const pts: { len: number; x: number; y: number }[] = []
+    for (let k = 0; k <= SAMPLES; k++) {
+      const l = (k / SAMPLES) * len
+      const p = path.getPointAtLength(l)
+      pts.push({ len: l, x: p.x, y: p.y })
+    }
+    const fracs = steps.map((_, i) => {
+      const sweep = i % 2 === 0 ? 0 : 1
+      const bulgeSign = sweep === 1 ? 1 : -1
+      const targetX = hollowCenterX(i) + bulgeSign * rxMain
+      const targetY = PAD_T + i * HOLLOW_H + RY
+      let best = pts[0]
+      let bestDist = Infinity
+      for (const pt of pts) {
+        const d = (pt.x - targetX) ** 2 + (pt.y - targetY) ** 2
+        if (d < bestDist) { bestDist = d; best = pt }
+      }
+      return best.len / len
+    })
+    setStepLenFrac(fracs)
+  }, [pathD, rxMain])
 
   const { scrollYProgress } = useScroll({
     target: containerRef,
     offset: ['start start', 'end end'],
   })
 
-  // A step is active while the orange line tip is near its belly;
-  // between steps every label fades out.
+  // A step is active while the orange line's drawn tip is at its hollow's
+  // apex; between steps every label fades out.
   useMotionValueEvent(scrollYProgress, 'change', (p) => {
     let s = -1
-    for (let i = 0; i < STEP_P.length; i++) {
-      if (Math.abs(p - STEP_P[i]) < ACTIVE_WINDOW) s = i
+    for (let i = 0; i < stepLenFrac.length; i++) {
+      if (Math.abs(p - stepLenFrac[i]) < ACTIVE_WINDOW) s = i
     }
     if (s >= 0) lastStepRef.current = s
     setActiveStep(s)
@@ -279,7 +301,7 @@ export default function HowItWorksSection() {
                           half sits behind the title (title overlaps it, drawn on top) */}
                       <div
                         style={{
-                          height: 'clamp(38px, 4.4vw, 66px)',
+                          height: 'clamp(54px, 6.4vw, 100px)',
                           overflow: 'hidden',
                           display: 'flex',
                           alignItems: 'flex-start',
@@ -301,10 +323,10 @@ export default function HowItWorksSection() {
                         </span>
                       </div>
 
-                      {/* Text block — pulled up to overlap the cropped number's lower half */}
-                      <div style={{ textAlign: isLeftHollow ? 'left' : 'right', marginTop: '-0.55em', position: 'relative' }}>
+                      {/* Text block — pulled up to overlap just the number's cropped tip */}
+                      <div style={{ textAlign: isLeftHollow ? 'left' : 'right', marginTop: '-0.15em', position: 'relative' }}>
                         <h3
-                          className="text-white font-semibold leading-snug break-keep"
+                          className="text-[#F77019] font-semibold leading-snug break-keep"
                           style={{ fontSize: 'clamp(22px, 2.6vw, 36px)', marginBottom: '0.4em' }}
                         >
                           {step.title}
