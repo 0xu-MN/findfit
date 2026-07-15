@@ -18,11 +18,12 @@ const CX    = 50    // centre line
 const PAD_T = 60    // straight entry segment (incl. corner)
 const PAD_B = 60    // straight exit segment (incl. corner)
 const ARC_H = (SVG_H - PAD_T - PAD_B) / steps.length  // 80
-const RY    = ARC_H / 2                                // 40
+const RY    = ARC_H / 2                                // 40  — each turn is a full "⊂" bulge, arcs connect directly
 
-// The vertical entry/exit lines join the S-curve through quarter-arc corners
-// (radius = half the main radius) so every junction is tangent-continuous —
-// no right angles anywhere on the path.
+// The vertical entry/exit lines join the curve through quarter-arc corners
+// (radius = half the main radius) so those two junctions are tangent-continuous.
+// The turns themselves connect arc-to-arc directly (no straight run between
+// them) so each one reads as one continuous deep "⊂" / "⊃" loop, alternating sides.
 function buildPath(rx: number): string {
   const rcx = rx / 2
   const rcy = RY / 2
