@@ -19,9 +19,9 @@ const steps = [
 const SVG_W = 100
 
 const CX        = 50    // centre line — where the entry/exit straight lines sit
-const HOLLOW_H  = 62     // vertical span of one hollow
-const RY        = HOLLOW_H / 2                          // 31
-const H_LEN     = 16     // horizontal shelf between hollows — real, but narrow enough that a circular hollow still fits on-screen
+const HOLLOW_H  = 44     // vertical span of one hollow
+const RY        = HOLLOW_H / 2                          // 22
+const H_LEN     = 26     // horizontal shelf between hollows — clearly longer than the hollow now
 const PAD_T     = 100    // entry straight, above step 1
 const PAD_B     = 100    // exit straight, below the last step
 const CORNER    = 7      // small fixed corner that blends the entry/exit vertical tangent into the first/last hollow's horizontal tangent
@@ -120,11 +120,11 @@ export default function HowItWorksSection() {
   // regardless of viewport aspect ratio — then clamp so hollow + shelf still
   // fit inside the container (rx + H_LEN must stay under ~47% of the width).
   const rxMain = useMemo(() => {
-    if (!vh || !cw) return 30
+    if (!vh || !cw) return 17
     const ryPx = RY * (MOVING_VH / 100) * vh / SVG_H
     const pxPerUnitX = cw / SVG_W
     const circularRx = ryPx / pxPerUnitX
-    return Math.min(47 - H_LEN, Math.max(20, circularRx))
+    return Math.min(45 - H_LEN, Math.max(13, circularRx))
   }, [vh, cw])
 
   const pathD = useMemo(() => buildPath(rxMain), [rxMain])
@@ -212,19 +212,18 @@ export default function HowItWorksSection() {
                 )}
               </svg>
 
-              {/* Step labels — anchored inside each hollow, clear of the line */}
+              {/* Step labels — anchored in each hollow's OPEN mouth (concave side), clear of the line */}
               {steps.map((step, i) => {
-                const isRight   = i % 2 === 0
+                const sweep     = i % 2 === 0 ? 1 : 0
+                const bulgeSign = sweep === 1 ? 1 : -1   // the curve's solid material bulges this way from hx
+                const isRight   = bulgeSign === -1        // open mouth is the OPPOSITE side of the bulge
                 const isActive  = activeStep === i
                 const fromBelow = lastStepRef.current <= i && !isActive
 
-                // Anchor to the INSIDE of each hollow:
-                // sweep=1 (i%2===0) bulges RIGHT → inside is to the right of hx
-                // sweep=0 (i%2===1) bulges LEFT  → inside is to the left of hx
+                // Anchor inside the open mouth — offset away from hx opposite the
+                // bulge, comfortably past the curve so text never touches it.
                 const hx = hollowCenterX(i)
-                const insideCenterX = isRight
-                  ? hx + rxMain * 0.50   // exact centre of right-bulging hollow's interior
-                  : hx - rxMain * 0.50   // exact centre of left-bulging hollow's interior
+                const anchorX = hx - bulgeSign * rxMain * 0.55
 
                 return (
                   <div
@@ -232,7 +231,7 @@ export default function HowItWorksSection() {
                     className="absolute"
                     style={{
                       top:       `${bellyYPct(i)}%`,
-                      left:      `${insideCenterX.toFixed(2)}%`,
+                      left:      `${anchorX.toFixed(2)}%`,
                       transform: 'translate(-50%, -50%)',
                       pointerEvents: 'none',
                     }}
@@ -247,27 +246,27 @@ export default function HowItWorksSection() {
                       style={{
                         flexDirection: isRight ? 'row' : 'row-reverse',
                         alignItems: 'flex-start',
-                        gap: 'clamp(10px, 1.2vw, 18px)',
-                        maxWidth: `${(rxMain * 1.5).toFixed(0)}%`,
+                        gap: 'clamp(8px, 1vw, 14px)',
+                        maxWidth: 'min(30vw, 320px)',
                       }}
                     >
                       {/* Text block — left-aligned when the hollow opens right, right-aligned when it opens left */}
                       <div style={{ textAlign: isRight ? 'left' : 'right' }}>
                         <h3
                           className="text-white font-semibold leading-snug break-keep"
-                          style={{ fontSize: 'clamp(18px, 2.1vw, 29px)', marginBottom: '0.5em' }}
+                          style={{ fontSize: 'clamp(15px, 1.7vw, 23px)', marginBottom: '0.45em' }}
                         >
                           {step.title}
                         </h3>
                         <p
                           className="text-white/45 font-light leading-relaxed break-keep"
-                          style={{ fontSize: 'clamp(12px, 1.2vw, 16px)', marginBottom: '0.6em' }}
+                          style={{ fontSize: 'clamp(11px, 1vw, 14px)', marginBottom: '0.5em' }}
                         >
                           {step.desc}
                         </p>
                         <span
                           className="text-[#F77019]/70 font-semibold tracking-widest"
-                          style={{ fontSize: 'clamp(9px, 0.8vw, 11px)' }}
+                          style={{ fontSize: 'clamp(8px, 0.7vw, 10px)' }}
                         >
                           {step.tag}
                         </span>
@@ -276,7 +275,7 @@ export default function HowItWorksSection() {
                       {/* Large thin step number */}
                       <span
                         className="text-white/90 leading-none tabular-nums select-none shrink-0"
-                        style={{ fontSize: 'clamp(48px, 5.5vw, 76px)', fontWeight: 700, letterSpacing: '-0.04em' }}
+                        style={{ fontSize: 'clamp(36px, 4.2vw, 58px)', fontWeight: 700, letterSpacing: '-0.04em' }}
                       >
                         {step.n}
                       </span>
