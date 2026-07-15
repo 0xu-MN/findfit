@@ -19,9 +19,9 @@ const steps = [
 const SVG_W = 100
 
 const CX        = 50    // centre line — where the entry/exit straight lines sit
-const HOLLOW_H  = 72     // vertical span of one hollow (20% shorter than before)
-const RY        = HOLLOW_H / 2                          // 36
-const H_LEN     = 24     // length of the horizontal shelf between hollows
+const HOLLOW_H  = 62     // vertical span of one hollow
+const RY        = HOLLOW_H / 2                          // 31
+const H_LEN     = 16     // horizontal shelf between hollows — real, but narrow enough that a circular hollow still fits on-screen
 const PAD_T     = 100    // entry straight, above step 1
 const PAD_B     = 100    // exit straight, below the last step
 const CORNER    = 7      // small fixed corner that blends the entry/exit vertical tangent into the first/last hollow's horizontal tangent
@@ -114,14 +114,17 @@ export default function HowItWorksSection() {
     return () => window.removeEventListener('resize', update)
   }, [])
 
-  // preserveAspectRatio="none" scales x and y independently, which flattens
-  // the arcs into wide ellipses. Compensate: pick rx so the on-screen x-radius
-  // equals the on-screen y-radius → the hollows read as circular C-curves.
+  // preserveAspectRatio="none" scales x and y independently, which flattens a
+  // naive circular arc into an ellipse. Pick rx so the ON-SCREEN x-radius
+  // equals the on-screen y-radius, so the hollow renders as a true circle
+  // regardless of viewport aspect ratio — then clamp so hollow + shelf still
+  // fit inside the container (rx + H_LEN must stay under ~47% of the width).
   const rxMain = useMemo(() => {
-    if (!vh || !cw) return 18
+    if (!vh || !cw) return 30
     const ryPx = RY * (MOVING_VH / 100) * vh / SVG_H
     const pxPerUnitX = cw / SVG_W
-    return Math.min(22, Math.max(16, ryPx / pxPerUnitX))
+    const circularRx = ryPx / pxPerUnitX
+    return Math.min(47 - H_LEN, Math.max(20, circularRx))
   }, [vh, cw])
 
   const pathD = useMemo(() => buildPath(rxMain), [rxMain])
@@ -215,13 +218,13 @@ export default function HowItWorksSection() {
                 const isActive  = activeStep === i
                 const fromBelow = lastStepRef.current <= i && !isActive
 
-                // Anchor relative to THIS hollow's own local x-centre (it shifts
-                // per step now), offset outward by 88% of the radius so text
-                // never touches the curve.
+                // Anchor to the INSIDE of each hollow:
+                // sweep=1 (i%2===0) bulges RIGHT → inside is to the right of hx
+                // sweep=0 (i%2===1) bulges LEFT  → inside is to the left of hx
                 const hx = hollowCenterX(i)
-                const anchorStyle = isRight
-                  ? { left: `${(hx + rxMain * 0.88).toFixed(2)}%` }
-                  : { right: `${(100 - hx + rxMain * 0.88).toFixed(2)}%` }
+                const insideCenterX = isRight
+                  ? hx + rxMain * 0.50   // exact centre of right-bulging hollow's interior
+                  : hx - rxMain * 0.50   // exact centre of left-bulging hollow's interior
 
                 return (
                   <div
@@ -229,13 +232,13 @@ export default function HowItWorksSection() {
                     className="absolute"
                     style={{
                       top:       `${bellyYPct(i)}%`,
-                      transform: 'translateY(-50%)',
-                      ...anchorStyle,
+                      left:      `${insideCenterX.toFixed(2)}%`,
+                      transform: 'translate(-50%, -50%)',
                       pointerEvents: 'none',
                     }}
                   >
                     <motion.div
-                      className="flex items-center"
+                      className="flex"
                       animate={{
                         opacity: isActive ? 1 : 0,
                         y:       isActive ? 0 : fromBelow ? 20 : -20,
@@ -243,12 +246,13 @@ export default function HowItWorksSection() {
                       transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
                       style={{
                         flexDirection: isRight ? 'row' : 'row-reverse',
-                        gap: 'clamp(14px, 2vw, 26px)',
-                        maxWidth: 'min(34vw, 460px)',
+                        alignItems: 'flex-start',
+                        gap: 'clamp(10px, 1.2vw, 18px)',
+                        maxWidth: `${(rxMain * 1.5).toFixed(0)}%`,
                       }}
                     >
-                      {/* Text block */}
-                      <div style={{ textAlign: isRight ? 'left' : 'right', maxWidth: 'clamp(180px, 20vw, 270px)' }}>
+                      {/* Text block — left-aligned when the hollow opens right, right-aligned when it opens left */}
+                      <div style={{ textAlign: isRight ? 'left' : 'right' }}>
                         <h3
                           className="text-white font-semibold leading-snug break-keep"
                           style={{ fontSize: 'clamp(18px, 2.1vw, 29px)', marginBottom: '0.5em' }}
@@ -257,7 +261,7 @@ export default function HowItWorksSection() {
                         </h3>
                         <p
                           className="text-white/45 font-light leading-relaxed break-keep"
-                          style={{ fontSize: 'clamp(13px, 1.25vw, 17px)', marginBottom: '0.7em' }}
+                          style={{ fontSize: 'clamp(12px, 1.2vw, 16px)', marginBottom: '0.6em' }}
                         >
                           {step.desc}
                         </p>
@@ -272,7 +276,7 @@ export default function HowItWorksSection() {
                       {/* Large thin step number */}
                       <span
                         className="text-white/90 leading-none tabular-nums select-none shrink-0"
-                        style={{ fontSize: 'clamp(76px, 9vw, 124px)', fontWeight: 100, letterSpacing: '-0.04em' }}
+                        style={{ fontSize: 'clamp(48px, 5.5vw, 76px)', fontWeight: 700, letterSpacing: '-0.04em' }}
                       >
                         {step.n}
                       </span>
