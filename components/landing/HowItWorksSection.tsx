@@ -11,30 +11,43 @@ const steps = [
 ]
 
 // ─── SVG geometry ─────────────────────────────────────────────────────────────
+// Track shape: a long straight vertical entry line, then each hollow (⊂/⊃)
+// exits with an already-horizontal tangent straight into a long horizontal
+// shelf, which glides straight into the next hollow (same horizontal tangent,
+// no extra corner needed there) — then a long straight vertical exit line.
+// The ONLY vertical straight runs are the entry (top) and exit (bottom).
 const SVG_W = 100
-const SVG_H = 500   // taller than before → each connecting loop covers more scroll distance
 
-const CX    = 50    // centre line
-const PAD_T = 60    // straight entry segment (incl. corner)
-const PAD_B = 60    // straight exit segment (incl. corner)
-const ARC_H = (SVG_H - PAD_T - PAD_B) / steps.length  // 95
-const RY    = ARC_H / 2                                // 47.5 — each turn is a full "⊂" bulge, arcs connect directly
+const CX        = 50    // centre line — where the entry/exit straight lines sit
+const HOLLOW_H  = 72     // vertical span of one hollow (20% shorter than before)
+const RY        = HOLLOW_H / 2                          // 36
+const H_LEN     = 24     // length of the horizontal shelf between hollows
+const PAD_T     = 100    // entry straight, above step 1
+const PAD_B     = 100    // exit straight, below the last step
+const CORNER    = 7      // small fixed corner that blends the entry/exit vertical tangent into the first/last hollow's horizontal tangent
 
-// Corner radius is small and FIXED (independent of the main turn radius) so
-// the entry/exit straight lines stay visually centred at x=50% no matter how
-// wide the main loops get — only this tiny arc absorbs the vertical→horizontal
-// tangent change needed to blend into the big turn without a hard corner.
-const CORNER = 8
+const SVG_H = PAD_T + steps.length * HOLLOW_H + PAD_B
 
+// A hollow's own start/end tangent is horizontal (it's a semicircle whose two
+// endpoints share the same x), so it glides directly into a horizontal shelf
+// with zero extra corner — the shelf itself is just the straight continuation.
+// Only the very first (vertical→horizontal) and very last (horizontal→vertical)
+// transitions need the small CORNER blend.
 function buildPath(rx: number): string {
   const parts: string[] = [
     `M ${CX - CORNER} 0`,
     `L ${CX - CORNER} ${PAD_T - CORNER}`,
     `A ${CORNER} ${CORNER} 0 0 0 ${CX} ${PAD_T}`,
   ]
+  let x = CX
+  let y = PAD_T
   for (let i = 0; i < steps.length; i++) {
-    const sweep = i % 2 === 0 ? 1 : 0
-    parts.push(`A ${rx} ${RY} 0 0 ${sweep} ${CX} ${PAD_T + (i + 1) * ARC_H}`)
+    const sweep = i % 2 === 0 ? 1 : 0        // bulge direction of this hollow
+    parts.push(`A ${rx} ${RY} 0 0 ${sweep} ${x} ${y + HOLLOW_H}`)
+    y += HOLLOW_H
+    const exitSign = sweep === 1 ? -1 : 1     // direction the hollow's exit tangent already points
+    x += exitSign * H_LEN
+    parts.push(`L ${x} ${y}`)                 // horizontal shelf, no corner needed
   }
   parts.push(
     `A ${CORNER} ${CORNER} 0 0 1 ${CX + CORNER} ${SVG_H - PAD_B + CORNER}`,
@@ -43,13 +56,23 @@ function buildPath(rx: number): string {
   return parts.join(' ')
 }
 
+// Local x-centre (SVG units = %) of hollow i — used to anchor its label
+function hollowCenterX(i: number): number {
+  let x = CX
+  for (let k = 0; k < i; k++) {
+    const sweep = k % 2 === 0 ? 1 : 0
+    x += (sweep === 1 ? -1 : 1) * H_LEN
+  }
+  return x
+}
+
 // ─── Scroll geometry ──────────────────────────────────────────────────────────
-const MOVING_VH = 478  // scaled with SVG_H to keep the same vh-per-unit pacing
+const MOVING_VH = Math.round(SVG_H * 0.956)  // keeps the same vh-per-svg-unit pacing as before
 const VH_COEFF  = MOVING_VH / SVG_H
 
-// belly[i] position inside the moving div, in vh
+// belly[i] (hollow centre) position inside the moving div, in vh
 function bellyDivVh(i: number) {
-  return (PAD_T + (i + 0.5) * ARC_H) * VH_COEFF  // ≈ 95 / 172 / 248 / 325 vh
+  return (PAD_T + i * HOLLOW_H + RY) * VH_COEFF
 }
 
 // At scroll=0 belly 1 sits LOW (85vh) so the straight entry line is fully
@@ -66,9 +89,9 @@ const STEP_P = steps.map(
 )
 const ACTIVE_WINDOW = 0.1  // ± progress range in which a step counts as active
 
-// Label anchor (% of moving div height)
+// Label anchor (% of moving div height) — hollow centre
 function bellyYPct(i: number) {
-  return (PAD_T + (i + 0.5) * ARC_H) / SVG_H * 100
+  return (PAD_T + i * HOLLOW_H + RY) / SVG_H * 100
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -95,10 +118,10 @@ export default function HowItWorksSection() {
   // the arcs into wide ellipses. Compensate: pick rx so the on-screen x-radius
   // equals the on-screen y-radius → the hollows read as circular C-curves.
   const rxMain = useMemo(() => {
-    if (!vh || !cw) return 40
+    if (!vh || !cw) return 18
     const ryPx = RY * (MOVING_VH / 100) * vh / SVG_H
     const pxPerUnitX = cw / SVG_W
-    return Math.min(44, Math.max(28, ryPx / pxPerUnitX))
+    return Math.min(22, Math.max(16, ryPx / pxPerUnitX))
   }, [vh, cw])
 
   const pathD = useMemo(() => buildPath(rxMain), [rxMain])
@@ -192,11 +215,13 @@ export default function HowItWorksSection() {
                 const isActive  = activeStep === i
                 const fromBelow = lastStepRef.current <= i && !isActive
 
-                // The block edge on the arc side stops at 88% of the radius,
-                // guaranteeing a gap between text and the snake line. The open
-                // side (towards the centre chord) is free space, so the block
-                // can grow inward without ever touching the curve.
-                const edgePct = `${(50 - rxMain * 0.88).toFixed(2)}%`
+                // Anchor relative to THIS hollow's own local x-centre (it shifts
+                // per step now), offset outward by 88% of the radius so text
+                // never touches the curve.
+                const hx = hollowCenterX(i)
+                const anchorStyle = isRight
+                  ? { left: `${(hx + rxMain * 0.88).toFixed(2)}%` }
+                  : { right: `${(100 - hx + rxMain * 0.88).toFixed(2)}%` }
 
                 return (
                   <div
@@ -205,7 +230,7 @@ export default function HowItWorksSection() {
                     style={{
                       top:       `${bellyYPct(i)}%`,
                       transform: 'translateY(-50%)',
-                      ...(isRight ? { right: edgePct } : { left: edgePct }),
+                      ...anchorStyle,
                       pointerEvents: 'none',
                     }}
                   >
