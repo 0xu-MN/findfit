@@ -24,7 +24,7 @@ export default function PainPointSection() {
   }, [])
 
   return (
-    <section ref={sectionRef} className="w-full h-full bg-[#0D0D0F] flex items-center" style={{ paddingTop: '80px', paddingBottom: '80px' }}>
+    <section ref={sectionRef} className="w-full h-full bg-[#0D0D0F] overflow-y-auto" style={{ paddingTop: '80px', paddingBottom: '80px' }}>
       <div className="max-w-[900px] mx-auto px-6 w-full">
 
         <div className="fade-up-init text-center mb-14">

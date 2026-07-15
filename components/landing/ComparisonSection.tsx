@@ -34,7 +34,7 @@ export default function ComparisonSection() {
   }, [])
 
   return (
-    <section ref={sectionRef} className="w-full h-full bg-[#0D0D0F] flex items-center overflow-y-auto" style={{ paddingTop: '50px', paddingBottom: '50px' }}>
+    <section ref={sectionRef} className="w-full h-full bg-[#0D0D0F] overflow-y-auto" style={{ paddingTop: '50px', paddingBottom: '50px' }}>
       <div className="max-w-[1180px] mx-auto px-6 w-full">
 
         <div className="fade-up-init text-center mb-10">
