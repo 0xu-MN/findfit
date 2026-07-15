@@ -34,10 +34,10 @@ export default function ComparisonSection() {
   }, [])
 
   return (
-    <section ref={sectionRef} className="w-full bg-[#0D0D0F]" style={{ minHeight: '100vh', paddingTop: '110px', paddingBottom: '110px' }}>
-      <div className="max-w-[1200px] mx-auto px-6">
+    <section ref={sectionRef} className="w-full h-full bg-[#0D0D0F] flex items-center overflow-y-auto" style={{ paddingTop: '60px', paddingBottom: '60px' }}>
+      <div className="max-w-[1200px] mx-auto px-6 w-full">
 
-        <div className="fade-up-init text-center mb-14">
+        <div className="fade-up-init text-center mb-10">
           <span className="inline-block text-[13px] font-bold text-[#F77019] mb-4">
             왜 FindFit이어야 할까요
           </span>

@@ -3,8 +3,7 @@
 import { useState, useEffect } from 'react'
 import Header from '@/components/landing/Header'
 import HeroSection from '@/components/landing/HeroSection'
-import PainPointSection from '@/components/landing/PainPointSection'
-import ComparisonSection from '@/components/landing/ComparisonSection'
+import PainToCompareReveal from '@/components/landing/PainToCompareReveal'
 import FeaturesSection from '@/components/landing/FeaturesSection'
 import HowItWorksSection from '@/components/landing/HowItWorksSection'
 import TrustSection from '@/components/landing/TrustSection'
@@ -57,13 +56,9 @@ export default function LandingPage() {
           <HeroSection />
         </section>
 
-        <section id="painpoint-section" className="snap-section">
-          <PainPointSection />
-        </section>
-
-        <section id="comparison-section" className="snap-section">
-          <ComparisonSection />
-        </section>
+        <div id="painpoint-section">
+          <PainToCompareReveal />
+        </div>
 
         <section id="features-section" className="snap-section">
           <FeaturesSection />
