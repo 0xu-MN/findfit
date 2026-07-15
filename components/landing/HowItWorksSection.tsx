@@ -94,13 +94,14 @@ function bellyDivVh(i: number) {
   return (PAD_T + i * HOLLOW_H + RY) * VH_COEFF
 }
 
-// At scroll=0 belly 1 sits LOW (85vh) so the straight entry line is fully
-// visible descending from the viewport top. At scroll=1 belly 4 sits HIGH
-// (15vh) so the straight exit line runs off the bottom.
-const SNAKE_START = (85 - bellyDivVh(0)) / 100
-const SNAKE_END   = (15 - bellyDivVh(steps.length - 1)) / 100
+// Edge-align the path to the section itself: at scroll=0 the very top of the
+// path (SVG y=0, the entry line's tip) sits exactly at the sticky viewport's
+// top edge; at scroll=1 the very bottom (the exit line's tip) sits exactly at
+// its bottom edge. No blank background before/after the line is ever shown.
+const SNAKE_START = 0
+const SNAKE_END   = (100 - MOVING_VH) / 100
 
-const CONTAINER_VH = Math.round(Math.abs(SNAKE_END - SNAKE_START) * 100 + 100)
+const CONTAINER_VH = MOVING_VH
 
 // scroll progress at which belly[i] crosses the viewport centre
 const STEP_P = steps.map(
@@ -263,29 +264,45 @@ export default function HowItWorksSection() {
                     }}
                   >
                     <motion.div
-                      className="flex"
+                      className="flex flex-col"
                       animate={{
                         opacity: isActive ? 1 : 0,
                         y:       isActive ? 0 : fromBelow ? 20 : -20,
                       }}
                       transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
                       style={{
-                        flexDirection: isLeftHollow ? 'row' : 'row-reverse',
-                        alignItems: 'flex-start',
-                        gap: 'clamp(10px, 1.3vw, 18px)',
+                        alignItems: isLeftHollow ? 'flex-start' : 'flex-end',
                         maxWidth: 'min(40vw, 460px)',
                       }}
                     >
-                      {/* Large thin step number — sits on the hollow's own side */}
-                      <span
-                        className="text-white/90 leading-none tabular-nums select-none shrink-0"
-                        style={{ fontSize: 'clamp(52px, 6.4vw, 92px)', fontWeight: 700, letterSpacing: '-0.04em' }}
+                      {/* Step number — tall/condensed, cropped at the top so it reads as
+                          "peeking in" from above the title, not a full digit */}
+                      <div
+                        style={{
+                          height: 'clamp(38px, 4.4vw, 66px)',
+                          overflow: 'hidden',
+                          display: 'flex',
+                          alignItems: 'flex-end',
+                          justifyContent: isLeftHollow ? 'flex-start' : 'flex-end',
+                        }}
                       >
-                        {step.n}
-                      </span>
+                        <span
+                          className="text-white/90 tabular-nums select-none"
+                          style={{
+                            fontSize: 'clamp(64px, 7.6vw, 116px)',
+                            fontWeight: 800,
+                            lineHeight: 1,
+                            letterSpacing: '-0.03em',
+                            transform: 'scaleX(0.78)',
+                            transformOrigin: isLeftHollow ? 'left bottom' : 'right bottom',
+                          }}
+                        >
+                          {step.n}
+                        </span>
+                      </div>
 
-                      {/* Text block — trails inward from the number, aligned to match */}
-                      <div style={{ textAlign: isLeftHollow ? 'left' : 'right' }}>
+                      {/* Text block — directly under the cropped number */}
+                      <div style={{ textAlign: isLeftHollow ? 'left' : 'right', marginTop: '0.2em' }}>
                         <h3
                           className="text-white font-semibold leading-snug break-keep"
                           style={{ fontSize: 'clamp(22px, 2.6vw, 36px)', marginBottom: '0.4em' }}
