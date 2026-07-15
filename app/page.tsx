@@ -56,7 +56,7 @@ export default function LandingPage() {
           <HeroSection />
         </section>
 
-        <div id="painpoint-section">
+        <div id="painpoint-section" className="snap-section-auto">
           <PainToCompareReveal />
         </div>
 
