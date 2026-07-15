@@ -24,11 +24,11 @@ export default function PainPointSection() {
   }, [])
 
   return (
-    <section ref={sectionRef} className="w-full bg-[#F5F5F5]" style={{ minHeight: '100vh', paddingTop: '120px', paddingBottom: '120px' }}>
+    <section ref={sectionRef} className="w-full bg-[#0D0D0F]" style={{ minHeight: '100vh', paddingTop: '120px', paddingBottom: '120px' }}>
       <div className="max-w-[900px] mx-auto px-6">
 
         <div className="fade-up-init text-center mb-14">
-          <h2 className="text-5xl font-bold tracking-tight text-[#1D1C1C]">
+          <h2 className="text-5xl font-bold tracking-tight text-white">
             혹시 이런 경험, 있으신가요?
           </h2>
         </div>
@@ -36,15 +36,15 @@ export default function PainPointSection() {
         <div className="flex flex-col gap-6">
           {painPoints.map((item, idx) => (
             <div key={idx} className={`fade-up-init ${item.delay} flex items-center gap-4 ${item.align === 'right' ? 'flex-row-reverse' : 'flex-row'}`}>
-              <div className="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center text-2xl bg-[#F77019]/8">
+              <div className="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center text-2xl bg-[#F77019]/10">
                 {item.emoji}
               </div>
               <div
-                className="px-6 py-4 text-[#1D1C1C] leading-relaxed"
+                className="px-6 py-4 text-white/80 leading-relaxed"
                 style={{
-                  background: '#FFFFFF',
-                  boxShadow: '0 2px 16px rgba(0,0,0,0.06)',
-                  border: '1px solid rgba(0,0,0,0.06)',
+                  background: 'rgba(255,255,255,0.06)',
+                  boxShadow: '0 2px 24px rgba(0,0,0,0.3)',
+                  border: '1px solid rgba(255,255,255,0.1)',
                   maxWidth: '560px',
                   fontSize: 'clamp(14px, 1vw, 16px)',
                   borderRadius: item.align === 'right' ? '20px 4px 20px 20px' : '4px 20px 20px 20px',
@@ -61,10 +61,10 @@ export default function PainPointSection() {
         </div>
 
         <div className="fade-up-init delay-4 text-center mt-8">
-          <p className="text-3xl font-semibold leading-relaxed text-[#000000]">
+          <p className="text-3xl font-semibold leading-relaxed text-white/90">
             지인의 평가는 <strong className="text-[#F77019]">편향</strong>되어 있습니다.
           </p>
-          <p className="text-3xl font-semibold mt-3 leading-relaxed text-[#000000]">
+          <p className="text-3xl font-semibold mt-3 leading-relaxed text-white/90">
             <strong className="text-[#F77019]">FindFit</strong>은 당신의 아이디어를 새로운 사람들에게 물어봅니다
           </p>
         </div>
