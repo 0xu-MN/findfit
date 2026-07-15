@@ -12,39 +12,39 @@ const steps = [
 
 // ─── SVG geometry ─────────────────────────────────────────────────────────────
 const SVG_W = 100
-const SVG_H = 440
+const SVG_H = 500   // taller than before → each connecting loop covers more scroll distance
 
 const CX    = 50    // centre line
 const PAD_T = 60    // straight entry segment (incl. corner)
 const PAD_B = 60    // straight exit segment (incl. corner)
-const ARC_H = (SVG_H - PAD_T - PAD_B) / steps.length  // 80
-const RY    = ARC_H / 2                                // 40  — each turn is a full "⊂" bulge, arcs connect directly
+const ARC_H = (SVG_H - PAD_T - PAD_B) / steps.length  // 95
+const RY    = ARC_H / 2                                // 47.5 — each turn is a full "⊂" bulge, arcs connect directly
 
-// The vertical entry/exit lines join the curve through quarter-arc corners
-// (radius = half the main radius) so those two junctions are tangent-continuous.
-// The turns themselves connect arc-to-arc directly (no straight run between
-// them) so each one reads as one continuous deep "⊂" / "⊃" loop, alternating sides.
+// Corner radius is small and FIXED (independent of the main turn radius) so
+// the entry/exit straight lines stay visually centred at x=50% no matter how
+// wide the main loops get — only this tiny arc absorbs the vertical→horizontal
+// tangent change needed to blend into the big turn without a hard corner.
+const CORNER = 8
+
 function buildPath(rx: number): string {
-  const rcx = rx / 2
-  const rcy = RY / 2
   const parts: string[] = [
-    `M ${CX - rcx} 0`,
-    `L ${CX - rcx} ${PAD_T - rcy}`,
-    `A ${rcx} ${rcy} 0 0 0 ${CX} ${PAD_T}`,
+    `M ${CX - CORNER} 0`,
+    `L ${CX - CORNER} ${PAD_T - CORNER}`,
+    `A ${CORNER} ${CORNER} 0 0 0 ${CX} ${PAD_T}`,
   ]
   for (let i = 0; i < steps.length; i++) {
     const sweep = i % 2 === 0 ? 1 : 0
     parts.push(`A ${rx} ${RY} 0 0 ${sweep} ${CX} ${PAD_T + (i + 1) * ARC_H}`)
   }
   parts.push(
-    `A ${rcx} ${rcy} 0 0 1 ${CX + rcx} ${SVG_H - PAD_B + rcy}`,
-    `L ${CX + rcx} ${SVG_H}`,
+    `A ${CORNER} ${CORNER} 0 0 1 ${CX + CORNER} ${SVG_H - PAD_B + CORNER}`,
+    `L ${CX + CORNER} ${SVG_H}`,
   )
   return parts.join(' ')
 }
 
 // ─── Scroll geometry ──────────────────────────────────────────────────────────
-const MOVING_VH = 420
+const MOVING_VH = 478  // scaled with SVG_H to keep the same vh-per-unit pacing
 const VH_COEFF  = MOVING_VH / SVG_H
 
 // belly[i] position inside the moving div, in vh
@@ -95,10 +95,10 @@ export default function HowItWorksSection() {
   // the arcs into wide ellipses. Compensate: pick rx so the on-screen x-radius
   // equals the on-screen y-radius → the hollows read as circular C-curves.
   const rxMain = useMemo(() => {
-    if (!vh || !cw) return 38
+    if (!vh || !cw) return 40
     const ryPx = RY * (MOVING_VH / 100) * vh / SVG_H
     const pxPerUnitX = cw / SVG_W
-    return Math.min(40, Math.max(26, ryPx / pxPerUnitX))
+    return Math.min(44, Math.max(28, ryPx / pxPerUnitX))
   }, [vh, cw])
 
   const pathD = useMemo(() => buildPath(rxMain), [rxMain])
