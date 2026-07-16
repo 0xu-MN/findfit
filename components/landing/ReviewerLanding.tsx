@@ -7,7 +7,6 @@ import Footer from './Footer'
 import CreatorPeek from './CreatorPeek'
 import ScrollIndicator from './ScrollIndicator'
 import RoleSection from './RoleSection'
-import FAQSection from './FAQSection'
 
 function ReviewerHeader({ onSwitchToCreator }: { onSwitchToCreator: () => void }) {
   return (
@@ -753,11 +752,24 @@ const howSteps = [
   { n: '04', title: '활동 기록 + 사례금', short: '기록 · 사례금', desc: '리뷰 완료 후 포트폴리오에 자동으로 기록됩니다', note: '사례금은 해당 의뢰에 한해 지급됩니다' },
 ]
 
-// Chevron-tab stepper (image-reference style): click a phase to see its
-// detail on the left and its position highlighted on the node-line at right.
+// Auto-advancing "subway line" stepper: no manual tabs — a single line runs
+// left to right with a station per phase, a train glides between them on a
+// timer, and the left-side detail text crossfades to match whichever station
+// the train is currently sitting at.
+const HOW_INTERVAL = 3400
+
 function ReviewerHowSection() {
   const [active, setActive] = useState(0)
   const step = howSteps[active]
+  const reduced = usePrefersReducedMotion()
+
+  useEffect(() => {
+    if (reduced) return
+    const id = setInterval(() => setActive((a) => (a + 1) % howSteps.length), HOW_INTERVAL)
+    return () => clearInterval(id)
+  }, [reduced])
+
+  const stationPct = (i: number) => (i / (howSteps.length - 1)) * 100
 
   return (
     <section id="reviewer-how" className="snap-section" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
@@ -765,84 +777,63 @@ function ReviewerHowSection() {
         <div className="w-full">
           <p className="text-[#42A5F5] text-xs font-bold uppercase tracking-[0.2em] mb-4">How it works</p>
           <h2 className="font-bold mb-2" style={{ fontSize: 'clamp(32px, 3vw, 52px)' }}>이렇게 참여합니다</h2>
-          <p className="text-white/40 text-sm mb-12">4단계로 끝나는 리뷰어 플로우</p>
+          <p className="text-white/40 text-sm mb-16">4단계로 끝나는 리뷰어 플로우</p>
 
-          {/* Chevron tab bar */}
-          <div className="flex mb-16 rounded-xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
-            {howSteps.map((s, i) => {
-              const isActive = i === active
-              const notchIn = i > 0
-              const notchOut = i < howSteps.length - 1
-              const clipPath = `polygon(${notchIn ? '20px 0' : '0 0'}, ${notchOut ? 'calc(100% - 20px) 0' : '100% 0'}${notchOut ? ', 100% 50%, calc(100% - 20px) 100%' : ', 100% 100%'}, ${notchIn ? '20px 100%, 0 50%' : '0 100%'})`
-              return (
-                <button
-                  key={s.n}
-                  onClick={() => setActive(i)}
-                  className="relative flex-1 flex items-center justify-center gap-2 text-[13px] md:text-sm font-semibold py-4 transition-colors"
-                  style={{
-                    marginLeft: i > 0 ? -16 : 0,
-                    clipPath,
-                    background: isActive ? 'rgba(66,165,245,0.14)' : 'rgba(255,255,255,0.02)',
-                    color: isActive ? '#fff' : 'rgba(255,255,255,0.35)',
-                  }}
-                >
-                  <span style={{ color: isActive ? '#42A5F5' : 'rgba(255,255,255,0.25)' }}>{i + 1}</span>
-                  <span className="hidden sm:inline">{s.title}</span>
-                </button>
-              )
-            })}
-          </div>
-
-          {/* Two-column detail: active step's text (left) + its position on the flow (right) */}
           <div className="grid md:grid-cols-2 gap-14 items-center">
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <span className="w-2 h-2 rounded-full" style={{ background: '#42A5F5' }} />
-                <span className="text-[#42A5F5] text-xs font-bold tracking-wide">STEP {step.n}</span>
-              </div>
-              <h3 className="text-2xl md:text-3xl font-bold text-white mb-3">{step.title}</h3>
-              <p className="text-white/45 text-sm leading-relaxed max-w-[380px]">{step.desc}</p>
-              {step.note && <p className="text-white/25 text-xs mt-4">{step.note}</p>}
+            <div className="relative" style={{ minHeight: 140 }}>
+              {howSteps.map((s, i) => (
+                <motion.div
+                  key={s.n}
+                  className="absolute inset-0"
+                  animate={{ opacity: i === active ? 1 : 0, y: i === active ? 0 : 10 }}
+                  transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                  style={{ pointerEvents: i === active ? 'auto' : 'none' }}
+                >
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="w-2 h-2 rounded-full" style={{ background: '#42A5F5' }} />
+                    <span className="text-[#42A5F5] text-xs font-bold tracking-wide">STEP {s.n}</span>
+                  </div>
+                  <h3 className="text-2xl md:text-3xl font-bold text-white mb-3">{s.title}</h3>
+                  <p className="text-white/45 text-sm leading-relaxed max-w-[380px]">{s.desc}</p>
+                  {s.note && <p className="text-white/25 text-xs mt-4">{s.note}</p>}
+                </motion.div>
+              ))}
             </div>
 
-            <div className="relative pt-12 hidden md:block">
-              <div className="relative flex items-center justify-between">
-                <div
-                  className="absolute left-0 right-0 top-1/2 h-px"
-                  style={{
-                    transform: 'translateY(-50%)',
-                    background: 'repeating-linear-gradient(90deg, rgba(66,165,245,0.4) 0 6px, transparent 6px 12px)',
-                  }}
+            {/* Subway-line timeline */}
+            <div className="relative pt-12 pb-2 hidden md:block">
+              <div className="relative" style={{ height: 2 }}>
+                {/* Track */}
+                <div className="absolute left-0 right-0 top-0 h-full rounded-full" style={{ background: 'rgba(66,165,245,0.18)' }} />
+                {/* Travelled portion, glides under the train */}
+                <motion.div
+                  className="absolute left-0 top-0 h-full rounded-full"
+                  style={{ background: '#42A5F5' }}
+                  animate={{ width: `${stationPct(active)}%` }}
+                  transition={{ duration: 0.9, ease: [0.65, 0, 0.35, 1] }}
                 />
+
+                {/* Stations — small perpendicular ticks, like a metro map */}
                 {howSteps.map((s, i) => {
                   const isActive = i === active
+                  const isPast = i < active
                   return (
-                    <div key={s.n} className="relative flex flex-col items-center" style={{ zIndex: 1 }}>
-                      {isActive && (
-                        <span
-                          className="absolute -top-11 text-[#42A5F5] text-[11px] font-bold whitespace-nowrap px-1"
-                          style={{ background: '#0A0A0C' }}
-                        >
-                          현재 단계
-                        </span>
-                      )}
-                      {isActive && (
-                        <span
-                          className="absolute rounded-full"
-                          style={{ width: 46, height: 68, border: '1.5px solid #42A5F5', top: -22 }}
-                        />
-                      )}
+                    <div
+                      key={s.n}
+                      className="absolute flex flex-col items-center"
+                      style={{ left: `${stationPct(i)}%`, top: 0, transform: 'translate(-50%, -50%)' }}
+                    >
                       <span
-                        className="rounded-full"
+                        className="rounded-full transition-colors duration-500"
                         style={{
-                          width: isActive ? 16 : 10,
-                          height: isActive ? 16 : 10,
-                          background: isActive ? '#42A5F5' : 'rgba(255,255,255,0.25)',
-                          boxShadow: isActive ? '0 0 0 5px rgba(66,165,245,0.15)' : 'none',
+                          width: isActive ? 14 : 9,
+                          height: isActive ? 14 : 9,
+                          background: isActive || isPast ? '#42A5F5' : '#0A0A0C',
+                          border: `2px solid ${isActive || isPast ? '#42A5F5' : 'rgba(255,255,255,0.25)'}`,
                         }}
                       />
                       <span
-                        className="mt-4 text-[11px] whitespace-nowrap"
+                        className="absolute top-6 text-[11px] whitespace-nowrap transition-colors duration-500"
                         style={{ color: isActive ? '#fff' : 'rgba(255,255,255,0.35)' }}
                       >
                         {s.short}
@@ -850,6 +841,25 @@ function ReviewerHowSection() {
                     </div>
                   )
                 })}
+
+                {/* The train — glides along the track and parks at the active station */}
+                <motion.div
+                  className="absolute flex items-center justify-center rounded-full"
+                  style={{
+                    top: 0,
+                    width: 22,
+                    height: 22,
+                    marginTop: -11,
+                    marginLeft: -11,
+                    background: '#42A5F5',
+                    boxShadow: '0 0 0 6px rgba(66,165,245,0.18), 0 4px 14px rgba(66,165,245,0.4)',
+                  }}
+                  animate={{ left: `${stationPct(active)}%` }}
+                  transition={{ duration: 0.9, ease: [0.65, 0, 0.35, 1] }}
+                  initial={false}
+                >
+                  <span className="w-2 h-2 rounded-full bg-white" />
+                </motion.div>
               </div>
             </div>
           </div>
@@ -859,11 +869,110 @@ function ReviewerHowSection() {
   )
 }
 
-const reviewerFAQ = [
-  { q: '리뷰어 자격 조건이 있나요?', a: '별도 자격 조건은 없어요. 관심 분야를 등록하고 프로필을 완성하면 바로 시작할 수 있어요. 경력 인증 시 더 높은 단가가 적용돼요.' },
-  { q: '포인트는 어떻게 사용하나요?', a: '적립된 포인트는 카카오톡 기프티콘으로 교환하거나, 5만 포인트 이상 시 현금으로 출금할 수 있어요.' },
-  { q: '리뷰는 얼마나 걸리나요?', a: '의뢰당 평균 15~25분 정도 걸려요. 정량 질문 10개와 정성 질문 3개로 구성되어 있어요.' },
+// Placeholder mock-up: once the platform is live this slot will show a
+// rotating sample of REAL creator projects that are open for review. Built
+// now as a continuously auto-playing coverflow so it already reads as "a
+// live feed" rather than a static list, ahead of the real data existing.
+const liveProjects = [
+  { category: '헬스케어', color: '#22C55E', title: '당뇨 관리 앱 UI/UX 개선안 — 사용자 입장에서 어떤가요?', time: '약 20분', reward: '5,000원', deadline: '3일 후' },
+  { category: '푸드테크', color: '#F59E0B', title: '친환경 배달 포장재 아이디어 — 실제로 쓰겠어요?', time: '약 15분', reward: null, deadline: '7일 후' },
+  { category: 'B2B SaaS', color: '#A855F7', title: '스타트업 HR 툴 기능 우선순위 — 어떤 게 더 필요한가요?', time: '약 25분', reward: '8,000원', deadline: '5일 후' },
+  { category: '커머스', color: '#F97316', title: '무자본 D2C 브랜드 네이밍 검증 — 이 이름, 기억에 남나요?', time: '약 10분', reward: null, deadline: '2일 후' },
+  { category: '에듀테크', color: '#EF4444', title: '직장인 대상 마이크로러닝 앱 — 10분 학습, 실제로 효과 있을까요?', time: '약 20분', reward: '4,000원', deadline: '10일 후' },
 ]
+
+const LIVE_INTERVAL = 2800
+
+// Shortest signed circular distance from `active` to `i`, so the carousel
+// wraps around smoothly both directions instead of resetting.
+function circularDelta(i: number, active: number, n: number) {
+  let d = i - active
+  if (d > n / 2) d -= n
+  if (d < -n / 2) d += n
+  return d
+}
+
+function LiveProjectsSection() {
+  const [active, setActive] = useState(0)
+  const reduced = usePrefersReducedMotion()
+
+  useEffect(() => {
+    if (reduced) return
+    const id = setInterval(() => setActive((a) => (a + 1) % liveProjects.length), LIVE_INTERVAL)
+    return () => clearInterval(id)
+  }, [reduced])
+
+  return (
+    <section id="reviewer-live-projects" className="snap-section" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="max-w-[1440px] mx-auto px-8 md:px-16 h-full flex flex-col items-center justify-center">
+        <div className="text-center mb-14">
+          <p className="text-[#42A5F5] text-xs font-bold uppercase tracking-[0.25em] mb-4">Live projects</p>
+          <h2 className="font-bold mb-4" style={{ fontSize: 'clamp(28px, 3vw, 46px)' }}>이런 의뢰들이 올라옵니다</h2>
+          <p className="text-white/40 text-sm md:text-base">어떤 아이디어가 지금 검증을 기다리고 있는지 미리 살펴보세요.</p>
+        </div>
+
+        <div className="relative w-full overflow-hidden" style={{ height: 260 }}>
+          {liveProjects.map((p, i) => {
+            const d = circularDelta(i, active, liveProjects.length)
+            const dist = Math.abs(d)
+            const isActive = d === 0
+            return (
+              <motion.div
+                key={p.title}
+                className="absolute top-0 left-1/2 rounded-2xl px-6 py-6"
+                style={{
+                  width: 280,
+                  marginLeft: -140,
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  zIndex: liveProjects.length - dist,
+                  pointerEvents: dist > 2 ? 'none' : 'auto',
+                }}
+                animate={{
+                  x: d * 240,
+                  scale: isActive ? 1 : 1 - dist * 0.12,
+                  opacity: dist > 2 ? 0 : 1 - dist * 0.32,
+                }}
+                transition={{ duration: 0.7, ease: [0.65, 0, 0.35, 1] }}
+              >
+                <span
+                  className="inline-block text-[11px] font-bold px-2.5 py-1 rounded-md mb-4"
+                  style={{ background: `${p.color}22`, color: p.color }}
+                >
+                  {p.category}
+                </span>
+                <h3 className="text-white font-bold text-[15px] leading-snug mb-5 break-keep" style={{ minHeight: 66 }}>
+                  {p.title}
+                </h3>
+                <div className="flex flex-col gap-2 text-[12.5px]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/35">예상 소요</span>
+                    <span className="text-white/70">{p.time}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/35">사례금</span>
+                    <span style={{ color: p.reward ? '#42A5F5' : 'rgba(255,255,255,0.3)' }} className="font-semibold">
+                      {p.reward ?? '없음'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/35">마감</span>
+                    <span className="text-white/70">{p.deadline}</span>
+                  </div>
+                </div>
+              </motion.div>
+            )
+          })}
+        </div>
+
+        <div className="flex items-center gap-2 mt-10 text-white/30 text-[12.5px]">
+          <span>🔒</span>
+          <span>모든 프로젝트는 NDA로 아이디어가 보호됩니다</span>
+        </div>
+      </div>
+    </section>
+  )
+}
 
 // ── Main ────────────────────────────────────────────────────
 interface Props { onSwitchToCreator: () => void }
@@ -966,13 +1075,8 @@ export default function ReviewerLanding({ onSwitchToCreator }: Props) {
       {/* How it works */}
       <ReviewerHowSection />
 
-      {/* FAQ */}
-      <FAQSection
-        id="reviewer-faq"
-        dark={true}
-        title="자주 묻는 질문"
-        items={reviewerFAQ}
-      />
+      {/* Live projects (mock-up — becomes a real rotating feed post-launch) */}
+      <LiveProjectsSection />
 
       {/* RoleSection (역할) */}
       <div id="reviewer-role" className="snap-section">
