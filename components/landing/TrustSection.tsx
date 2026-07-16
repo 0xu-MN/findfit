@@ -48,13 +48,22 @@ const features = [
 
 const N = features.length
 
-// A soft glass-morphic "hero graphic" standing in for a product photo — a
-// blurred rotating gradient inside a glass disc, with the feature's icon
-// centered. Uses a self-blur (filter, not backdrop-filter) so it stays cheap
-// even while rotating — see ReviewerLanding's perf notes on why that matters.
+// A glass-morphic "hero graphic" standing in for a product photo — two
+// blurred, morphing gradient blobs drifting behind a glass disc, with the
+// feature's icon centered on top. Everything is a self-blur (`filter`, not
+// `backdrop-filter`) so it stays cheap even while animating continuously —
+// see ReviewerLanding's benefit-section perf notes on why that distinction
+// matters for scroll smoothness.
+const BLOB_SHAPES = [
+  '42% 58% 65% 35% / 45% 40% 60% 55%',
+  '58% 42% 40% 60% / 55% 65% 35% 45%',
+  '35% 65% 55% 45% / 40% 45% 60% 55%',
+  '42% 58% 65% 35% / 45% 40% 60% 55%',
+]
+
 function GlassFeatureVisual({
-  gradient, icon, size, spin = false,
-}: { gradient: string[]; icon: string; size: number; spin?: boolean }) {
+  gradient, icon, size, live = false,
+}: { gradient: string[]; icon: string; size: number; live?: boolean }) {
   return (
     <div
       className="relative rounded-full overflow-hidden shrink-0"
@@ -66,18 +75,32 @@ function GlassFeatureVisual({
         boxShadow: '0 20px 60px -20px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.15)',
       }}
     >
+      {/* Blob 1 — shape-morphing, its own blurred conic gradient inside */}
       <motion.div
-        className="absolute"
-        style={{
-          inset: '-35%',
-          background: `conic-gradient(from 0deg, ${gradient[0]}, ${gradient[1]}, ${gradient[0]})`,
-          opacity: 0.6,
-          filter: `blur(${Math.max(10, size * 0.09)}px)`,
-        }}
-        animate={spin ? { rotate: 360 } : undefined}
-        transition={spin ? { duration: 14, repeat: Infinity, ease: 'linear' } : undefined}
-      />
-      <div className="absolute inset-0 rounded-full" style={{ background: 'radial-gradient(circle, transparent 40%, rgba(0,0,0,0.4) 100%)' }} />
+        className="absolute overflow-hidden"
+        style={{ width: '80%', height: '80%', top: '-8%', left: '-10%' }}
+        animate={live ? { borderRadius: BLOB_SHAPES } : { borderRadius: BLOB_SHAPES[0] }}
+        transition={live ? { duration: 8, repeat: Infinity, ease: 'easeInOut' } : undefined}
+      >
+        <div
+          className="absolute"
+          style={{ inset: '-40%', background: `conic-gradient(from 0deg, ${gradient[0]}, ${gradient[1]}, ${gradient[0]})`, opacity: 0.75, filter: `blur(${Math.max(8, size * 0.1)}px)` }}
+        />
+      </motion.div>
+      {/* Blob 2 — smaller, offset, rotating the opposite way for depth */}
+      <motion.div
+        className="absolute overflow-hidden"
+        style={{ width: '55%', height: '55%', bottom: '-6%', right: '-8%' }}
+        animate={live ? { borderRadius: BLOB_SHAPES.slice().reverse() } : { borderRadius: BLOB_SHAPES[2] }}
+        transition={live ? { duration: 9, repeat: Infinity, ease: 'easeInOut', delay: 0.5 } : undefined}
+      >
+        <div
+          className="absolute"
+          style={{ inset: '-40%', background: `conic-gradient(from 180deg, ${gradient[1]}, ${gradient[0]}, ${gradient[1]})`, opacity: 0.65, filter: `blur(${Math.max(8, size * 0.09)}px)` }}
+        />
+      </motion.div>
+
+      <div className="absolute inset-0 rounded-full" style={{ background: 'radial-gradient(circle, transparent 40%, rgba(0,0,0,0.45) 100%)' }} />
       <div className="absolute inset-0 flex items-center justify-center" style={{ fontSize: size * 0.34 }}>
         {icon}
       </div>
@@ -145,9 +168,10 @@ export default function TrustSection({ id = 'trust-section' }: { id?: string }) 
               </span>
 
               <div className="relative" style={{ minHeight: 260 }}>
-                <AnimatePresence mode="wait">
+                <AnimatePresence>
                   <motion.div
                     key={feature.label}
+                    className="absolute inset-0"
                     initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -16 }}
@@ -189,16 +213,17 @@ export default function TrustSection({ id = 'trust-section' }: { id?: string }) 
             </div>
 
             {/* Right: the big hero graphic for the active feature */}
-            <div className="flex justify-center md:justify-end">
-              <AnimatePresence mode="wait">
+            <div className="relative flex justify-center md:justify-end" style={{ height: 340 }}>
+              <AnimatePresence>
                 <motion.div
                   key={feature.label}
+                  className="absolute"
                   initial={{ opacity: 0, scale: 0.85 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.85 }}
                   transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
                 >
-                  <GlassFeatureVisual gradient={feature.gradient} icon={feature.icon} size={340} spin />
+                  <GlassFeatureVisual gradient={feature.gradient} icon={feature.icon} size={340} live />
                 </motion.div>
               </AnimatePresence>
             </div>

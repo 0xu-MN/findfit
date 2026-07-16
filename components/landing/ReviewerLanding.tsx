@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useId, useRef, useState } from 'react'
-import { motion, useScroll, useMotionValueEvent, useTransform, type MotionValue } from 'framer-motion'
+import { motion, useScroll, useMotionValueEvent, useTransform, useMotionValue, useAnimationFrame, type MotionValue } from 'framer-motion'
 import { ArrowRight, ArrowLeft } from 'lucide-react'
 import Footer from './Footer'
 import CreatorPeek from './CreatorPeek'
@@ -760,7 +760,6 @@ const HOW_INTERVAL = 3400
 
 function ReviewerHowSection() {
   const [active, setActive] = useState(0)
-  const step = howSteps[active]
   const reduced = usePrefersReducedMotion()
 
   useEffect(() => {
@@ -816,14 +815,15 @@ function ReviewerHowSection() {
                   return (
                     <div
                       key={s.n}
-                      className="absolute flex flex-col items-center"
-                      style={{ left: `${stationPct(i)}%`, top: 0, transform: 'translate(-50%, -50%)' }}
+                      className="absolute"
+                      style={{ left: `${stationPct(i)}%`, top: 0, width: 1, height: 1 }}
                     >
+                      {/* Everything below is centered on this exact point (the dot) */}
                       {isActive && (
                         <motion.span
                           layoutId="how-current-label"
-                          className="absolute -top-9 text-[#42A5F5] text-[11px] font-bold whitespace-nowrap px-1"
-                          style={{ background: '#0A0A0C' }}
+                          className="absolute text-[#42A5F5] text-[11px] font-bold whitespace-nowrap px-1"
+                          style={{ left: 0, top: -46, transform: 'translateX(-50%)', background: '#0A0A0C' }}
                           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                         >
                           현재 단계
@@ -833,17 +833,17 @@ function ReviewerHowSection() {
                         <motion.span
                           layoutId="how-current-oval"
                           className="absolute rounded-full"
-                          style={{ width: 44, height: 64, border: '1.5px solid #42A5F5' }}
+                          style={{ left: 0, top: 0, width: 40, height: 60, border: '1.5px solid #42A5F5', transform: 'translate(-50%, -50%)' }}
                           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                         />
                       )}
                       <span
-                        className="rounded-full"
-                        style={{ width: 12, height: 12, background: '#42A5F5' }}
+                        className="absolute rounded-full"
+                        style={{ left: 0, top: 0, width: 12, height: 12, background: '#42A5F5', transform: 'translate(-50%, -50%)' }}
                       />
                       <span
-                        className="absolute top-6 text-[11px] whitespace-nowrap transition-colors duration-500"
-                        style={{ color: isActive ? '#fff' : 'rgba(255,255,255,0.55)' }}
+                        className="absolute text-[11px] whitespace-nowrap transition-colors duration-500"
+                        style={{ left: 0, top: 22, transform: 'translateX(-50%)', color: isActive ? '#fff' : 'rgba(255,255,255,0.55)' }}
                       >
                         {s.short}
                       </span>
@@ -874,11 +874,45 @@ const liveProjects = [
 // Tall pill-shaped card, full-bleed gradient standing in for a project photo
 // (no real project images exist yet), with a bottom overlay carrying the
 // icon + copy — same visual language as the reference "peek carousel" card.
-function ProjectPill({ p }: { p: (typeof liveProjects)[number] }) {
+const CARD_W = 220
+const CARD_H = 320
+const CARD_GAP = 28
+const PITCH = CARD_W + CARD_GAP
+const FLOW_SPEED = 34 // px/sec, continuous — never stops or pauses
+
+// Position of card `index` relative to the centre slot, wrapped into
+// (-total/2, total/2] so it's always the shortest signed distance — this is
+// what makes the loop continuous instead of resetting/jumping.
+function wrappedOffset(index: number, x: number, total: number) {
+  let raw = (index * PITCH + x) % total
+  if (raw < 0) raw += total
+  if (raw > total / 2) raw -= total
+  return raw
+}
+
+function ProjectPill({
+  p, index, x, total,
+}: { p: (typeof liveProjects)[number]; index: number; x: MotionValue<number>; total: number }) {
+  const offset = useTransform(x, (latest) => wrappedOffset(index, latest, total))
+  // Centre of the viewport = distance 0 = full size/opacity; the further a
+  // card drifts, the smaller and dimmer it gets — a live, continuous coverflow.
+  const scale = useTransform(offset, (d) => Math.max(0.72, 1.08 - Math.abs(d) / (total / 2) * 0.5))
+  const opacity = useTransform(offset, (d) => Math.max(0.22, 1 - Math.abs(d) / (total / 2) * 0.85))
+  const zIndex = useTransform(offset, (d) => Math.round(100 - Math.abs(d)))
+
   return (
-    <div
-      className="relative shrink-0 overflow-hidden rounded-[36px]"
-      style={{ width: 210, height: 320 }}
+    <motion.div
+      className="absolute top-1/2 left-1/2 shrink-0 overflow-hidden rounded-[36px]"
+      style={{
+        width: CARD_W,
+        height: CARD_H,
+        marginLeft: -CARD_W / 2,
+        marginTop: -CARD_H / 2,
+        x: offset,
+        scale,
+        opacity,
+        zIndex,
+      }}
     >
       <div className="absolute inset-0" style={{ background: `linear-gradient(155deg, ${p.color}, #0A0A0C 130%)` }} />
       <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 55%)' }} />
@@ -898,14 +932,20 @@ function ProjectPill({ p }: { p: (typeof liveProjects)[number] }) {
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }
 
 function LiveProjectsSection() {
   const reduced = usePrefersReducedMotion()
-  // Duplicated once so the marquee can loop seamlessly at -50% translateX.
-  const loop = [...liveProjects, ...liveProjects]
+  const n = liveProjects.length
+  const total = n * PITCH
+  const x = useMotionValue(0)
+
+  useAnimationFrame((_, delta) => {
+    if (reduced) return
+    x.set(x.get() - (FLOW_SPEED * delta) / 1000)
+  })
 
   return (
     <section id="reviewer-live-projects" className="snap-section" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
@@ -916,15 +956,13 @@ function LiveProjectsSection() {
           <p className="text-white/40 text-sm md:text-base">어떤 아이디어가 지금 검증을 기다리고 있는지 미리 살펴보세요.</p>
         </div>
 
-        <div className="relative w-full overflow-hidden" style={{ maskImage: 'linear-gradient(90deg, transparent, black 8%, black 92%, transparent)' }}>
-          <div
-            className="flex gap-6"
-            style={reduced ? undefined : { animation: 'live-marquee 26s linear infinite', width: 'max-content' }}
-          >
-            {loop.map((p, i) => (
-              <ProjectPill key={`${p.title}-${i}`} p={p} />
-            ))}
-          </div>
+        <div
+          className="relative w-full overflow-hidden"
+          style={{ height: CARD_H + 20, maskImage: 'linear-gradient(90deg, transparent, black 12%, black 88%, transparent)' }}
+        >
+          {liveProjects.map((p, i) => (
+            <ProjectPill key={p.title} p={p} index={i} x={x} total={total} />
+          ))}
         </div>
 
         <div className="flex items-center gap-2 mt-10 text-white/30 text-[12.5px]">
