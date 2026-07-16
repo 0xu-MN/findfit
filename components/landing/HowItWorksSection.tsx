@@ -145,7 +145,9 @@ export default function HowItWorksSection() {
   // measured the same way: find, for each hollow, the length-fraction at which
   // the path actually visits that hollow's apex point (the visual centre of
   // the loop), by sampling the real rendered path.
-  const [stepLenFrac, setStepLenFrac] = useState<number[]>(() => steps.map(() => 0))
+  // -1 (not 0) so an unmeasured step can never false-match scroll progress
+  // 0 at mount, before the real length-fractions below are computed.
+  const [stepLenFrac, setStepLenFrac] = useState<number[]>(() => steps.map(() => -1))
 
   useEffect(() => {
     if (!pathRef.current) return

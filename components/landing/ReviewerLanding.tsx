@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
+import { motion, useScroll, useMotionValueEvent, useTransform, type MotionValue } from 'framer-motion'
 import { ArrowRight, ArrowLeft } from 'lucide-react'
 import Footer from './Footer'
 import CreatorPeek from './CreatorPeek'
@@ -99,89 +100,656 @@ function ParticleStrand() {
   )
 }
 
-// ── Benefits 중앙 포컬: 수익 사다리 (전문성↑ = 수익↑) ──
-function EarningsLadder() {
-  const MAX = 290
+// ── Benefits: 스크롤 고정형 카드 스택 (오른쪽 목록 → 왼쪽으로 순서대로 펼쳐짐) ──
+type BenefitStat = { value: string; label: string }
+interface BenefitItem {
+  n: string
+  category: string
+  title: string
+  tagline?: string
+  desc: string
+  highlight?: boolean
+  statsLabel?: string
+  stats?: BenefitStat[]
+  tag?: string
+}
+
+const benefitCards: BenefitItem[] = [
+  {
+    n: '01',
+    category: '포트폴리오',
+    title: '리뷰 활동이 포트폴리오가 됩니다',
+    tagline: '취업, 지원, 면접 — 막연한 관심을 구체적인 숫자로',
+    desc: '관심 있다고 말하는 건 누구나 해요. FindFit은 그걸 기록으로 바꿉니다. 내 의견이 크리에이터의 방향을 바꾸고 — 그 영향이 내 활동 기록에 남습니다. PM 지망이든, 마케터든, 기획자든, 어떤 분야든 — 자신이 관심 있는 의뢰를 리뷰한 기록이 지원서에 꺼낼 수 있는 구체적인 근거가 됩니다.',
+    highlight: true,
+    statsLabel: '리뷰어 활동 예시',
+    stats: [
+      { value: '17건', label: '서비스 검증' },
+      { value: '3개', label: '출시된 서비스' },
+      { value: '91%', label: '리뷰 신뢰도' },
+    ],
+  },
+  {
+    n: '02',
+    category: '선경험',
+    title: '세상에 나오기 전 아이디어를 가장 먼저 보는 사람',
+    desc: '출시 전 서비스, 검증 중인 제품, 초기 기획안 — 일반인이 접하기 전에 먼저 경험하고 의견을 냅니다.',
+  },
+  {
+    n: '03',
+    category: '시장 트렌드',
+    title: 'VC가 아니어도 시장의 흐름을 읽습니다',
+    desc: '요즘 어떤 문제를 풀려는 사람들이 많은지, 어떤 아이디어가 검증받고 있는지 — 참여할수록 자연스럽게 알게 됩니다.',
+  },
+  {
+    n: '04',
+    category: '사례금',
+    title: '일부 의뢰에는 사례금이 포함됩니다',
+    desc: '크리에이터가 설정한 의뢰에 한해 참여 사례금이 지급됩니다.',
+    tag: '의뢰마다 상이 · 프로젝트 상세에서 확인',
+  },
+]
+
+const BENEFITS_SEG = 1 / benefitCards.length
+
+function clampNum(v: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, v))
+}
+
+function benefitOpenness(index: number, progress: number) {
+  const a0 = index * BENEFITS_SEG
+  const a3 = (index + 1) * BENEFITS_SEG
+  const margin = BENEFITS_SEG * 0.2
+  const a1 = a0 + margin
+  const a2 = a3 - margin
+  const fadeIn = clampNum((progress - a0) / (a1 - a0), 0, 1)
+  const fadeOut = clampNum((a3 - progress) / (a3 - a2), 0, 1)
+  const isFirst = index === 0
+  const isLast = index === benefitCards.length - 1
+  return isFirst ? fadeOut : isLast ? fadeIn : Math.min(fadeIn, fadeOut)
+}
+
+// Derives this card's openness as a MotionValue bound directly to the DOM by
+// framer (no React re-render per scroll frame), plus an `active` boolean
+// *state* that only updates the rare handful of times it actually flips —
+// used solely to mount/unmount the heavy blob visuals and swap colors,
+// never on every scroll tick. This is what keeps scroll smooth: re-rendering
+// the whole card tree 60×/sec (the previous `useState` progress) was the
+// actual cause of the stutter, not the visuals themselves.
+function useBenefitOpenness(scrollYProgress: MotionValue<number>, index: number) {
+  const openness = useTransform(scrollYProgress, (p) => benefitOpenness(index, p))
+  const activeMV = useTransform(openness, (o) => o > 0.5)
+  const [active, setActive] = useState(() => activeMV.get())
+  useMotionValueEvent(activeMV, 'change', (v) => setActive(v))
+  return { openness, active }
+}
+
+// LEFT stage — the currently active card, pulled in from the right stack
+// and swept out to the left as the next one takes its place.
+// ── Per-benefit motion graphics — a small looping visual that dramatizes
+// what each benefit actually means, playing while its card is on stage. ──
+
+// 01 · 포트폴리오 — review records fanning out into a little stack, like a
+// portfolio building up one entry at a time.
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+    setReduced(mq.matches)
+    const handler = () => setReduced(mq.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+  return reduced
+}
+
+// Apple "Liquid Glass" palette — the same blue→purple→pink→orange sweep on
+// every benefit, so the icon shape (not the color) is what tells them apart.
+const IRIDESCENT_STOPS = '#3B82F6, #A855F7, #EC4899, #F97316, #3B82F6'
+
+const BLOB_SHAPES = [
+  '42% 58% 65% 35% / 45% 40% 60% 55%',
+  '58% 42% 40% 60% / 55% 65% 35% 45%',
+  '35% 65% 55% 45% / 40% 45% 60% 55%',
+  '42% 58% 65% 35% / 45% 40% 60% 55%',
+]
+
+// A soft glass blob whose fill is a slowly-rotating rainbow conic gradient
+// (the rotation is what makes the iridescence visibly shift), clipped to a
+// morphing, drifting outline. No background box anywhere — it just floats.
+function GlassBlob({
+  size, top, left, delay = 0, reduced,
+}: { size: number; top: string; left: string; delay?: number; reduced: boolean }) {
   return (
-    <div className="relative select-none" style={{ width: '380px' }}>
-      {/* 글로우 */}
-      <div className="absolute inset-0 pointer-events-none" style={{
-        background: 'radial-gradient(ellipse 60% 50% at 55% 60%, rgba(66,165,245,0.18) 0%, transparent 70%)',
-      }} />
+    <motion.div
+      className="absolute overflow-hidden"
+      style={{
+        top,
+        left,
+        width: size,
+        height: size,
+        backdropFilter: 'blur(22px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(22px) saturate(180%)',
+        border: '1px solid rgba(255,255,255,0.28)',
+        boxShadow: '0 30px 80px -14px rgba(168,85,247,0.35), inset 0 1px 1px rgba(255,255,255,0.35)',
+      }}
+      animate={
+        reduced
+          ? { borderRadius: BLOB_SHAPES[0] }
+          : { borderRadius: BLOB_SHAPES, x: [0, 16, -12, 0], y: [0, -12, 14, 0] }
+      }
+      transition={reduced ? undefined : { duration: 9, repeat: Infinity, ease: 'easeInOut', delay }}
+    >
+      <motion.div
+        className="absolute"
+        style={{ inset: '-50%', background: `conic-gradient(from 0deg, ${IRIDESCENT_STOPS})`, opacity: 0.5 }}
+        animate={reduced ? {} : { rotate: 360 }}
+        transition={reduced ? undefined : { duration: 12, repeat: Infinity, ease: 'linear' }}
+      />
+    </motion.div>
+  )
+}
 
-      {/* 세로축 라벨 */}
-      <div className="absolute left-0 top-2 flex items-center gap-1.5 text-white/35 text-[11px] font-bold tracking-wider">
-        <ArrowRight className="w-3.5 h-3.5 -rotate-90" /> 수익
-      </div>
+// A specular highlight sweeping across the glass — the "light refraction" cue.
+// Scoped tightly to whatever it's placed inside (the icon lens), never the
+// whole stage — a full-stage sheen read as a big flat gray box, not glass.
+function GlassSheen({ reduced }: { reduced: boolean }) {
+  return (
+    <motion.div
+      className="absolute inset-0 pointer-events-none rounded-full overflow-hidden"
+      style={{
+        background:
+          'linear-gradient(115deg, transparent 30%, rgba(255,255,255,0.55) 48%, rgba(255,255,255,0.1) 55%, transparent 70%)',
+        backgroundSize: '250% 100%',
+        mixBlendMode: 'screen',
+      }}
+      animate={reduced ? {} : { backgroundPositionX: ['-60%', '160%'] }}
+      transition={reduced ? undefined : { duration: 4.5, repeat: Infinity, ease: 'linear', repeatDelay: 2.5 }}
+    />
+  )
+}
 
-      {/* 막대 */}
-      <div className="relative flex items-end justify-center gap-6 pl-6" style={{ height: MAX + 56 }}>
-        {grades.map((g) => (
-          <div key={g.badge} className="flex flex-col items-center" style={{ width: '92px' }}>
-            <span className="font-black text-white tabular-nums mb-2.5 whitespace-nowrap"
-              style={{ fontSize: g.top ? '15px' : '13px' }}>
-              {g.range}
-            </span>
-            <div
-              className="w-full rounded-t-2xl relative flex items-start justify-center pt-3"
-              style={{
-                height: `${g.h * MAX}px`,
-                background: g.top
-                  ? 'linear-gradient(180deg, #42A5F5 0%, #1E6FD6 100%)'
-                  : `linear-gradient(180deg, ${g.color}33 0%, ${g.color}14 100%)`,
-                border: `1px solid ${g.top ? 'rgba(66,165,245,0.6)' : g.color + '40'}`,
-                boxShadow: g.top ? '0 0 40px rgba(66,165,245,0.45)' : 'none',
-              }}
-            >
-              {g.stars && (
-                <span className="text-[11px]" style={{ color: g.top ? '#fff' : g.color }}>{g.stars}</span>
-              )}
-            </div>
-          </div>
+// ── Per-benefit illustrated scenes — small, concrete drawings of what each
+// benefit actually means, instead of a single generic icon glyph. Every
+// shape is stroked/filled with the shared rainbow gradient. ──
+
+const sceneMotion = (i: number) => ({
+  initial: { opacity: 0, scale: 0.7, y: 14 },
+  animate: { opacity: 1, scale: 1, y: 0 },
+  transition: { delay: 0.12 * i, type: 'spring' as const, stiffness: 220, damping: 20 },
+})
+
+// 01 · 포트폴리오 — a fanned stack of review cards, each stamped "checked",
+// with a star badge on the front one: activity literally piling into proof.
+function PortfolioScene({ gradientId }: { gradientId: string }) {
+  const g = `url(#${gradientId})`
+  const cards = [
+    { x: 46, rotate: -16 },
+    { x: 78, rotate: -2 },
+    { x: 110, rotate: 14 },
+  ]
+  return (
+    <>
+      {cards.map((c, i) => (
+        <motion.g key={i} {...sceneMotion(i)} style={{ transformOrigin: `${c.x}px 130px` }}>
+          <g transform={`translate(${c.x} 70) rotate(${c.rotate})`}>
+            <rect x={-32} y={-42} width={64} height={84} rx={10} fill="rgba(10,10,14,0.65)" stroke={g} strokeWidth={2} />
+            <line x1={-18} y1={-18} x2={12} y2={-18} stroke={g} strokeWidth={3} strokeLinecap="round" opacity={0.8} />
+            <line x1={-18} y1={-4} x2={18} y2={-4} stroke={g} strokeWidth={3} strokeLinecap="round" opacity={0.55} />
+            <line x1={-18} y1={10} x2={6} y2={10} stroke={g} strokeWidth={3} strokeLinecap="round" opacity={0.55} />
+            {i === cards.length - 1 && (
+              <g transform="translate(20 -30)">
+                <circle r={13} fill="rgba(10,10,14,0.85)" stroke={g} strokeWidth={2} />
+                <path d="M -5 0 L -1.5 4 L 5 -5" stroke={g} strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              </g>
+            )}
+          </g>
+        </motion.g>
+      ))}
+    </>
+  )
+}
+
+// 02 · 선경험 — a telescope on a tripod, aimed at a glowing "not yet public"
+// shape in the distance: spotting what's new before anyone else does.
+function FirstLookScene({ gradientId }: { gradientId: string }) {
+  const g = `url(#${gradientId})`
+  return (
+    <>
+      {/* Radar rings scanning outward — looking for what's new before it's public */}
+      {[70, 90, 110].map((r, i) => (
+        <motion.circle
+          key={r}
+          {...sceneMotion(i)}
+          cx={100}
+          cy={100}
+          r={r}
+          fill="none"
+          stroke={g}
+          strokeWidth={1}
+          strokeDasharray="2 8"
+          opacity={0.35}
+        />
+      ))}
+      {/* A big, unmistakable eye */}
+      <motion.g {...sceneMotion(3)}>
+        <path
+          d="M 30 100 C 55 55, 145 55, 170 100 C 145 145, 55 145, 30 100 Z"
+          fill="rgba(10,10,14,0.75)"
+          stroke={g}
+          strokeWidth={3}
+          strokeLinejoin="round"
+        />
+        <circle cx={100} cy={100} r={30} fill="rgba(10,10,14,0.9)" stroke={g} strokeWidth={3} />
+        <circle cx={100} cy={100} r={14} fill={g} />
+      </motion.g>
+      {/* A small "new" sparkle caught in view, upper right */}
+      <motion.path
+        {...sceneMotion(4)}
+        d="M 156 42 L 160 54 L 172 58 L 160 62 L 156 74 L 152 62 L 140 58 L 152 54 Z"
+        fill={g}
+      />
+    </>
+  )
+}
+
+// 03 · 시장 트렌드 — a real little bar chart with a rising trend line drawn
+// across the tops, ending in an arrowhead: the market's direction, visibly.
+function TrendScene({ gradientId }: { gradientId: string }) {
+  const g = `url(#${gradientId})`
+  const bars = [
+    { x: 34, h: 30 },
+    { x: 62, h: 50 },
+    { x: 90, h: 40 },
+    { x: 118, h: 74 },
+    { x: 146, h: 96 },
+  ]
+  const base = 168
+  return (
+    <>
+      {bars.map((b, i) => (
+        <motion.rect
+          key={i}
+          {...sceneMotion(i)}
+          x={b.x - 10}
+          y={base - b.h}
+          width={20}
+          height={b.h}
+          rx={4}
+          fill="rgba(10,10,14,0.55)"
+          stroke={g}
+          strokeWidth={2}
+        />
+      ))}
+      <motion.path
+        {...sceneMotion(bars.length)}
+        d={`M ${bars[0].x} ${base - bars[0].h - 10} ${bars.slice(1).map((b) => `L ${b.x} ${base - b.h - 10}`).join(' ')} L 168 46`}
+        fill="none"
+        stroke={g}
+        strokeWidth={3}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <motion.path
+        {...sceneMotion(bars.length + 1)}
+        d="M 158 38 L 170 44 L 158 52"
+        fill="none"
+        stroke={g}
+        strokeWidth={3}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </>
+  )
+}
+
+// 04 · 사례금 — an open envelope with coins popping out of it: a reward
+// literally arriving in the mail.
+function CompensationScene({ gradientId }: { gradientId: string }) {
+  const g = `url(#${gradientId})`
+  const coins = [
+    { x: 76, y: 56, r: 15, delay: 1 },
+    { x: 108, y: 42, r: 18, delay: 2 },
+    { x: 128, y: 70, r: 13, delay: 3 },
+  ]
+  return (
+    <>
+      <motion.g {...sceneMotion(0)}>
+        <rect x={40} y={110} width={120} height={72} rx={10} fill="rgba(10,10,14,0.65)" stroke={g} strokeWidth={2.2} />
+        <path d="M 40 118 L 100 156 L 160 118" fill="none" stroke={g} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
+      </motion.g>
+      {coins.map((c, i) => (
+        <motion.g key={i} {...sceneMotion(c.delay)}>
+          <circle cx={c.x} cy={c.y} r={c.r} fill="rgba(10,10,14,0.7)" stroke={g} strokeWidth={2.2} />
+          <circle cx={c.x} cy={c.y} r={c.r - 5} fill="none" stroke={g} strokeWidth={1.2} opacity={0.7} />
+        </motion.g>
+      ))}
+    </>
+  )
+}
+
+function BenefitScene({ index, gradientId }: { index: number; gradientId: string }) {
+  switch (index) {
+    case 0: return <PortfolioScene gradientId={gradientId} />
+    case 1: return <FirstLookScene gradientId={gradientId} />
+    case 2: return <TrendScene gradientId={gradientId} />
+    default: return <CompensationScene gradientId={gradientId} />
+  }
+}
+
+const BLOB_LAYOUTS = [
+  [
+    { size: 260, top: '4%', left: '8%' },
+    { size: 190, top: '46%', left: '54%' },
+    { size: 150, top: '58%', left: '12%' },
+  ],
+  [
+    { size: 240, top: '10%', left: '52%' },
+    { size: 180, top: '48%', left: '6%' },
+    { size: 140, top: '4%', left: '20%' },
+  ],
+  [
+    { size: 250, top: '8%', left: '10%' },
+    { size: 170, top: '50%', left: '58%' },
+    { size: 150, top: '54%', left: '16%' },
+  ],
+  [
+    { size: 230, top: '6%', left: '46%' },
+    { size: 190, top: '50%', left: '10%' },
+    { size: 150, top: '10%', left: '12%' },
+  ],
+]
+
+// Big liquid-glass motion graphic: layered morphing, rainbow-iridescent glass
+// blobs (no container box — they float straight on the black background)
+// with a bold, concretely-drawn gradient-stroked icon as the centerpiece.
+function LiquidGlassVisual({ index, active }: { index: number; active: boolean }) {
+  const reduced = usePrefersReducedMotion()
+  const gradientId = useId()
+  const layout = BLOB_LAYOUTS[index]
+
+  return (
+    <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
+      {active &&
+        layout.map((b, i) => (
+          <GlassBlob key={i} size={b.size} top={b.top} left={b.left} delay={i * 1.3} reduced={reduced} />
         ))}
-      </div>
 
-      {/* 베이스라인 */}
-      <div className="h-px ml-6" style={{ background: 'rgba(255,255,255,0.12)' }} />
-
-      {/* 등급명 + 가로축 라벨 */}
-      <div className="flex justify-center gap-6 pl-6 mt-3">
-        {grades.map((g) => (
-          <span key={g.badge} className="text-center font-semibold leading-tight"
-            style={{ width: '92px', fontSize: '12px', color: g.top ? '#42A5F5' : 'rgba(255,255,255,0.5)' }}>
-            {g.badge}
-          </span>
-        ))}
-      </div>
-      <div className="flex items-center justify-end gap-1.5 mt-4 text-white/35 text-[11px] font-bold tracking-wider">
-        전문성 <ArrowRight className="w-3.5 h-3.5" />
-      </div>
+      <motion.div
+        className="relative z-10 flex items-center justify-center"
+        style={{ width: 'clamp(230px, 28vw, 340px)', height: 'clamp(230px, 28vw, 340px)' }}
+        initial={{ scale: 0.6, opacity: 0, y: 16 }}
+        animate={
+          active
+            ? reduced
+              ? { scale: 1, opacity: 1, y: 0 }
+              : { scale: 1, opacity: 1, y: [0, -8, 0, 8, 0] }
+            : { scale: 0.6, opacity: 0, y: 16 }
+        }
+        transition={
+          active && !reduced
+            ? { scale: { type: 'spring', stiffness: 210, damping: 20 }, opacity: { duration: 0.3 }, y: { duration: 7, repeat: Infinity, ease: 'easeInOut' } }
+            : { type: 'spring', stiffness: 210, damping: 20 }
+        }
+      >
+        {/* Dark scrim behind the scene — so its gradient lines read crisply
+            against the busy rainbow blobs instead of blending into them. */}
+        <div
+          className="absolute inset-0"
+          style={{ background: 'radial-gradient(circle, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.2) 60%, transparent 78%)' }}
+        />
+        <svg
+          className="relative z-10 w-full h-full"
+          viewBox="0 0 200 200"
+          fill="none"
+          style={{
+            filter:
+              'drop-shadow(0 0 14px rgba(59,130,246,0.5)) drop-shadow(0 0 22px rgba(236,72,153,0.35)) drop-shadow(0 0 30px rgba(249,115,22,0.25))',
+          }}
+        >
+          <defs>
+            {/* userSpaceOnUse (fixed to the scene's own 200×200 viewBox)
+                instead of the default objectBoundingBox: a purely vertical
+                or horizontal sub-path (e.g. a chart bar) has a zero-width
+                bbox, which makes an objectBoundingBox gradient render
+                invisible on exactly that sub-path — this keeps every shape
+                lit consistently regardless of its own bounding box. */}
+            <linearGradient id={gradientId} gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="200" y2="200">
+              <stop offset="0%" stopColor="#3B82F6" />
+              <stop offset="35%" stopColor="#A855F7" />
+              <stop offset="68%" stopColor="#EC4899" />
+              <stop offset="100%" stopColor="#F97316" />
+            </linearGradient>
+          </defs>
+          {active && <BenefitScene index={index} gradientId={gradientId} />}
+        </svg>
+        {active && <GlassSheen reduced={reduced} />}
+      </motion.div>
     </div>
   )
 }
 
-// ── Data ────────────────────────────────────────────────────
-// Benefits 우측 리스트 (이미지3 구도 — 수익화 항목을 함께 녹임)
-const benefitItems: { title: string; lines: [string, string] }[] = [
-  {
-    title: '전문성이 곧 수익',
-    lines: ['등급이 오를수록 리뷰당 단가가 올라가요.', '도메인 전문가는 리뷰 한 건에 최대 3,000원.'],
-  },
-  {
-    title: '내 분야 제품만',
-    lines: ['관심 카테고리와 일치하는 의뢰만', '골라서 참여할 수 있어요.'],
-  },
-  {
-    title: '신제품 선행 접근',
-    lines: ['아직 세상에 없는 제품을', '누구보다 먼저 경험해요.'],
-  },
-]
+// Dynamic header block — the active benefit's title/tagline/desc/stats take
+// over the section's big-title spot, crossfading + rising in as the line
+// reaches them, instead of living inside a smaller card further down.
+function BenefitHeaderText({ item, index, scrollYProgress }: { item: BenefitItem; index: number; scrollYProgress: MotionValue<number> }) {
+  const { openness, active } = useBenefitOpenness(scrollYProgress, index)
+  const a0 = index * BENEFITS_SEG
+  const a1 = a0 + BENEFITS_SEG * 0.2
+  const y = useTransform(scrollYProgress, (p) => (1 - clampNum((p - a0) / (a1 - a0), 0, 1)) * 22)
 
-const grades = [
-  { badge: '일반', color: '#9CA3AF', range: '500~800', h: 0.4 },
-  { badge: '전문가', stars: '★★', color: '#F77019', range: '1,200~1,800', h: 0.68 },
-  { badge: '도메인 전문가', stars: '★★★', color: '#42A5F5', range: '2,000~3,000', h: 1, top: true },
-]
+  return (
+    <motion.div
+      className="absolute inset-0 flex flex-col justify-center"
+      style={{ opacity: openness, y, pointerEvents: active ? 'auto' : 'none' }}
+    >
+      <span className="text-[#42A5F5] text-xs font-bold tracking-[0.15em] mb-3">
+        {item.n} · {item.category}
+      </span>
+      <h3 className="text-white font-bold leading-[1.15] mb-3 break-keep" style={{ fontSize: 'clamp(28px, 3vw, 46px)' }}>
+        {item.title}
+      </h3>
+      {item.tagline && <p className="text-white/45 text-[15px] font-medium mb-3 break-keep">{item.tagline}</p>}
+      <p className="text-white/50 leading-relaxed break-keep max-w-[560px]" style={{ fontSize: '15px' }}>
+        {item.desc}
+      </p>
+
+      {(item.stats || item.tag) && (
+        <div className="mt-5 flex items-center gap-8 flex-wrap">
+          {item.stats?.map((s) => (
+            <div key={s.label}>
+              <div className="font-black tabular-nums" style={{ fontSize: 'clamp(20px, 2vw, 28px)', color: '#22C55E' }}>
+                {s.value}
+              </div>
+              <div className="text-white/40 text-[11px] mt-1 whitespace-nowrap">{s.label}</div>
+            </div>
+          ))}
+          {item.tag && (
+            <span
+              className="text-[12px] text-white/50 font-medium rounded-full px-3.5 py-1.5"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}
+            >
+              {item.tag}
+            </span>
+          )}
+        </div>
+      )}
+    </motion.div>
+  )
+}
+
+// The big liquid-glass stage panel — a large crossfading canvas dedicated to
+// each benefit's motion graphic, far bigger than the old inline icon spot.
+function BenefitGraphicStage({ index, scrollYProgress }: { index: number; scrollYProgress: MotionValue<number> }) {
+  const { openness, active } = useBenefitOpenness(scrollYProgress, index)
+  return (
+    <motion.div className="absolute inset-0" style={{ opacity: openness }}>
+      <LiquidGlassVisual index={index} active={active} />
+    </motion.div>
+  )
+}
+
+// RIGHT stack — the queued list; the active row lights up, the rest stay dim.
+// A clean typographic list row (bold title + gray description, no icon
+// chrome) — the active one lights up in white, the rest stay dim.
+function BenefitStackRow({ item, index, scrollYProgress }: { item: BenefitItem; index: number; scrollYProgress: MotionValue<number> }) {
+  const { active } = useBenefitOpenness(scrollYProgress, index)
+  const description = item.tagline ?? item.desc
+
+  // Follow the same bulge as the curve beside it: rows near the top/bottom
+  // sit close in, the middle rows push further right — so the text block
+  // itself traces the round line instead of staying in a flat column.
+  const t = index / (benefitCards.length - 1)
+  const bulge = Math.sin(t * Math.PI)
+  const indent = 6 + bulge * 34
+
+  return (
+    <div className="py-4 transition-all duration-300" style={{ opacity: active ? 1 : 0.4, marginLeft: indent }}>
+      <div className="flex items-baseline gap-2 mb-1.5">
+        <span
+          className="text-[11px] font-bold tabular-nums transition-colors duration-300"
+          style={{ color: active ? '#A855F7' : 'rgba(255,255,255,0.3)' }}
+        >
+          {item.n}
+        </span>
+        <h4
+          className="font-bold leading-snug transition-colors duration-300"
+          style={{ fontSize: '16px', color: active ? '#fff' : 'rgba(255,255,255,0.6)' }}
+        >
+          {item.category}
+        </h4>
+      </div>
+      <p className="text-white/40 text-[13px] leading-relaxed break-keep" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+        {description}
+      </p>
+    </div>
+  )
+}
+
+
+// Pinned scroll stage: the whole section stays fixed on screen while the
+// scroll distance advances which card is "pulled out" from the right stack
+// into the left main view — mirrors an Apple-style feature reveal instead of
+// a long vertically-scrolling grid.
+function BenefitsSection() {
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ['start start', 'end end'],
+  })
+
+  return (
+    <section id="reviewer-benefits" className="snap-section-auto relative" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      <div ref={containerRef} className="hidden lg:block relative" style={{ height: `${benefitCards.length * 100}vh` }}>
+        <div className="sticky top-0 h-screen flex flex-col justify-center overflow-hidden px-8 md:px-16">
+          <div className="max-w-[1440px] mx-auto w-full">
+            {/* Static eyebrow */}
+            <p className="text-[#42A5F5] text-xs font-bold uppercase tracking-[0.25em] mb-5">Benefits</p>
+
+            {/* Dynamic header — the active benefit's own title/tagline/desc/stats
+                take over this spot, crossfading as the next one arrives. */}
+            <div className="relative mb-8" style={{ minHeight: 'clamp(250px, 34vh, 340px)' }}>
+              {benefitCards.map((item, i) => (
+                <BenefitHeaderText key={item.n} item={item} index={i} scrollYProgress={scrollYProgress} />
+              ))}
+            </div>
+
+            {/* Big liquid-glass stage (left, no box — floats free on black)
+                + queued list (right). The panel's edge facing the graphic
+                stays flat; only its outer/far edge bulges into a ")" curve —
+                so the shape never intrudes into the graphic's own space. */}
+            <div className="flex gap-2 lg:gap-6 items-stretch" style={{ height: 'min(40vh, 380px)' }}>
+              <div className="relative flex-1 min-w-0 overflow-hidden">
+                {benefitCards.map((item, i) => (
+                  <BenefitGraphicStage key={item.n} index={i} scrollYProgress={scrollYProgress} />
+                ))}
+              </div>
+              <div className="hidden lg:flex relative flex-col justify-center w-[290px] shrink-0 pl-10 pr-6">
+                {/* A single open curve — no straight top/bottom segments at
+                    all — hugging the graphic at top/bottom and bulging out
+                    to the right (into the list) at the vertical middle. */}
+                <svg
+                  className="absolute left-0 top-0 h-full pointer-events-none"
+                  width="64"
+                  viewBox="0 0 64 100"
+                  preserveAspectRatio="none"
+                  fill="none"
+                >
+                  <path d="M 6 0 C 60 12, 60 88, 6 100" stroke="rgba(255,255,255,0.24)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+                </svg>
+                {benefitCards.map((item, i) => (
+                  <BenefitStackRow key={item.n} item={item} index={i} scrollYProgress={scrollYProgress} />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile: simple stacked cards, no pin */}
+      <div className="lg:hidden px-6 py-20">
+        <p className="text-[#42A5F5] text-xs font-bold uppercase tracking-[0.25em] mb-4">Benefits</p>
+        <h2 className="font-bold leading-[1.2] mb-4" style={{ fontSize: 'clamp(26px, 6vw, 36px)' }}>
+          리뷰가 포트폴리오가 됩니다
+        </h2>
+        <p className="text-white/45 mb-10 text-[15px]">
+          참여할수록 쌓이는 것들 — 경험, 시각, 그리고 증명 가능한 기록.
+        </p>
+        <div className="flex flex-col gap-5">
+          {benefitCards.map((item, i) => {
+            return (
+              <div
+                key={item.n}
+                className="rounded-2xl p-6 flex flex-col"
+                style={{
+                  background: item.highlight
+                    ? 'radial-gradient(ellipse 120% 100% at 15% 0%, rgba(34,197,94,0.14) 0%, rgba(255,255,255,0.03) 60%)'
+                    : 'rgba(255,255,255,0.03)',
+                  border: `1px solid ${item.highlight ? 'rgba(34,197,94,0.25)' : 'rgba(255,255,255,0.08)'}`,
+                }}
+              >
+                <div className="relative overflow-hidden mb-5" style={{ height: 180 }}>
+                  <LiquidGlassVisual index={i} active />
+                </div>
+                <span className="text-[#42A5F5] text-xs font-bold tracking-[0.15em] mb-2">
+                  {item.n} · {item.category}
+                </span>
+                <h3 className="text-white font-bold leading-snug mb-2 break-keep text-[19px]">{item.title}</h3>
+                {item.tagline && <p className="text-white/40 text-[13px] font-medium mb-3 break-keep">{item.tagline}</p>}
+                <p className="text-white/50 text-[14px] leading-relaxed break-keep">{item.desc}</p>
+                {item.stats && (
+                  <div
+                    className="mt-5 rounded-xl px-4 py-4"
+                    style={{ background: 'rgba(34,197,94,0.05)', border: '1px solid rgba(34,197,94,0.15)' }}
+                  >
+                    {item.statsLabel && <p className="text-white/35 text-[11px] font-semibold mb-3">{item.statsLabel}</p>}
+                    <div className="flex items-end gap-6 flex-wrap">
+                      {item.stats.map((s) => (
+                        <div key={s.label}>
+                          <div className="font-black tabular-nums text-[22px]" style={{ color: '#22C55E' }}>{s.value}</div>
+                          <div className="text-white/40 text-[11px] mt-1 whitespace-nowrap">{s.label}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {item.tag && (
+                  <span
+                    className="mt-5 inline-block self-start text-[12px] text-white/50 font-medium rounded-full px-3.5 py-1.5"
+                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}
+                  >
+                    {item.tag}
+                  </span>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </section>
+  )
+}
 
 const howSteps = [
   { n: '1', title: '프로필 등록', sub: '관심 도메인과 경력을 입력해요.' },
@@ -290,52 +858,8 @@ export default function ReviewerLanding({ onSwitchToCreator }: Props) {
         </div>
       </section>
 
-      {/* Benefits (+ Earnings 통합) — 이미지3 구도: 좌 헤딩+버튼 / 중앙 포컬 / 우 리스트 */}
-      <section id="reviewer-benefits" className="snap-section" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <div className="max-w-[1440px] mx-auto px-16 h-full flex items-center justify-between gap-10">
-
-          {/* 좌측: 헤딩 + 문단 + 버튼 */}
-          <div className="flex flex-col items-start flex-shrink-0" style={{ maxWidth: '340px' }}>
-            <p className="text-[#42A5F5] text-xs font-bold uppercase tracking-[0.25em] mb-5">Benefits</p>
-            <h2 className="font-bold leading-[1.08] mb-7" style={{ fontSize: 'clamp(36px, 3.4vw, 60px)' }}>
-              리뷰어가<br />얻는 것
-            </h2>
-            <p className="text-white/45 leading-relaxed mb-9" style={{ fontSize: '15px' }}>
-              관심 분야 신제품을 먼저 경험하고,
-              전문성이 쌓일수록 더 큰 보상을 받아요.
-            </p>
-            <a
-              href="/evaluator/dashboard"
-              className="flex items-center gap-3 rounded-full font-bold text-white hover:scale-[1.03] transition-transform"
-              style={{ background: '#42A5F5', padding: '14px 28px', fontSize: '15px', boxShadow: '0 4px 24px rgba(66,165,245,0.3)' }}
-            >
-              리뷰어 등록하기
-              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-white/20">
-                <ArrowRight className="w-3.5 h-3.5" />
-              </span>
-            </a>
-          </div>
-
-          {/* 중앙: 수익 사다리 (전문성↑ = 수익↑ — Earnings 녹임) */}
-          <div className="hidden lg:flex justify-center flex-shrink-0">
-            <EarningsLadder />
-          </div>
-
-          {/* 우측: 혜택 리스트 (구분선) */}
-          <div className="flex flex-col items-end flex-shrink-0" style={{ maxWidth: '340px' }}>
-            {benefitItems.map((item, i) => (
-              <div key={item.title} className="w-full">
-                {i > 0 && <div className="h-px bg-white/10 my-6" />}
-                <h3 className="text-white font-semibold mb-2 text-right" style={{ fontSize: '21px' }}>{item.title}</h3>
-                {item.lines.map((line, j) => (
-                  <p key={j} className="text-white/45 text-sm text-right leading-snug">{line}</p>
-                ))}
-              </div>
-            ))}
-          </div>
-
-        </div>
-      </section>
+      {/* Benefits — 오른쪽 대기열에서 왼쪽 스테이지로 순서대로 뽑혀 나오는 고정 스크롤 카드 */}
+      <BenefitsSection />
 
       {/* How it works */}
       <section id="reviewer-how" className="snap-section" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
