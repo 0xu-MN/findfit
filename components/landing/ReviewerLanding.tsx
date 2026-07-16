@@ -217,6 +217,15 @@ const BLOB_SHAPES = [
 // A soft glass blob whose fill is a slowly-rotating rainbow conic gradient
 // (the rotation is what makes the iridescence visibly shift), clipped to a
 // morphing, drifting outline. No background box anywhere — it just floats.
+// Perf note: backdrop-filter blur is one of the most expensive things a
+// browser can animate — it forces a re-sample of everything BEHIND the
+// element on every frame. This used to run on 3 blobs per card, each also
+// animating position AND a rotating child gradient, for as long as this
+// section stayed pinned during scroll (up to 400vh). Swapped the live
+// backdrop-blur for a self-contained blurred gradient layer instead (a
+// regular `filter: blur()` on the rotating child) — it reads almost
+// identically (soft glowing blob) but only ever blurs its own pre-rendered
+// texture, never the page behind it, so rotation/scroll stay compositor-only.
 function GlassBlob({
   size, top, left, delay = 0, reduced,
 }: { size: number; top: string; left: string; delay?: number; reduced: boolean }) {
@@ -228,21 +237,23 @@ function GlassBlob({
         left,
         width: size,
         height: size,
-        backdropFilter: 'blur(22px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(22px) saturate(180%)',
+        background: 'rgba(255,255,255,0.05)',
         border: '1px solid rgba(255,255,255,0.28)',
-        boxShadow: '0 30px 80px -14px rgba(168,85,247,0.35), inset 0 1px 1px rgba(255,255,255,0.35)',
+        boxShadow: '0 20px 50px -14px rgba(168,85,247,0.3), inset 0 1px 1px rgba(255,255,255,0.35)',
+        willChange: 'border-radius',
       }}
-      animate={
-        reduced
-          ? { borderRadius: BLOB_SHAPES[0] }
-          : { borderRadius: BLOB_SHAPES, x: [0, 16, -12, 0], y: [0, -12, 14, 0] }
-      }
+      animate={reduced ? { borderRadius: BLOB_SHAPES[0] } : { borderRadius: BLOB_SHAPES }}
       transition={reduced ? undefined : { duration: 9, repeat: Infinity, ease: 'easeInOut', delay }}
     >
       <motion.div
         className="absolute"
-        style={{ inset: '-50%', background: `conic-gradient(from 0deg, ${IRIDESCENT_STOPS})`, opacity: 0.5 }}
+        style={{
+          inset: '-50%',
+          background: `conic-gradient(from 0deg, ${IRIDESCENT_STOPS})`,
+          opacity: 0.5,
+          filter: 'blur(16px)',
+          willChange: 'transform',
+        }}
         animate={reduced ? {} : { rotate: 360 }}
         transition={reduced ? undefined : { duration: 12, repeat: Infinity, ease: 'linear' }}
       />
@@ -437,26 +448,25 @@ function BenefitScene({ index, gradientId }: { index: number; gradientId: string
   }
 }
 
+// Trimmed from 3 blobs per card to 2 — each one is still a shape-morphing,
+// blurred, rotating layer, so cutting a third of them cuts a third of the
+// per-frame compositing work while the section stays visually just as busy.
 const BLOB_LAYOUTS = [
   [
     { size: 260, top: '4%', left: '8%' },
     { size: 190, top: '46%', left: '54%' },
-    { size: 150, top: '58%', left: '12%' },
   ],
   [
     { size: 240, top: '10%', left: '52%' },
     { size: 180, top: '48%', left: '6%' },
-    { size: 140, top: '4%', left: '20%' },
   ],
   [
     { size: 250, top: '8%', left: '10%' },
     { size: 170, top: '50%', left: '58%' },
-    { size: 150, top: '54%', left: '16%' },
   ],
   [
     { size: 230, top: '6%', left: '46%' },
     { size: 190, top: '50%', left: '10%' },
-    { size: 150, top: '10%', left: '12%' },
   ],
 ]
 
@@ -502,10 +512,7 @@ function LiquidGlassVisual({ index, active }: { index: number; active: boolean }
           className="relative z-10 w-full h-full"
           viewBox="0 0 200 200"
           fill="none"
-          style={{
-            filter:
-              'drop-shadow(0 0 14px rgba(59,130,246,0.5)) drop-shadow(0 0 22px rgba(236,72,153,0.35)) drop-shadow(0 0 30px rgba(249,115,22,0.25))',
-          }}
+          style={{ filter: 'drop-shadow(0 0 18px rgba(168,85,247,0.4))' }}
         >
           <defs>
             {/* userSpaceOnUse (fixed to the scene's own 200×200 viewBox)
