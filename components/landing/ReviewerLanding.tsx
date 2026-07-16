@@ -673,18 +673,6 @@ function BenefitsSection() {
                 ))}
               </div>
               <div className="hidden lg:flex relative flex-col justify-center w-[290px] shrink-0 pl-10 pr-6">
-                {/* A single open curve — no straight top/bottom segments at
-                    all — hugging the graphic at top/bottom and bulging out
-                    to the right (into the list) at the vertical middle. */}
-                <svg
-                  className="absolute left-0 top-0 h-full pointer-events-none"
-                  width="64"
-                  viewBox="0 0 64 100"
-                  preserveAspectRatio="none"
-                  fill="none"
-                >
-                  <path d="M 6 0 C 60 12, 60 88, 6 100" stroke="rgba(255,255,255,0.24)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-                </svg>
                 {benefitCards.map((item, i) => (
                   <BenefitStackRow key={item.n} item={item} index={i} scrollYProgress={scrollYProgress} />
                 ))}
@@ -759,10 +747,117 @@ function BenefitsSection() {
 }
 
 const howSteps = [
-  { n: '1', title: '프로필 등록', sub: '관심 도메인과 경력을 입력해요.' },
-  { n: '2', title: '의뢰 알림 수신', sub: '매칭된 신제품 의뢰가 도착해요.' },
-  { n: '3', title: '리뷰 후 즉시 적립', sub: '20분 리뷰 완료 후 포인트가 쌓여요.' },
+  { n: '01', title: '관심 카테고리 설정', short: '카테고리 설정', desc: '내 관심 분야, 직군, 경험을 프로필에 등록합니다' },
+  { n: '02', title: '프로젝트 탐색 및 신청', short: '탐색 · 신청', desc: '카테고리별 의뢰 목록에서 원하는 프로젝트를 신청합니다' },
+  { n: '03', title: '솔직한 리뷰 작성', short: '리뷰 작성', desc: '크리에이터의 가이드라인에 따라 진짜 의견을 제출합니다' },
+  { n: '04', title: '활동 기록 + 사례금', short: '기록 · 사례금', desc: '리뷰 완료 후 포트폴리오에 자동으로 기록됩니다', note: '사례금은 해당 의뢰에 한해 지급됩니다' },
 ]
+
+// Chevron-tab stepper (image-reference style): click a phase to see its
+// detail on the left and its position highlighted on the node-line at right.
+function ReviewerHowSection() {
+  const [active, setActive] = useState(0)
+  const step = howSteps[active]
+
+  return (
+    <section id="reviewer-how" className="snap-section" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="max-w-[1200px] mx-auto px-8 md:px-16 h-full flex items-center">
+        <div className="w-full">
+          <p className="text-[#42A5F5] text-xs font-bold uppercase tracking-[0.2em] mb-4">How it works</p>
+          <h2 className="font-bold mb-2" style={{ fontSize: 'clamp(32px, 3vw, 52px)' }}>이렇게 참여합니다</h2>
+          <p className="text-white/40 text-sm mb-12">4단계로 끝나는 리뷰어 플로우</p>
+
+          {/* Chevron tab bar */}
+          <div className="flex mb-16 rounded-xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+            {howSteps.map((s, i) => {
+              const isActive = i === active
+              const notchIn = i > 0
+              const notchOut = i < howSteps.length - 1
+              const clipPath = `polygon(${notchIn ? '20px 0' : '0 0'}, ${notchOut ? 'calc(100% - 20px) 0' : '100% 0'}${notchOut ? ', 100% 50%, calc(100% - 20px) 100%' : ', 100% 100%'}, ${notchIn ? '20px 100%, 0 50%' : '0 100%'})`
+              return (
+                <button
+                  key={s.n}
+                  onClick={() => setActive(i)}
+                  className="relative flex-1 flex items-center justify-center gap-2 text-[13px] md:text-sm font-semibold py-4 transition-colors"
+                  style={{
+                    marginLeft: i > 0 ? -16 : 0,
+                    clipPath,
+                    background: isActive ? 'rgba(66,165,245,0.14)' : 'rgba(255,255,255,0.02)',
+                    color: isActive ? '#fff' : 'rgba(255,255,255,0.35)',
+                  }}
+                >
+                  <span style={{ color: isActive ? '#42A5F5' : 'rgba(255,255,255,0.25)' }}>{i + 1}</span>
+                  <span className="hidden sm:inline">{s.title}</span>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Two-column detail: active step's text (left) + its position on the flow (right) */}
+          <div className="grid md:grid-cols-2 gap-14 items-center">
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <span className="w-2 h-2 rounded-full" style={{ background: '#42A5F5' }} />
+                <span className="text-[#42A5F5] text-xs font-bold tracking-wide">STEP {step.n}</span>
+              </div>
+              <h3 className="text-2xl md:text-3xl font-bold text-white mb-3">{step.title}</h3>
+              <p className="text-white/45 text-sm leading-relaxed max-w-[380px]">{step.desc}</p>
+              {step.note && <p className="text-white/25 text-xs mt-4">{step.note}</p>}
+            </div>
+
+            <div className="relative pt-12 hidden md:block">
+              <div className="relative flex items-center justify-between">
+                <div
+                  className="absolute left-0 right-0 top-1/2 h-px"
+                  style={{
+                    transform: 'translateY(-50%)',
+                    background: 'repeating-linear-gradient(90deg, rgba(66,165,245,0.4) 0 6px, transparent 6px 12px)',
+                  }}
+                />
+                {howSteps.map((s, i) => {
+                  const isActive = i === active
+                  return (
+                    <div key={s.n} className="relative flex flex-col items-center" style={{ zIndex: 1 }}>
+                      {isActive && (
+                        <span
+                          className="absolute -top-11 text-[#42A5F5] text-[11px] font-bold whitespace-nowrap px-1"
+                          style={{ background: '#0A0A0C' }}
+                        >
+                          현재 단계
+                        </span>
+                      )}
+                      {isActive && (
+                        <span
+                          className="absolute rounded-full"
+                          style={{ width: 46, height: 68, border: '1.5px solid #42A5F5', top: -22 }}
+                        />
+                      )}
+                      <span
+                        className="rounded-full"
+                        style={{
+                          width: isActive ? 16 : 10,
+                          height: isActive ? 16 : 10,
+                          background: isActive ? '#42A5F5' : 'rgba(255,255,255,0.25)',
+                          boxShadow: isActive ? '0 0 0 5px rgba(66,165,245,0.15)' : 'none',
+                        }}
+                      />
+                      <span
+                        className="mt-4 text-[11px] whitespace-nowrap"
+                        style={{ color: isActive ? '#fff' : 'rgba(255,255,255,0.35)' }}
+                      >
+                        {s.short}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
 
 const reviewerFAQ = [
   { q: '리뷰어 자격 조건이 있나요?', a: '별도 자격 조건은 없어요. 관심 분야를 등록하고 프로필을 완성하면 바로 시작할 수 있어요. 경력 인증 시 더 높은 단가가 적용돼요.' },
@@ -869,29 +964,7 @@ export default function ReviewerLanding({ onSwitchToCreator }: Props) {
       <BenefitsSection />
 
       {/* How it works */}
-      <section id="reviewer-how" className="snap-section" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <div className="max-w-[1440px] mx-auto px-16 h-full flex items-center">
-          <div className="w-full">
-            <p className="text-[#42A5F5] text-xs font-bold uppercase tracking-[0.2em] mb-4">How it works</p>
-            <h2 className="font-bold mb-14" style={{ fontSize: 'clamp(32px, 3vw, 52px)' }}>딱 3단계로 시작해요</h2>
-            <div className="grid grid-cols-3 gap-10">
-              {howSteps.map((s, i) => (
-                <div key={s.n} className="flex flex-col">
-                  <div className="flex items-center gap-4 mb-6">
-                    <div className="w-11 h-11 rounded-full flex items-center justify-center font-black text-sm text-white flex-shrink-0"
-                      style={{ background: '#42A5F5' }}>
-                      {s.n}
-                    </div>
-                    {i < 2 && <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.1)' }} />}
-                  </div>
-                  <h3 className="text-xl font-bold text-white mb-2">{s.title}</h3>
-                  <p className="text-white/40 text-sm leading-relaxed">{s.sub}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
+      <ReviewerHowSection />
 
       {/* FAQ */}
       <FAQSection
