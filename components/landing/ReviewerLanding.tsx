@@ -800,66 +800,56 @@ function ReviewerHowSection() {
               ))}
             </div>
 
-            {/* Subway-line timeline */}
-            <div className="relative pt-12 pb-2 hidden md:block">
+            {/* Metro-map timeline — dashed static line through evenly-spaced,
+                always-lit stations; only a capsule "you are here" outline
+                glides between them as the active step auto-advances. */}
+            <div className="relative pt-14 pb-2 hidden md:block">
               <div className="relative" style={{ height: 2 }}>
-                {/* Track */}
-                <div className="absolute left-0 right-0 top-0 h-full rounded-full" style={{ background: 'rgba(66,165,245,0.18)' }} />
-                {/* Travelled portion, glides under the train */}
-                <motion.div
-                  className="absolute left-0 top-0 h-full rounded-full"
-                  style={{ background: '#42A5F5' }}
-                  animate={{ width: `${stationPct(active)}%` }}
-                  transition={{ duration: 0.9, ease: [0.65, 0, 0.35, 1] }}
+                {/* Dashed track — the line itself never fills/animates */}
+                <div
+                  className="absolute left-0 right-0 top-0 h-px"
+                  style={{ background: 'repeating-linear-gradient(90deg, #42A5F5 0 6px, transparent 6px 12px)', opacity: 0.6 }}
                 />
 
-                {/* Stations — small perpendicular ticks, like a metro map */}
                 {howSteps.map((s, i) => {
                   const isActive = i === active
-                  const isPast = i < active
                   return (
                     <div
                       key={s.n}
                       className="absolute flex flex-col items-center"
                       style={{ left: `${stationPct(i)}%`, top: 0, transform: 'translate(-50%, -50%)' }}
                     >
+                      {isActive && (
+                        <motion.span
+                          layoutId="how-current-label"
+                          className="absolute -top-9 text-[#42A5F5] text-[11px] font-bold whitespace-nowrap px-1"
+                          style={{ background: '#0A0A0C' }}
+                          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                        >
+                          현재 단계
+                        </motion.span>
+                      )}
+                      {isActive && (
+                        <motion.span
+                          layoutId="how-current-oval"
+                          className="absolute rounded-full"
+                          style={{ width: 44, height: 64, border: '1.5px solid #42A5F5' }}
+                          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                        />
+                      )}
                       <span
-                        className="rounded-full transition-colors duration-500"
-                        style={{
-                          width: isActive ? 14 : 9,
-                          height: isActive ? 14 : 9,
-                          background: isActive || isPast ? '#42A5F5' : '#0A0A0C',
-                          border: `2px solid ${isActive || isPast ? '#42A5F5' : 'rgba(255,255,255,0.25)'}`,
-                        }}
+                        className="rounded-full"
+                        style={{ width: 12, height: 12, background: '#42A5F5' }}
                       />
                       <span
                         className="absolute top-6 text-[11px] whitespace-nowrap transition-colors duration-500"
-                        style={{ color: isActive ? '#fff' : 'rgba(255,255,255,0.35)' }}
+                        style={{ color: isActive ? '#fff' : 'rgba(255,255,255,0.55)' }}
                       >
                         {s.short}
                       </span>
                     </div>
                   )
                 })}
-
-                {/* The train — glides along the track and parks at the active station */}
-                <motion.div
-                  className="absolute flex items-center justify-center rounded-full"
-                  style={{
-                    top: 0,
-                    width: 22,
-                    height: 22,
-                    marginTop: -11,
-                    marginLeft: -11,
-                    background: '#42A5F5',
-                    boxShadow: '0 0 0 6px rgba(66,165,245,0.18), 0 4px 14px rgba(66,165,245,0.4)',
-                  }}
-                  animate={{ left: `${stationPct(active)}%` }}
-                  transition={{ duration: 0.9, ease: [0.65, 0, 0.35, 1] }}
-                  initial={false}
-                >
-                  <span className="w-2 h-2 rounded-full bg-white" />
-                </motion.div>
               </div>
             </div>
           </div>
@@ -881,88 +871,60 @@ const liveProjects = [
   { category: '에듀테크', color: '#EF4444', title: '직장인 대상 마이크로러닝 앱 — 10분 학습, 실제로 효과 있을까요?', time: '약 20분', reward: '4,000원', deadline: '10일 후' },
 ]
 
-const LIVE_INTERVAL = 2800
-
-// Shortest signed circular distance from `active` to `i`, so the carousel
-// wraps around smoothly both directions instead of resetting.
-function circularDelta(i: number, active: number, n: number) {
-  let d = i - active
-  if (d > n / 2) d -= n
-  if (d < -n / 2) d += n
-  return d
+// Tall pill-shaped card, full-bleed gradient standing in for a project photo
+// (no real project images exist yet), with a bottom overlay carrying the
+// icon + copy — same visual language as the reference "peek carousel" card.
+function ProjectPill({ p }: { p: (typeof liveProjects)[number] }) {
+  return (
+    <div
+      className="relative shrink-0 overflow-hidden rounded-[36px]"
+      style={{ width: 210, height: 320 }}
+    >
+      <div className="absolute inset-0" style={{ background: `linear-gradient(155deg, ${p.color}, #0A0A0C 130%)` }} />
+      <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 55%)' }} />
+      <div className="absolute inset-x-0 bottom-0 p-5 flex items-start gap-3">
+        <span
+          className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0"
+          style={{ background: 'rgba(255,255,255,0.16)', color: '#fff' }}
+        >
+          {p.category.slice(0, 2)}
+        </span>
+        <div className="min-w-0">
+          <div className="text-white text-[13px] font-bold mb-1">{p.category}</div>
+          <div className="text-white/70 text-[11px] leading-snug break-keep line-clamp-2">{p.title}</div>
+          <div className="flex items-center gap-3 mt-2 text-[10.5px] text-white/50">
+            <span>{p.time}</span>
+            <span style={{ color: p.reward ? '#fff' : undefined }}>{p.reward ?? '무보상'}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function LiveProjectsSection() {
-  const [active, setActive] = useState(0)
   const reduced = usePrefersReducedMotion()
-
-  useEffect(() => {
-    if (reduced) return
-    const id = setInterval(() => setActive((a) => (a + 1) % liveProjects.length), LIVE_INTERVAL)
-    return () => clearInterval(id)
-  }, [reduced])
+  // Duplicated once so the marquee can loop seamlessly at -50% translateX.
+  const loop = [...liveProjects, ...liveProjects]
 
   return (
     <section id="reviewer-live-projects" className="snap-section" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-      <div className="max-w-[1440px] mx-auto px-8 md:px-16 h-full flex flex-col items-center justify-center">
-        <div className="text-center mb-14">
+      <div className="max-w-[1440px] mx-auto h-full flex flex-col items-center justify-center">
+        <div className="text-center mb-14 px-8">
           <p className="text-[#42A5F5] text-xs font-bold uppercase tracking-[0.25em] mb-4">Live projects</p>
           <h2 className="font-bold mb-4" style={{ fontSize: 'clamp(28px, 3vw, 46px)' }}>이런 의뢰들이 올라옵니다</h2>
           <p className="text-white/40 text-sm md:text-base">어떤 아이디어가 지금 검증을 기다리고 있는지 미리 살펴보세요.</p>
         </div>
 
-        <div className="relative w-full overflow-hidden" style={{ height: 260 }}>
-          {liveProjects.map((p, i) => {
-            const d = circularDelta(i, active, liveProjects.length)
-            const dist = Math.abs(d)
-            const isActive = d === 0
-            return (
-              <motion.div
-                key={p.title}
-                className="absolute top-0 left-1/2 rounded-2xl px-6 py-6"
-                style={{
-                  width: 280,
-                  marginLeft: -140,
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  zIndex: liveProjects.length - dist,
-                  pointerEvents: dist > 2 ? 'none' : 'auto',
-                }}
-                animate={{
-                  x: d * 240,
-                  scale: isActive ? 1 : 1 - dist * 0.12,
-                  opacity: dist > 2 ? 0 : 1 - dist * 0.32,
-                }}
-                transition={{ duration: 0.7, ease: [0.65, 0, 0.35, 1] }}
-              >
-                <span
-                  className="inline-block text-[11px] font-bold px-2.5 py-1 rounded-md mb-4"
-                  style={{ background: `${p.color}22`, color: p.color }}
-                >
-                  {p.category}
-                </span>
-                <h3 className="text-white font-bold text-[15px] leading-snug mb-5 break-keep" style={{ minHeight: 66 }}>
-                  {p.title}
-                </h3>
-                <div className="flex flex-col gap-2 text-[12.5px]">
-                  <div className="flex items-center justify-between">
-                    <span className="text-white/35">예상 소요</span>
-                    <span className="text-white/70">{p.time}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-white/35">사례금</span>
-                    <span style={{ color: p.reward ? '#42A5F5' : 'rgba(255,255,255,0.3)' }} className="font-semibold">
-                      {p.reward ?? '없음'}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-white/35">마감</span>
-                    <span className="text-white/70">{p.deadline}</span>
-                  </div>
-                </div>
-              </motion.div>
-            )
-          })}
+        <div className="relative w-full overflow-hidden" style={{ maskImage: 'linear-gradient(90deg, transparent, black 8%, black 92%, transparent)' }}>
+          <div
+            className="flex gap-6"
+            style={reduced ? undefined : { animation: 'live-marquee 26s linear infinite', width: 'max-content' }}
+          >
+            {loop.map((p, i) => (
+              <ProjectPill key={`${p.title}-${i}`} p={p} />
+            ))}
+          </div>
         </div>
 
         <div className="flex items-center gap-2 mt-10 text-white/30 text-[12.5px]">
