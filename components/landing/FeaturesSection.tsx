@@ -315,7 +315,7 @@ export default function FeaturesSection() {
                 key={card.label}
                 className="absolute rounded-[28px] overflow-hidden"
                 style={{
-                  width: 'min(1040px, 78vw)',
+                  width: 'min(820px, 62vw)',
                   height: '100%',
                   background: '#101012',
                   border: '1px solid rgba(255,255,255,0.08)',
