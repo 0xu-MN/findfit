@@ -13,9 +13,15 @@
 // so it doesn't carry the same multi-instance backdrop-filter cost the
 // benefit blobs did).
 
+// pathLength="1" (SVG2) normalizes every shape's length to 1 regardless of
+// its actual geometry, so dasharray/dashoffset always land exactly on 0 —
+// without it, a fixed dasharray (400) shorter than a shape's real perimeter
+// (a rounded rect this size is ~429 units) leaves a permanent gap where the
+// dash pattern runs out, which is what caused the visible break in the
+// clipboard outline.
 const draw = (delay: number) => ({
-  strokeDasharray: 400,
-  strokeDashoffset: 400,
+  strokeDasharray: 1,
+  strokeDashoffset: 1,
   animation: `compDraw 1.4s cubic-bezier(0.25,1,0.5,1) ${delay}s forwards`,
 })
 
@@ -85,58 +91,56 @@ export default function CompensationVisual() {
             </defs>
 
             {/* Layer 1 — soft background glow strokes */}
-            <rect x="40" y="45" width="105" height="125" rx="18" stroke="#d97706" strokeWidth="16" strokeOpacity="0.15" strokeLinecap="round" filter="blur(6px)" style={draw(0)} />
-            <path d="M78 45 C78 30, 112 30, 112 45 Z" stroke="#d97706" strokeWidth="14" strokeOpacity="0.15" filter="blur(5px)" style={draw(0)} />
-            <path d="M68 95 L88 115 L128 73" stroke="#d97706" strokeWidth="18" strokeOpacity="0.2" strokeLinecap="round" strokeLinejoin="round" filter="blur(6px)" style={draw(0)} />
+            <rect pathLength={1} x="40" y="45" width="105" height="125" rx="18" stroke="#d97706" strokeWidth="16" strokeOpacity="0.15" strokeLinecap="round" filter="blur(6px)" style={draw(0)} />
+            <path pathLength={1} d="M78 45 C78 30, 112 30, 112 45 Z" stroke="#d97706" strokeWidth="14" strokeOpacity="0.15" filter="blur(5px)" style={draw(0)} />
+            <path pathLength={1} d="M65 94 L87 118 L131 70" stroke="#d97706" strokeWidth="24" strokeOpacity="0.2" strokeLinecap="round" strokeLinejoin="round" filter="blur(6px)" style={draw(0)} />
 
             {/* Layer 2 — mid gold gradient body */}
-            <rect x="40" y="45" width="105" height="125" rx="18" stroke="url(#compGlassEdge)" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" style={draw(0)} />
-            <path d="M78 45 C78 30, 112 30, 112 45 Z" stroke="url(#compGlassEdge)" strokeWidth="7" style={draw(0)} />
-            <path d="M68 95 L88 115 L128 73" stroke="url(#compGlassEdge)" strokeWidth="9" strokeLinecap="round" strokeLinejoin="round" style={draw(0)} />
-            <rect x="55" y="132" width="48" height="6" rx="3" stroke="url(#compGlassEdge)" strokeWidth="4.5" style={draw(0)} />
-            <rect x="55" y="146" width="48" height="6" rx="3" stroke="url(#compGlassEdge)" strokeWidth="4.5" style={draw(0)} />
+            <rect pathLength={1} x="40" y="45" width="105" height="125" rx="18" stroke="url(#compGlassEdge)" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" style={draw(0)} />
+            <path pathLength={1} d="M78 45 C78 30, 112 30, 112 45 Z" stroke="url(#compGlassEdge)" strokeWidth="7" style={draw(0)} />
+            <path pathLength={1} d="M65 94 L87 118 L131 70" stroke="url(#compGlassEdge)" strokeWidth="15" strokeLinecap="round" strokeLinejoin="round" style={draw(0)} />
+            <rect pathLength={1} x="55" y="132" width="48" height="6" rx="3" stroke="url(#compGlassEdge)" strokeWidth="4.5" style={draw(0)} />
+            <rect pathLength={1} x="55" y="146" width="48" height="6" rx="3" stroke="url(#compGlassEdge)" strokeWidth="4.5" style={draw(0)} />
 
             {/* Layer 3 — bright core light + checkmark highlight */}
-            <rect x="40" y="45" width="105" height="125" rx="18" stroke="url(#compCoreLight)" strokeWidth="2.2" strokeOpacity="0.9" style={draw(0.3)} />
-            <path d="M78 45 C78 30, 112 30, 112 45 Z" stroke="url(#compCoreLight)" strokeWidth="2.2" style={draw(0.3)} />
-            <path d="M68 95 L88 115 L128 73" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" strokeOpacity="0.95" style={draw(0.5)} />
-            <path d="M68 95 L88 115 L128 73" stroke="#fef08a" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={draw(0.6)} />
-            <rect x="55" y="132" width="48" height="6" rx="3" stroke="#ffffff" strokeWidth="1" strokeOpacity="0.8" style={draw(0.7)} />
-            <rect x="55" y="146" width="48" height="6" rx="3" stroke="#ffffff" strokeWidth="1" strokeOpacity="0.8" style={draw(0.8)} />
+            <rect pathLength={1} x="40" y="45" width="105" height="125" rx="18" stroke="url(#compCoreLight)" strokeWidth="2.2" strokeOpacity="0.9" style={draw(0.3)} />
+            <path pathLength={1} d="M78 45 C78 30, 112 30, 112 45 Z" stroke="url(#compCoreLight)" strokeWidth="2.2" style={draw(0.3)} />
+            <path pathLength={1} d="M65 94 L87 118 L131 70" stroke="#ffffff" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" strokeOpacity="0.95" style={draw(0.5)} />
+            <path pathLength={1} d="M65 94 L87 118 L131 70" stroke="#fef08a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={draw(0.6)} />
+            <rect pathLength={1} x="55" y="132" width="48" height="6" rx="3" stroke="#ffffff" strokeWidth="1" strokeOpacity="0.8" style={draw(0.7)} />
+            <rect pathLength={1} x="55" y="146" width="48" height="6" rx="3" stroke="#ffffff" strokeWidth="1" strokeOpacity="0.8" style={draw(0.8)} />
           </svg>
 
-          {/* Gold coin cylinder */}
+          {/* Gold coin stack — smooth cylinder body with a bright flat top
+              disc, not individually-ridged coins */}
           <div className="absolute" style={{ right: '4%', bottom: '10%', width: '52%', height: '52%' }}>
-            <div className="absolute" style={{ width: '100px', height: '110px', right: '2px', bottom: '10px' }}>
-              {[45, 33, 21, 9, -3].map((ty) => (
-                <div key={ty} className="absolute" style={{ width: 90, height: 22, transform: `translateY(${ty}px)`, left: 5 }}>
-                  <div
-                    className="absolute left-0 w-full"
-                    style={{ top: 5, height: 12, borderRadius: '0 0 45px 45px', background: 'linear-gradient(90deg, #78350f, #b45309, #fef3c7, #b45309, #78350f)', borderBottom: '1px solid rgba(69,26,3,0.7)' }}
-                  />
-                  <div className="absolute left-0 w-full rounded-full p-[1.2px]" style={{ top: 0, height: 14, background: 'linear-gradient(90deg, #b45309, #fde68a, #b45309)' }}>
-                    <div className="w-full h-full rounded-full relative" style={{ background: 'linear-gradient(90deg, #78350f, #eab308, #92400e)' }}>
-                      <div className="absolute inset-[1px] rounded-full" style={{ border: '1px solid rgba(251,191,36,0.3)' }} />
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {/* Top coin — brightest */}
-              <div className="absolute" style={{ width: 90, height: 22, transform: 'translateY(-15px)', left: 5 }}>
-                <div
-                  className="absolute left-0 w-full"
-                  style={{ top: 5, height: 12, borderRadius: '0 0 45px 45px', background: 'linear-gradient(90deg, #78350f, #b45309, #fef3c7, #b45309, #78350f)', borderBottom: '1px solid rgba(69,26,3,0.7)' }}
-                />
-                <div className="absolute left-0 w-full rounded-full p-[1.5px] shadow-lg" style={{ top: 0, height: 15, background: 'linear-gradient(90deg, #f59e0b, #fde047, #d97706)' }}>
-                  <div className="w-full h-full rounded-full relative flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #b45309, #facc15, #d97706)' }}>
-                    <div className="absolute inset-[1.5px] rounded-full" style={{ border: '1.5px solid rgba(253,230,138,0.4)' }} />
-                    <div className="rounded-full" style={{ width: '70%', height: '70%', border: '1px solid rgba(120,53,15,0.4)', background: 'rgba(146,64,14,0.2)' }} />
-                  </div>
-                </div>
-              </div>
+            <div className="absolute" style={{ width: 100, height: 132, right: 2, bottom: 10 }}>
+              {/* Cylinder body */}
+              <div
+                className="absolute left-0 right-0 rounded-b-2xl"
+                style={{
+                  top: 24,
+                  bottom: 0,
+                  background: 'linear-gradient(90deg, #6E3E0C 0%, #C9821F 20%, #FFE79A 50%, #C9821F 80%, #6E3E0C 100%)',
+                  boxShadow: 'inset 0 -10px 16px rgba(0,0,0,0.25)',
+                }}
+              />
+              {/* A couple of subtle rim lines near the top, hinting a few stacked coins */}
+              <div className="absolute left-0 right-0" style={{ top: 40, height: 2, background: 'rgba(110,62,12,0.4)' }} />
+              <div className="absolute left-0 right-0" style={{ top: 54, height: 2, background: 'rgba(110,62,12,0.3)' }} />
+              {/* Bright flat top disc */}
+              <div
+                className="absolute left-0 right-0 rounded-full"
+                style={{
+                  top: 0,
+                  height: 48,
+                  background: 'radial-gradient(ellipse at 35% 32%, #FFFAE6 0%, #FFDE7A 45%, #D99A2B 88%)',
+                  boxShadow: 'inset 0 -5px 8px rgba(110,62,12,0.35), 0 2px 4px rgba(0,0,0,0.2)',
+                }}
+              />
             </div>
 
-            {/* Front 3D coin with $ */}
+            {/* Front 3D coin with ₩ */}
             <div
               className="comp-sheen absolute rounded-full"
               style={{
@@ -151,13 +155,13 @@ export default function CompensationVisual() {
                   <span
                     className="relative font-black select-none"
                     style={{
-                      fontSize: 44,
+                      fontSize: 40,
                       fontFamily: 'serif',
                       color: '#fffbeb',
                       textShadow: '0 4px 0 #92400e, 0 6px 1px #78350f, 0 8px 10px rgba(0,0,0,0.85)',
                     }}
                   >
-                    $
+                    ₩
                   </span>
                 </div>
               </div>
