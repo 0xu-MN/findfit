@@ -320,13 +320,13 @@ export default function FeaturesSection() {
                   boxShadow: '0 30px 80px -20px rgba(0,0,0,0.35)',
                 }}
                 animate={{
-                  x: d * (dist > 1 ? 640 : 580),
-                  scale: isActive ? 1 : 0.86,
-                  opacity: dist > 1 ? 0 : isActive ? 1 : 0.4,
+                  x: d * 640,
+                  scale: isActive ? 1 : Math.max(0.78, 1 - dist * 0.14),
+                  opacity: dist > 1 ? 0 : isActive ? 1 : Math.max(0, 1 - dist * 0.6),
                 }}
                 transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
               >
-                {/* 상단: 타이틀 (작게) — 하단: 큰 모션그래픽 프레임 */}
+                {/* 상단: 타이틀 (작게) — 하단: 큰 모션그래픽 프레임 (실제 제품 화면처럼 브라우저 크롬 포함) */}
                 <div className="flex flex-col h-full p-7 md:p-10">
                   <div className="mb-6 shrink-0">
                     <h3 className="text-white font-bold mb-2 break-keep" style={{ fontSize: 'clamp(20px, 2.1vw, 28px)' }}>
@@ -337,14 +337,29 @@ export default function FeaturesSection() {
                     </p>
                   </div>
                   <div
-                    className="flex-1 rounded-3xl overflow-hidden relative min-h-0"
+                    className="flex-1 rounded-3xl overflow-hidden relative min-h-0 flex flex-col"
                     style={{
                       background: '#0A0A0C',
                       border: '1px solid rgba(255,255,255,0.06)',
                       boxShadow: '0 40px 90px -30px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.06)',
                     }}
                   >
-                    <Skeleton active={isActive} />
+                    {/* Browser-style chrome — makes the mockup read as an
+                        actual FindFit product screenshot, not an abstract card */}
+                    <div className="flex items-center gap-2 px-4 py-3 shrink-0" style={{ background: '#161618', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ background: '#FF5F57' }} />
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ background: '#FEBC2E' }} />
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ background: '#28C840' }} />
+                      <span
+                        className="ml-3 px-3 py-1 rounded-md text-[10px] text-white/35"
+                        style={{ background: 'rgba(255,255,255,0.05)' }}
+                      >
+                        app.findfit.io
+                      </span>
+                    </div>
+                    <div className="flex-1 min-h-0">
+                      <Skeleton active={isActive} />
+                    </div>
                   </div>
                 </div>
               </motion.div>
@@ -376,11 +391,11 @@ export default function FeaturesSection() {
           ))}
           <button
             onClick={() => setPlaying((p) => !p)}
-            className="ml-2 w-8 h-8 rounded-full flex items-center justify-center transition-colors"
-            style={{ background: 'rgba(0,0,0,0.06)', color: '#1D1C1C' }}
+            className="ml-2 w-9 h-9 rounded-full flex items-center justify-center transition-colors"
+            style={{ background: '#1D1C1C', color: '#fff' }}
             aria-label={playing ? '일시정지' : '재생'}
           >
-            {playing ? <Pause className="w-3.5 h-3.5" fill="currentColor" /> : <Play className="w-3.5 h-3.5" fill="currentColor" />}
+            {playing ? <Pause className="w-3.5 h-3.5" fill="currentColor" /> : <Play className="w-3.5 h-3.5 ml-0.5" fill="currentColor" />}
           </button>
         </div>
 

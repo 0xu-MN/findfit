@@ -873,13 +873,12 @@ const liveProjects = [
   { category: '에듀테크', color: '#8FCBFF', title: '직장인 대상 마이크로러닝 앱 — 10분 학습, 실제로 효과 있을까요?', time: '약 20분', reward: '4,000원', deadline: '10일 후' },
 ]
 
-// ScrollStack-style deck: driven by real page scroll (not a timer). Each
-// card has its own window along the scroll range; while inside it, the card
-// rises from below into the pinned centre position. Once scroll moves past
-// that window, the card recedes into a stack behind the new one — scaled
-// down, blurred, and rotated a little more per level of depth, mirroring
-// reactbits' ScrollStack (itemScale / rotationAmount / blurAmount / stack
-// distance), just computed continuously from scrollYProgress here.
+// Auto-rotating deck — a timer advances `active` forever (no scroll
+// dependency at all, so there's nothing for the page scroll to "fly through"
+// or get stuck on). Depth = how many ticks ago each card was last in front
+// (wrapping, since it's a continuous loop); scale/blur/rotate/offset all
+// grow with depth, same shape as reactbits' ScrollStack, just driven by a
+// timer instead of scroll position.
 const CARD_W = 460
 const CARD_H = 320
 const STACK_DISTANCE = 18   // px the stack recedes upward per depth level
@@ -887,41 +886,13 @@ const STACK_SCALE_STEP = 0.045
 const STACK_ROTATE_STEP = -2.2 // deg
 const STACK_BLUR_STEP = 1.6    // px
 const MAX_DEPTH = 4
+const ROTATE_MS = 2400
 
 function ProjectStackCard({
-  p, index, scrollYProgress, n,
-}: { p: (typeof liveProjects)[number]; index: number; scrollYProgress: MotionValue<number>; n: number }) {
-  const local = useTransform(scrollYProgress, (sp) => sp * n - index)
-
-  const y = useTransform(local, (l) => {
-    if (l <= 0) return 70
-    if (l < 1) return 70 * (1 - l)
-    const depth = Math.min(l - 1, MAX_DEPTH)
-    return -depth * STACK_DISTANCE
-  })
-  const scale = useTransform(local, (l) => {
-    if (l <= 0) return 0.92
-    if (l < 1) return 0.92 + 0.08 * l
-    const depth = Math.min(l - 1, MAX_DEPTH)
-    return Math.max(0.7, 1 - depth * STACK_SCALE_STEP)
-  })
-  const opacity = useTransform(local, (l) => {
-    if (l <= 0) return 0
-    if (l < 1) return l
-    const depth = Math.min(l - 1, MAX_DEPTH)
-    return Math.max(0.35, 1 - depth * 0.14)
-  })
-  const rotate = useTransform(local, (l) => {
-    if (l < 1) return 0
-    const depth = Math.min(l - 1, MAX_DEPTH)
-    return depth * STACK_ROTATE_STEP
-  })
-  const blurPx = useTransform(local, (l) => {
-    if (l < 1) return 0
-    const depth = Math.min(l - 1, MAX_DEPTH)
-    return depth * STACK_BLUR_STEP
-  })
-  const filter = useTransform(blurPx, (b) => (b > 0.05 ? `blur(${b}px)` : 'none'))
+  p, depth,
+}: { p: (typeof liveProjects)[number]; depth: number }) {
+  const d = Math.min(depth, MAX_DEPTH)
+  const isActive = depth === 0
 
   return (
     <motion.div
@@ -931,14 +902,17 @@ function ProjectStackCard({
         height: CARD_H,
         marginLeft: -CARD_W / 2,
         marginTop: -CARD_H / 2,
-        y,
-        scale,
-        opacity,
-        rotate,
-        filter,
-        zIndex: index,
+        zIndex: 100 - depth,
         boxShadow: '0 30px 60px -20px rgba(0,0,0,0.55)',
       }}
+      animate={{
+        y: -d * STACK_DISTANCE,
+        scale: Math.max(0.7, 1 - d * STACK_SCALE_STEP),
+        opacity: Math.max(0.35, 1 - d * 0.14),
+        rotate: d * STACK_ROTATE_STEP,
+        filter: d > 0.05 ? `blur(${d * STACK_BLUR_STEP}px)` : 'none',
+      }}
+      transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
     >
       <div className="absolute inset-0" style={{ background: `linear-gradient(155deg, ${p.color}, #0A0A0C 130%)` }} />
       <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 55%)' }} />
@@ -964,34 +938,34 @@ function ProjectStackCard({
 }
 
 function LiveProjectsSection() {
-  const containerRef = useRef<HTMLDivElement>(null)
   const n = liveProjects.length
+  const [active, setActive] = useState(0)
+  const reduced = usePrefersReducedMotion()
 
-  const { scrollYProgress } = useScroll({
-    target: containerRef,
-    offset: ['start start', 'end end'],
-  })
+  useEffect(() => {
+    if (reduced) return
+    const id = setInterval(() => setActive((a) => (a + 1) % n), ROTATE_MS)
+    return () => clearInterval(id)
+  }, [reduced, n])
 
   return (
-    <section id="reviewer-live-projects" className="snap-section-auto" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-      <div ref={containerRef} className="relative" style={{ height: `${n * 80}vh` }}>
-        <div className="sticky top-0 h-screen w-full flex flex-col items-center justify-center overflow-hidden">
-          <div className="text-center mb-14 px-8">
-            <p className="text-[#42A5F5] text-xs font-bold uppercase tracking-[0.25em] mb-4">Live projects</p>
-            <h2 className="font-bold mb-4" style={{ fontSize: 'clamp(28px, 3vw, 46px)' }}>이런 의뢰들이 올라옵니다</h2>
-            <p className="text-white/40 text-sm md:text-base">스크롤하면서 지금 검증을 기다리는 의뢰들을 살펴보세요.</p>
-          </div>
+    <section id="reviewer-live-projects" className="snap-section" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="max-w-[1440px] mx-auto h-full flex flex-col items-center justify-center px-8">
+        <div className="text-center mb-14">
+          <p className="text-[#42A5F5] text-xs font-bold uppercase tracking-[0.25em] mb-4">Live projects</p>
+          <h2 className="font-bold mb-4" style={{ fontSize: 'clamp(28px, 3vw, 46px)' }}>이런 의뢰들이 올라옵니다</h2>
+          <p className="text-white/40 text-sm md:text-base">어떤 아이디어가 지금 검증을 기다리고 있는지 미리 살펴보세요.</p>
+        </div>
 
-          <div className="relative w-full" style={{ height: CARD_H + 60 }}>
-            {liveProjects.map((p, i) => (
-              <ProjectStackCard key={p.title} p={p} index={i} scrollYProgress={scrollYProgress} n={n} />
-            ))}
-          </div>
+        <div className="relative w-full" style={{ height: CARD_H + 60 }}>
+          {liveProjects.map((p, i) => (
+            <ProjectStackCard key={p.title} p={p} depth={(active - i + n) % n} />
+          ))}
+        </div>
 
-          <div className="flex items-center gap-2 mt-10 text-white/30 text-[12.5px]">
-            <span>🔒</span>
-            <span>모든 프로젝트는 NDA로 아이디어가 보호됩니다</span>
-          </div>
+        <div className="flex items-center gap-2 mt-10 text-white/30 text-[12.5px]">
+          <span>🔒</span>
+          <span>모든 프로젝트는 NDA로 아이디어가 보호됩니다</span>
         </div>
       </div>
     </section>
