@@ -5,105 +5,70 @@ import { motion, AnimatePresence, useScroll, useMotionValueEvent } from 'framer-
 
 const features = [
   {
-    icon: '🔒',
     label: 'FEATURE 01',
     title: 'NDA 기반 아이디어 보호',
     desc: '리뷰어가 피드백 참여 전 법적 NDA에 동의합니다. 아이디어 공개 범위도 내가 설정해요. 누구에게 뭘 보여줄지 완전히 제어 가능합니다.',
     tag: '유일한 NDA 연동 검증 플랫폼',
-    gradient: ['#F77019', '#FFB088'],
+    glow: '#7C9CFF',
+    image: '/differentiators/feature-01-nda.png',
   },
   {
-    icon: '🤖',
     label: 'FEATURE 02',
     title: '스타트업 특화 AI Agent',
     desc: '일반 AI 요약이 아닙니다. 제품 검증·스타트업 피드백에 최적화된 FindFit 전용 분석 엔진이 패턴을 찾아내고, 우선순위를 정리해요.',
     tag: '제품 검증 특화 분석 엔진',
-    gradient: ['#3B82F6', '#A855F7'],
+    glow: '#8B7CFF',
+    image: '/differentiators/feature-02-ai.png',
   },
   {
-    icon: '🎯',
     label: 'FEATURE 03',
     title: '타겟 고객 직접 매칭',
     desc: '내 서비스 카테고리, 연령대, 관심사를 설정하면 FindFit이 조건에 맞는 리뷰어를 연결합니다. 아무나의 의견이 아닌, 진짜 잠재 고객의 목소리를 얻어요.',
     tag: '정밀 타겟 필터링',
-    gradient: ['#22C55E', '#84CC16'],
+    glow: '#5EEAD4',
+    image: '/differentiators/feature-03-target.png',
   },
   {
-    icon: '📊',
     label: 'FEATURE 04',
     title: '피칭 근거 데이터 생성',
     desc: '투자자·액셀러레이터에게 보여줄 수 있는 고객 검증 리포트를 자동 생성합니다. "고객이 좋아해요"를 데이터로 증명하세요.',
     tag: 'IR·데모데이 즉시 활용 가능',
-    gradient: ['#EC4899', '#F97316'],
+    glow: '#7DD3FC',
+    image: '/differentiators/feature-04-report.png',
   },
   {
-    icon: '⚡',
     label: 'FEATURE 05',
     title: '스탠다드 & 라이트 리뷰',
     desc: '깊은 정성 평가가 필요할 땐 스탠다드, 빠른 시장 반응을 원할 땐 라이트. 목적에 따라 리뷰 유형을 선택해 운영할 수 있어요.',
     tag: '목적별 유연한 리뷰 설계',
-    gradient: ['#F59E0B', '#EF4444'],
+    glow: '#C4B5FD',
+    image: '/differentiators/feature-05-review.png',
   },
 ]
 
 const N = features.length
 
-// A glass-morphic "hero graphic" standing in for a product photo — two
-// blurred, morphing gradient blobs drifting behind a glass disc, with the
-// feature's icon centered on top. Everything is a self-blur (`filter`, not
-// `backdrop-filter`) so it stays cheap even while animating continuously —
-// see ReviewerLanding's benefit-section perf notes on why that distinction
-// matters for scroll smoothness.
-const BLOB_SHAPES = [
-  '42% 58% 65% 35% / 45% 40% 60% 55%',
-  '58% 42% 40% 60% / 55% 65% 35% 45%',
-  '35% 65% 55% 45% / 40% 45% 60% 55%',
-  '42% 58% 65% 35% / 45% 40% 60% 55%',
-]
-
+// The hero graphic for each feature — a supplied glass-morphic illustration,
+// floating on a soft ambient glow with a slow breathing motion so it reads
+// as a living "motion graphic" rather than a static image.
 function GlassFeatureVisual({
-  gradient, icon, size, live = false,
-}: { gradient: string[]; icon: string; size: number; live?: boolean }) {
+  image, glow, size, live = false,
+}: { image: string; glow: string; size: number; live?: boolean }) {
   return (
-    <div
-      className="relative rounded-full overflow-hidden shrink-0"
-      style={{
-        width: size,
-        height: size,
-        background: 'rgba(255,255,255,0.04)',
-        border: '1px solid rgba(255,255,255,0.14)',
-        boxShadow: '0 20px 60px -20px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.15)',
-      }}
-    >
-      {/* Blob 1 — shape-morphing, its own blurred conic gradient inside */}
-      <motion.div
-        className="absolute overflow-hidden"
-        style={{ width: '80%', height: '80%', top: '-8%', left: '-10%' }}
-        animate={live ? { borderRadius: BLOB_SHAPES } : { borderRadius: BLOB_SHAPES[0] }}
-        transition={live ? { duration: 8, repeat: Infinity, ease: 'easeInOut' } : undefined}
-      >
-        <div
-          className="absolute"
-          style={{ inset: '-40%', background: `conic-gradient(from 0deg, ${gradient[0]}, ${gradient[1]}, ${gradient[0]})`, opacity: 0.75, filter: `blur(${Math.max(8, size * 0.1)}px)` }}
-        />
-      </motion.div>
-      {/* Blob 2 — smaller, offset, rotating the opposite way for depth */}
-      <motion.div
-        className="absolute overflow-hidden"
-        style={{ width: '55%', height: '55%', bottom: '-6%', right: '-8%' }}
-        animate={live ? { borderRadius: BLOB_SHAPES.slice().reverse() } : { borderRadius: BLOB_SHAPES[2] }}
-        transition={live ? { duration: 9, repeat: Infinity, ease: 'easeInOut', delay: 0.5 } : undefined}
-      >
-        <div
-          className="absolute"
-          style={{ inset: '-40%', background: `conic-gradient(from 180deg, ${gradient[1]}, ${gradient[0]}, ${gradient[1]})`, opacity: 0.65, filter: `blur(${Math.max(8, size * 0.09)}px)` }}
-        />
-      </motion.div>
-
-      <div className="absolute inset-0 rounded-full" style={{ background: 'radial-gradient(circle, transparent 40%, rgba(0,0,0,0.45) 100%)' }} />
-      <div className="absolute inset-0 flex items-center justify-center" style={{ fontSize: size * 0.34 }}>
-        {icon}
-      </div>
+    <div className="relative flex items-center justify-center shrink-0" style={{ width: size, height: size }}>
+      <div
+        className="absolute rounded-full"
+        style={{ inset: '6%', background: `radial-gradient(circle, ${glow}55 0%, transparent 70%)`, filter: `blur(${Math.max(10, size * 0.12)}px)` }}
+      />
+      <motion.img
+        src={image}
+        alt=""
+        draggable={false}
+        className="relative select-none"
+        style={{ width: '86%', height: '86%', objectFit: 'contain', filter: `drop-shadow(0 20px 40px ${glow}40)` }}
+        animate={live ? { y: [0, -10, 0], rotate: [0, -1.2, 0, 1.2, 0] } : { y: 0, rotate: 0 }}
+        transition={live ? { duration: 6, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.3 }}
+      />
     </div>
   )
 }
@@ -206,7 +171,7 @@ export default function TrustSection({ id = 'trust-section' }: { id?: string }) 
                     style={{ opacity: 0.55 }}
                     aria-label={f.title}
                   >
-                    <GlassFeatureVisual gradient={f.gradient} icon={f.icon} size={58} />
+                    <GlassFeatureVisual image={f.image} glow={f.glow} size={58} />
                   </button>
                 ))}
               </div>
@@ -223,7 +188,7 @@ export default function TrustSection({ id = 'trust-section' }: { id?: string }) 
                   exit={{ opacity: 0, scale: 0.85 }}
                   transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
                 >
-                  <GlassFeatureVisual gradient={feature.gradient} icon={feature.icon} size={340} live />
+                  <GlassFeatureVisual image={feature.image} glow={feature.glow} size={340} live />
                 </motion.div>
               </AnimatePresence>
             </div>
@@ -262,7 +227,7 @@ export default function TrustSection({ id = 'trust-section' }: { id?: string }) 
                 border: '1px solid rgba(247,112,25,0.25)',
               }}
             >
-              <GlassFeatureVisual gradient={f.gradient} icon={f.icon} size={56} />
+              <GlassFeatureVisual image={f.image} glow={f.glow} size={56} />
               <span className="text-[11px] font-black tracking-[0.18em] text-[#F77019] mb-2 mt-5">{f.label}</span>
               <h3 className="text-white font-bold text-[18px] leading-snug mb-2">{f.title}</h3>
               <p className="text-white/50 text-[13px] leading-relaxed mb-4 break-keep">{f.desc}</p>
