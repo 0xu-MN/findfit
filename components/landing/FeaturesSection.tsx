@@ -299,8 +299,10 @@ export default function FeaturesSection() {
           </p>
         </div>
 
-        {/* 캐러셀 — 다크 카드가 밝은 섹션 배경 위에 떠 있는 형태 */}
-        <div className="relative flex items-center justify-center" style={{ height: 'min(68vh, 620px)' }}>
+        {/* 캐러셀 — 애플 macbook 페이지처럼: 모든 카드가 완전히 같은 크기이고,
+            옆 카드는 축소/디밍되는 게 아니라 그냥 화면 가장자리 바깥으로 밀려나
+            일부만 살짝 보이는 방식. 그래서 컨테이너를 섹션 폭 전체로 넓힘. */}
+        <div className="relative flex items-center justify-center w-screen left-1/2 -translate-x-1/2" style={{ height: 'min(68vh, 620px)' }}>
           {cards.map((card, i) => {
             const d = circularDelta(i, active, N)
             const isActive = d === 0
@@ -311,19 +313,15 @@ export default function FeaturesSection() {
                 key={card.label}
                 className="absolute rounded-[28px] overflow-hidden"
                 style={{
-                  width: 'min(920px, 86vw)',
+                  width: 'min(1040px, 78vw)',
                   height: '100%',
                   background: '#101012',
                   border: '1px solid rgba(255,255,255,0.08)',
-                  zIndex: 10 - dist,
+                  zIndex: isActive ? 10 : 5 - dist,
                   pointerEvents: isActive ? 'auto' : 'none',
                   boxShadow: '0 30px 80px -20px rgba(0,0,0,0.35)',
                 }}
-                animate={{
-                  x: d * 640,
-                  scale: isActive ? 1 : Math.max(0.78, 1 - dist * 0.14),
-                  opacity: dist > 1 ? 0 : isActive ? 1 : Math.max(0, 1 - dist * 0.6),
-                }}
+                animate={{ x: `${d * 104}%` }}
                 transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
               >
                 {/* 상단: 타이틀 (작게) — 하단: 큰 모션그래픽 프레임 (실제 제품 화면처럼 브라우저 크롬 포함) */}
