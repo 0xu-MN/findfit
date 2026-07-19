@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useId, useRef, useState } from 'react'
-import { motion, useScroll, useMotionValueEvent, useTransform, useMotionValue, useAnimationFrame, type MotionValue } from 'framer-motion'
+import { motion, useScroll, useMotionValueEvent, useTransform, type MotionValue } from 'framer-motion'
 import { ArrowRight, ArrowLeft } from 'lucide-react'
 import Footer from './Footer'
 import CreatorPeek from './CreatorPeek'
@@ -873,114 +873,125 @@ const liveProjects = [
   { category: '에듀테크', color: '#8FCBFF', title: '직장인 대상 마이크로러닝 앱 — 10분 학습, 실제로 효과 있을까요?', time: '약 20분', reward: '4,000원', deadline: '10일 후' },
 ]
 
-// Every card rests as a thin, tall pill; only the one nearest the viewport's
-// centre widens out into the full card — an accordion, not a uniform
-// scale-down. Slot spacing is based on the resting (pill) width, so pills
-// sit close together and the widening centre card overlaps them (highest
-// zIndex already handles the stacking) rather than pushing them apart.
-const CARD_W = 220
+// ScrollStack-style deck: driven by real page scroll (not a timer). Each
+// card has its own window along the scroll range; while inside it, the card
+// rises from below into the pinned centre position. Once scroll moves past
+// that window, the card recedes into a stack behind the new one — scaled
+// down, blurred, and rotated a little more per level of depth, mirroring
+// reactbits' ScrollStack (itemScale / rotationAmount / blurAmount / stack
+// distance), just computed continuously from scrollYProgress here.
+const CARD_W = 460
 const CARD_H = 320
-const PILL_W = 34
-const CARD_GAP = 14
-const PITCH = PILL_W + CARD_GAP
-const FLOW_SPEED = 22 // px/sec, continuous — never stops or pauses
-const EXPAND_RANGE = 1.15 // distance (in slot units) over which a pill expands to full width
+const STACK_DISTANCE = 18   // px the stack recedes upward per depth level
+const STACK_SCALE_STEP = 0.045
+const STACK_ROTATE_STEP = -2.2 // deg
+const STACK_BLUR_STEP = 1.6    // px
+const MAX_DEPTH = 4
 
-// Position of card `index` relative to the centre slot, wrapped into
-// (-total/2, total/2] so it's always the shortest signed distance — this is
-// what makes the loop continuous instead of resetting/jumping.
-function wrappedOffset(index: number, x: number, total: number) {
-  let raw = (index * PITCH + x) % total
-  if (raw < 0) raw += total
-  if (raw > total / 2) raw -= total
-  return raw
-}
+function ProjectStackCard({
+  p, index, scrollYProgress, n,
+}: { p: (typeof liveProjects)[number]; index: number; scrollYProgress: MotionValue<number>; n: number }) {
+  const local = useTransform(scrollYProgress, (sp) => sp * n - index)
 
-function ProjectPill({
-  p, index, x, total,
-}: { p: (typeof liveProjects)[number]; index: number; x: MotionValue<number>; total: number }) {
-  const offset = useTransform(x, (latest) => wrappedOffset(index, latest, total))
-  const slot = useTransform(offset, (d) => 1 - clamp01(Math.abs(d) / (PITCH * EXPAND_RANGE)))
-
-  const width = useTransform(slot, (t) => PILL_W + t * (CARD_W - PILL_W))
-  const radius = useTransform(slot, (t) => PILL_W / 2 + t * (36 - PILL_W / 2))
-  const contentOpacity = useTransform(slot, (t) => clamp01((t - 0.55) / 0.45))
-  const zIndex = useTransform(offset, (d) => Math.round(100 - Math.abs(d)))
-  // Width is now animated (pill ↔ full card), so the old static
-  // `marginLeft: -CARD_W/2` centering trick no longer applies — recompute
-  // the horizontal center-offset from the live width on every frame instead.
-  const xCentered = useTransform([offset, width], ([o, w]: number[]) => o - w / 2)
+  const y = useTransform(local, (l) => {
+    if (l <= 0) return 70
+    if (l < 1) return 70 * (1 - l)
+    const depth = Math.min(l - 1, MAX_DEPTH)
+    return -depth * STACK_DISTANCE
+  })
+  const scale = useTransform(local, (l) => {
+    if (l <= 0) return 0.92
+    if (l < 1) return 0.92 + 0.08 * l
+    const depth = Math.min(l - 1, MAX_DEPTH)
+    return Math.max(0.7, 1 - depth * STACK_SCALE_STEP)
+  })
+  const opacity = useTransform(local, (l) => {
+    if (l <= 0) return 0
+    if (l < 1) return l
+    const depth = Math.min(l - 1, MAX_DEPTH)
+    return Math.max(0.35, 1 - depth * 0.14)
+  })
+  const rotate = useTransform(local, (l) => {
+    if (l < 1) return 0
+    const depth = Math.min(l - 1, MAX_DEPTH)
+    return depth * STACK_ROTATE_STEP
+  })
+  const blurPx = useTransform(local, (l) => {
+    if (l < 1) return 0
+    const depth = Math.min(l - 1, MAX_DEPTH)
+    return depth * STACK_BLUR_STEP
+  })
+  const filter = useTransform(blurPx, (b) => (b > 0.05 ? `blur(${b}px)` : 'none'))
 
   return (
     <motion.div
-      className="absolute top-1/2 left-1/2 shrink-0 overflow-hidden"
+      className="absolute left-1/2 top-1/2 shrink-0 overflow-hidden rounded-[32px]"
       style={{
-        width,
+        width: CARD_W,
         height: CARD_H,
-        borderRadius: radius,
+        marginLeft: -CARD_W / 2,
         marginTop: -CARD_H / 2,
-        x: xCentered,
-        zIndex,
+        y,
+        scale,
+        opacity,
+        rotate,
+        filter,
+        zIndex: index,
+        boxShadow: '0 30px 60px -20px rgba(0,0,0,0.55)',
       }}
     >
       <div className="absolute inset-0" style={{ background: `linear-gradient(155deg, ${p.color}, #0A0A0C 130%)` }} />
-      <motion.div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 55%)', opacity: contentOpacity }} />
-      <motion.div className="absolute inset-x-0 bottom-0 p-5 flex items-start gap-3" style={{ opacity: contentOpacity }}>
+      <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 55%)' }} />
+      <div className="absolute inset-x-0 bottom-0 p-6 flex items-start gap-3">
         <span
-          className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0"
+          className="w-10 h-10 rounded-full flex items-center justify-center text-[12px] font-bold shrink-0"
           style={{ background: 'rgba(255,255,255,0.16)', color: '#fff' }}
         >
           {p.category.slice(0, 2)}
         </span>
         <div className="min-w-0 flex-1">
-          <div className="text-white text-[13px] font-bold mb-1 whitespace-nowrap">{p.category}</div>
-          <div className="text-white/70 text-[11px] leading-snug break-keep line-clamp-2">{p.title}</div>
-          <div className="flex items-center gap-3 mt-2 text-[10.5px] text-white/50 whitespace-nowrap">
+          <div className="text-white text-[14px] font-bold mb-1">{p.category}</div>
+          <div className="text-white/70 text-[12.5px] leading-snug break-keep">{p.title}</div>
+          <div className="flex items-center gap-3 mt-2 text-[11px] text-white/50">
             <span>{p.time}</span>
             <span style={{ color: p.reward ? '#4ADE80' : undefined }}>{p.reward ?? '무보상'}</span>
+            <span>{p.deadline}</span>
           </div>
         </div>
-      </motion.div>
+      </div>
     </motion.div>
   )
 }
 
-function clamp01(v: number) {
-  return Math.max(0, Math.min(1, v))
-}
-
 function LiveProjectsSection() {
-  const reduced = usePrefersReducedMotion()
+  const containerRef = useRef<HTMLDivElement>(null)
   const n = liveProjects.length
-  const total = n * PITCH
-  const x = useMotionValue(0)
 
-  useAnimationFrame((_, delta) => {
-    if (reduced) return
-    x.set(x.get() - (FLOW_SPEED * delta) / 1000)
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ['start start', 'end end'],
   })
 
   return (
-    <section id="reviewer-live-projects" className="snap-section" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-      <div className="max-w-[1440px] mx-auto h-full flex flex-col items-center justify-center">
-        <div className="text-center mb-14 px-8">
-          <p className="text-[#42A5F5] text-xs font-bold uppercase tracking-[0.25em] mb-4">Live projects</p>
-          <h2 className="font-bold mb-4" style={{ fontSize: 'clamp(28px, 3vw, 46px)' }}>이런 의뢰들이 올라옵니다</h2>
-          <p className="text-white/40 text-sm md:text-base">어떤 아이디어가 지금 검증을 기다리고 있는지 미리 살펴보세요.</p>
-        </div>
+    <section id="reviewer-live-projects" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      <div ref={containerRef} className="relative" style={{ height: `${n * 80}vh` }}>
+        <div className="sticky top-0 h-screen w-full flex flex-col items-center justify-center overflow-hidden">
+          <div className="text-center mb-14 px-8">
+            <p className="text-[#42A5F5] text-xs font-bold uppercase tracking-[0.25em] mb-4">Live projects</p>
+            <h2 className="font-bold mb-4" style={{ fontSize: 'clamp(28px, 3vw, 46px)' }}>이런 의뢰들이 올라옵니다</h2>
+            <p className="text-white/40 text-sm md:text-base">스크롤하면서 지금 검증을 기다리는 의뢰들을 살펴보세요.</p>
+          </div>
 
-        <div
-          className="relative w-full overflow-hidden"
-          style={{ height: CARD_H + 20, maskImage: 'linear-gradient(90deg, transparent, black 12%, black 88%, transparent)' }}
-        >
-          {liveProjects.map((p, i) => (
-            <ProjectPill key={p.title} p={p} index={i} x={x} total={total} />
-          ))}
-        </div>
+          <div className="relative w-full" style={{ height: CARD_H + 60 }}>
+            {liveProjects.map((p, i) => (
+              <ProjectStackCard key={p.title} p={p} index={i} scrollYProgress={scrollYProgress} n={n} />
+            ))}
+          </div>
 
-        <div className="flex items-center gap-2 mt-10 text-white/30 text-[12.5px]">
-          <span>🔒</span>
-          <span>모든 프로젝트는 NDA로 아이디어가 보호됩니다</span>
+          <div className="flex items-center gap-2 mt-10 text-white/30 text-[12.5px]">
+            <span>🔒</span>
+            <span>모든 프로젝트는 NDA로 아이디어가 보호됩니다</span>
+          </div>
         </div>
       </div>
     </section>
