@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
 import Spinner from './new-request/Spinner'
-import { getDraft, saveDraft, submitRequest } from './new-request/storage'
+import { deleteDraft, getDraft, saveDraft } from './new-request/storage'
+import { submitProject } from './new-request/submitProject'
 import {
   PROJECT_TYPE_OPTIONS,
   REVIEWER_COMMISSION_RATE,
@@ -33,6 +34,7 @@ export default function PreviewPage() {
   const [saving, setSaving] = useState(false)
   const [notFound, setNotFound] = useState(false)
   const [savedFlash, setSavedFlash] = useState(false)
+  const [submitError, setSubmitError] = useState('')
 
   useEffect(() => {
     if (!draftId) {
@@ -81,10 +83,16 @@ export default function PreviewPage() {
   const handleSubmit = async () => {
     if (submitting) return
     setSubmitting(true)
-    submitRequest(data)
-    setTimeout(() => {
-      router.push(`/builder/new-request/preview/complete?id=${data.id}`)
-    }, 700)
+    setSubmitError('')
+    try {
+      const { projectId } = await submitProject(data)
+      deleteDraft(data.id)
+      router.push(`/builder/new-request/preview/complete?id=${projectId}`)
+    } catch (err) {
+      setSubmitting(false)
+      setConfirmOpen(false)
+      setSubmitError(err instanceof Error ? err.message : '제출 중 오류가 발생했습니다.')
+    }
   }
 
   return (
@@ -101,6 +109,12 @@ export default function PreviewPage() {
           </div>
         )}
       </div>
+
+      {submitError && (
+        <div className="rounded-xl bg-[#EF4444]/10 border border-[#EF4444]/30 px-4 py-3 text-[11px] font-bold text-[#EF4444]">
+          {submitError}
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex items-center gap-1 bg-[#F5F5F5] p-1 rounded-xl w-fit text-[11px] font-black">

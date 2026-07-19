@@ -3,7 +3,7 @@ import type { ProjectType } from '@/components/builder/new-request/types'
 
 export type QuestionTemplate = {
   id: string
-  project_type: ProjectType
+  project_type: string
   psf_pmf_type: 'psf' | 'pmf'
   is_required: boolean
   question_text: string

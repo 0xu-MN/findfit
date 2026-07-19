@@ -1,26 +1,39 @@
-import { buildPrompt, type ProjectForReport, type Review } from '@/lib/ai/prompt'
-import { callGemini } from '@/lib/ai/gemini'
 import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+import { generateAndSaveReport } from '@/lib/ai/generateReport'
 
+// POST: 실제 review_answers를 조회해 리포트를 생성/재생성하고 ai_reports에 저장
 export async function POST(
-  req: Request,
+  _req: Request,
   context: { params: Promise<{ projectId: string }> }
 ) {
   try {
     const { projectId } = await context.params
-    const body = await req.json()
-    const { project, reviews } = body as { project: ProjectForReport; reviews: Review[] }
-
-    if (!project || !reviews) {
-      return NextResponse.json({ error: 'project and reviews required' }, { status: 400 })
-    }
-
-    const prompt = buildPrompt(reviews, project)
-    const result = await callGemini(prompt)
-
-    return NextResponse.json({ ...result, ai_engine_used: 'gemini', project_id: projectId })
+    const supabase = await createClient()
+    const report = await generateAndSaveReport(projectId, supabase)
+    return NextResponse.json({ report })
   } catch (err) {
-    console.error('[ai-report]', err)
+    console.error('[ai-report:POST]', err)
     return NextResponse.json({ error: 'Report generation failed' }, { status: 500 })
+  }
+}
+
+// GET: 저장된 ai_reports row 조회 (없으면 report: null)
+export async function GET(
+  _req: Request,
+  context: { params: Promise<{ projectId: string }> }
+) {
+  try {
+    const { projectId } = await context.params
+    const supabase = await createClient()
+    const { data: report } = await supabase
+      .from('ai_reports')
+      .select('*')
+      .eq('project_id', projectId)
+      .maybeSingle()
+    return NextResponse.json({ report: report ?? null })
+  } catch (err) {
+    console.error('[ai-report:GET]', err)
+    return NextResponse.json({ error: 'Failed to fetch report' }, { status: 500 })
   }
 }

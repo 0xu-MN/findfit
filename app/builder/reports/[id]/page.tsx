@@ -6,9 +6,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 import LightReportView from '@/components/report/LightReportView'
 import StandardReportView from '@/components/report/StandardReportView'
-import { getDraft, listSubmitted } from '@/components/builder/new-request/storage'
-import { type RequestFormData } from '@/components/builder/new-request/types'
-import type { ProjectForReport, Review } from '@/lib/ai/prompt'
+import { createClient } from '@/lib/supabase/client'
 
 type ReportData = {
   winner?: 'A' | 'B' | null
@@ -23,81 +21,74 @@ type ReportData = {
   benchmark_comment?: string
   action_plan?: string[]
   pivot_scenarios?: string[]
-  ai_engine_used?: string
-  project_id?: string
 }
 
-function makeMockReviews(project: RequestFormData, count: number): Review[] {
-  return Array.from({ length: count }, (_, i) => ({
-    id: `mock_reviewer_${i}`,
-    answers: project.questions.reduce<Record<string, unknown>>((acc, q) => {
-      if (q.type === 'multiple_choice' && q.options?.length) {
-        acc[q.id] = q.options[i % q.options.length]
-      } else if (q.type === 'likert') {
-        acc[q.id] = ((i % 5) + 1).toString()
-      } else {
-        acc[q.id] = '좋은 아이디어인 것 같습니다. 더 다듬어지면 좋겠어요.'
-      }
-      return acc
-    }, {}),
-  }))
+type ProjectMeta = {
+  id: string
+  title: string
+  project_type: string | null
+  stage: string | null
 }
 
-function makePsfPmf(stage: string): 'psf' | 'pmf' {
+function makePsfPmf(stage: string | null): 'psf' | 'pmf' {
   return stage === 'idea' || stage === 'prototype' ? 'psf' : 'pmf'
 }
 
 export default function ReportDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter()
-  const [project, setProject] = useState<RequestFormData | null>(null)
+  const [project, setProject] = useState<ProjectMeta | null>(null)
   const [report, setReport] = useState<ReportData | null>(null)
+  const [engine, setEngine] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchReport = useCallback(async (proj: RequestFormData) => {
+  // 저장된 ai_reports를 조회하고, 없으면 서버에서 생성(POST)한다.
+  const fetchReport = useCallback(async (regenerate = false) => {
     setLoading(true)
     setError(null)
     try {
-      const reviewCount = proj.evaluatorCount || 5
-      const reviews = makeMockReviews(proj, reviewCount)
-      const psfPmf = makePsfPmf(proj.stage ?? '')
-
-      const projectForReport: ProjectForReport = {
-        id: proj.id,
-        title: proj.productName || '(제목 없음)',
-        project_type: (proj.projectType as 'light' | 'standard') ?? 'standard',
-        psf_pmf_type: psfPmf,
-        problem: proj.problem,
-        solution: proj.ourDifference,
-        questions: proj.questions.map((q) => ({ question_text: q.text })),
+      // 1) 기존 리포트 조회 (재생성이 아니면)
+      if (!regenerate) {
+        const getRes = await fetch(`/api/ai-report/${params.id}`, { method: 'GET' })
+        if (getRes.ok) {
+          const { report: existing } = await getRes.json()
+          if (existing) {
+            setReport((existing.report_data ?? {}) as ReportData)
+            setEngine(existing.ai_engine_used ?? null)
+            setLoading(false)
+            return
+          }
+        }
       }
-
-      const res = await fetch(`/api/ai-report/${proj.id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ project: projectForReport, reviews }),
-      })
-
-      if (!res.ok) throw new Error(`API error: ${res.status}`)
-      const data = await res.json()
-      setReport(data)
+      // 2) 없거나 재생성 요청이면 생성
+      const res = await fetch(`/api/ai-report/${params.id}`, { method: 'POST' })
+      if (!res.ok) throw new Error(`리포트 생성 실패 (${res.status})`)
+      const { report: saved } = await res.json()
+      setReport((saved?.report_data ?? {}) as ReportData)
+      setEngine(saved?.ai_engine_used ?? null)
     } catch (e) {
       setError(e instanceof Error ? e.message : '리포트 생성 실패')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [params.id])
 
   useEffect(() => {
-    const fromDraft = getDraft(params.id)
-    const proj = fromDraft ?? listSubmitted().find((p) => p.id === params.id) ?? null
-    setProject(proj)
-    if (proj) fetchReport(proj)
-    else setLoading(false)
+    const supabase = createClient()
+    supabase
+      .from('projects')
+      .select('id, title, project_type, stage')
+      .eq('id', params.id)
+      .single()
+      .then(({ data }) => {
+        setProject((data as ProjectMeta) ?? null)
+        if (data) fetchReport(false)
+        else setLoading(false)
+      })
   }, [params.id, fetchReport])
 
-  const isLight = project?.projectType === 'light'
-  const psfPmf: 'psf' | 'pmf' = makePsfPmf(project?.stage ?? '')
+  const isLight = project?.project_type === 'light'
+  const psfPmf: 'psf' | 'pmf' = makePsfPmf(project?.stage ?? null)
 
   return (
     <div className="min-h-screen bg-[#F7F7F5]">
@@ -114,23 +105,23 @@ export default function ReportDetailPage({ params }: { params: { id: string } })
           <h1 className="text-sm font-black">AI 리포트</h1>
           {project && (
             <span className="text-[10px] font-bold text-[#999] truncate max-w-[200px]">
-              — {project.productName || '(제목 없음)'}
+              — {project.title || '(제목 없음)'}
             </span>
           )}
         </div>
         <div className="flex items-center gap-2">
           {!loading && report && (
             <button
-              onClick={() => project && fetchReport(project)}
+              onClick={() => fetchReport(true)}
               className="flex items-center gap-1.5 text-[10px] font-black text-[#666] hover:text-[#F77019] transition-colors px-2 py-1 rounded-lg hover:bg-[#F77019]/5"
             >
               <RefreshCw className="w-3 h-3" />
               재생성
             </button>
           )}
-          {report?.ai_engine_used && (
+          {engine && (
             <span className="text-[9px] font-bold bg-[#F5F5F5] text-[#666] px-2 py-0.5 rounded">
-              {report.ai_engine_used}
+              {engine}
             </span>
           )}
         </div>
@@ -159,7 +150,7 @@ export default function ReportDetailPage({ params }: { params: { id: string } })
               <p className="text-[11px] font-bold text-red-500 mb-4">{error}</p>
               {project && (
                 <button
-                  onClick={() => fetchReport(project)}
+                  onClick={() => fetchReport(true)}
                   className="text-[11px] font-black text-white bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg transition-colors"
                 >
                   다시 시도

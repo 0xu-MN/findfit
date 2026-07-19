@@ -21,7 +21,7 @@ export async function POST(
 
     const { data: project } = await supabase
       .from('projects')
-      .select('status, completed_count, target_count')
+      .select('status, completed_count, target_count, access_method')
       .eq('id', id)
       .single()
 
@@ -54,6 +54,7 @@ export async function POST(
       nickname,
       status: 'accepted',
       accepted_at: new Date().toISOString(),
+      shipping_status: project.access_method === 'physical_shipping' ? 'pending' : 'not_required',
     })
 
     return NextResponse.json({ redirectTo: `/projects/${id}/review`, nickname })

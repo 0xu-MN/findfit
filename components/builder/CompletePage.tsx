@@ -4,20 +4,33 @@ import { CheckCircle2, FileText, LayoutDashboard } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
-import { listSubmitted } from './new-request/storage'
-import type { RequestFormData } from './new-request/types'
+import { createClient } from '@/lib/supabase/client'
+
+type CompletedProject = {
+  id: string
+  title: string
+  project_type: string
+  target_count: number
+  deadline: string | null
+  created_at: string
+}
 
 export default function CompletePage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const id = searchParams.get('id')
 
-  const [data, setData] = useState<RequestFormData | null>(null)
+  const [data, setData] = useState<CompletedProject | null>(null)
 
   useEffect(() => {
     if (!id) return
-    const submitted = listSubmitted().find((d) => d.id === id)
-    setData(submitted ?? null)
+    const supabase = createClient()
+    supabase
+      .from('projects')
+      .select('id, title, project_type, target_count, deadline, created_at')
+      .eq('id', id)
+      .single()
+      .then(({ data: row }) => setData((row as CompletedProject) ?? null))
   }, [id])
 
   return (
@@ -49,26 +62,29 @@ export default function CompletePage() {
               <span className="text-[10px] font-black bg-[#F77019]/10 text-[#F77019] px-2 py-1 rounded">매칭 대기중</span>
             </div>
             <div className="grid grid-cols-2 gap-4 text-[11px]">
-              <Item label="제품명" value={data.productName || '—'} />
+              <Item label="제품명" value={data.title || '—'} />
               <Item
                 label="프로젝트 타입"
                 value={
-                  data.projectType === 'light'
+                  data.project_type === 'light'
                     ? 'Light'
-                    : data.projectType === 'standard'
+                    : data.project_type === 'standard'
                       ? 'Standard'
-                      : data.projectType === 'deep'
+                      : data.project_type === 'deep'
                         ? 'Deep'
                         : '—'
                 }
               />
               <Item
                 label="평가단"
-                value={data.projectType === 'light' ? '제한 없음' : `${data.evaluatorCount}명`}
+                value={data.project_type === 'light' ? '제한 없음' : `${data.target_count}명`}
               />
-              <Item label="완료 기한" value={`최대 ${data.deadlineDays}일`} />
+              <Item
+                label="완료 기한"
+                value={data.deadline ? new Date(data.deadline).toLocaleDateString('ko-KR') + '까지' : '—'}
+              />
               <Item label="접수 ID" value={data.id.slice(0, 8)} mono />
-              <Item label="접수 시각" value={new Date(data.updatedAt).toLocaleString('ko-KR')} />
+              <Item label="접수 시각" value={new Date(data.created_at).toLocaleString('ko-KR')} />
             </div>
           </div>
         )}

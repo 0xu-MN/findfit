@@ -18,14 +18,14 @@ const steps = [
 // The ONLY vertical straight runs are the entry (top) and exit (bottom).
 const SVG_W = 100
 
-const CX        = 50    // container centre
-const HOLLOW_H  = 44     // vertical span of one hollow
-const RY        = HOLLOW_H / 2                          // 22
-const H_LEN     = 48     // horizontal shelf between hollows — lengthened further
-const D         = H_LEN / 2   // each hollow sits this far left/right of centre, alternating
-const PAD_T     = 26     // entry straight, above the first hollow (shortened again)
-const PAD_B     = 26     // exit straight, below the last hollow (shortened again)
-const CORNER    = 7      // small fixed corner that blends a vertical tangent into a horizontal one (and back)
+const CX = 50    // container centre
+const HOLLOW_H = 44     // vertical span of one hollow
+const RY = HOLLOW_H / 2                          // 22
+const H_LEN = 48     // horizontal shelf between hollows — lengthened further
+const D = H_LEN / 2   // each hollow sits this far left/right of centre, alternating
+const PAD_T = 26     // entry straight, above the first hollow (shortened again)
+const PAD_B = 26     // exit straight, below the last hollow (shortened again)
+const CORNER = 7      // small fixed corner that blends a vertical tangent into a horizontal one (and back)
 
 const SVG_H = PAD_T + steps.length * HOLLOW_H + PAD_B
 
@@ -93,7 +93,7 @@ const MOVING_VH = Math.round(SVG_H * 0.956)  // keeps the same vh-per-svg-unit p
 // top edge; at scroll=1 the very bottom (the exit line's tip) sits exactly at
 // its bottom edge. No blank background before/after the line is ever shown.
 const SNAKE_START = 0
-const SNAKE_END   = (100 - MOVING_VH) / 100
+const SNAKE_END = (100 - MOVING_VH) / 100
 
 const CONTAINER_VH = MOVING_VH
 
@@ -107,10 +107,10 @@ function bellyYPct(i: number) {
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function HowItWorksSection() {
   const containerRef = useRef<HTMLDivElement>(null)
-  const pathRef      = useRef<SVGPathElement>(null)
-  const [pathLen, setPathLen]       = useState(0)
-  const [vh, setVh]                 = useState(0)
-  const [cw, setCw]                 = useState(0)
+  const pathRef = useRef<SVGPathElement>(null)
+  const [pathLen, setPathLen] = useState(0)
+  const [vh, setVh] = useState(0)
+  const [cw, setCw] = useState(0)
   const [activeStep, setActiveStep] = useState(-1)
   const [maxRevealed, setMaxRevealed] = useState(-1)  // once a step has appeared it stays visible
 
@@ -259,10 +259,10 @@ export default function HowItWorksSection() {
 
               {/* Step labels — anchored in each hollow's OPEN mouth (concave side), clear of the line */}
               {steps.map((step, i) => {
-                const sweep      = i % 2 === 0 ? 1 : 0
-                const bulgeSign  = sweep === 1 ? 1 : -1   // the curve's solid material bulges this way from hx
+                const sweep = i % 2 === 0 ? 1 : 0
+                const bulgeSign = sweep === 1 ? 1 : -1   // the curve's solid material bulges this way from hx
                 const isRevealed = i <= maxRevealed        // stays visible once shown, doesn't disappear on the next step
-                const fromBelow  = activeStep < i && !isRevealed
+                const fromBelow = activeStep < i && !isRevealed
 
                 // hx<50 → hollow sits on the LEFT and bulges further left (outward);
                 // hx>50 → hollow sits on the RIGHT and bulges further right (outward).
@@ -291,7 +291,7 @@ export default function HowItWorksSection() {
                       className="flex flex-col"
                       animate={{
                         opacity: isRevealed ? 1 : 0,
-                        y:       isRevealed ? 0 : fromBelow ? 20 : -20,
+                        y: isRevealed ? 0 : fromBelow ? 20 : -20,
                       }}
                       transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
                       style={{

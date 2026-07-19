@@ -48,15 +48,22 @@ export async function POST(
 
   const { data: match } = await supabase
     .from('project_matches')
-    .select('applicant_email, project_id, projects(title)')
+    .select('applicant_email, project_id, projects(title, access_method)')
     .eq('id', id)
     .single()
 
   if (!match) return NextResponse.json({ error: '지원 내역을 찾을 수 없습니다' }, { status: 404 })
 
+  // 배송형 프로젝트면 수락과 동시에 배송 대기 상태로 전환 (Builder가 발송 처리 가능)
+  const isShipping = match.projects?.access_method === 'physical_shipping'
+
   await supabase
     .from('project_matches')
-    .update({ status: 'accepted', accepted_at: new Date().toISOString() })
+    .update({
+      status: 'accepted',
+      accepted_at: new Date().toISOString(),
+      ...(isShipping ? { shipping_status: 'pending' } : {}),
+    })
     .eq('id', id)
 
   // fire-and-forget

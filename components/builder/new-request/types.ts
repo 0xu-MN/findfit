@@ -1,5 +1,9 @@
 export type ProjectType = 'light' | 'standard'
 export type Stage = 'idea' | 'prototype' | 'beta' | 'launched'
+
+// 제품 접근 방식 — 리뷰어가 제품을 어떻게 체험하는지
+// web_link: 웹 링크 공유 / app_download: 앱 다운로드 / physical_shipping: 실물 배송
+export type AccessMethod = 'web_link' | 'app_download' | 'physical_shipping'
 export type DecisionFactor = 'price' | 'convenience' | 'trust' | 'feature' | 'design' | 'etc'
 export type DistributionMethod = 'later' | 'equal' | 'differential' | 'top_n' | 'custom'
 
@@ -47,6 +51,11 @@ export type RequestFormData = {
   stage: Stage | null
   landingUrl: string
   projectType: ProjectType | null
+
+  // Step 1 — 제품 접근 방식
+  accessMethod: AccessMethod
+  appStoreUrl: string // accessMethod === 'app_download'
+  playStoreUrl: string // accessMethod === 'app_download'
 
   // Step 2 — 문제와 솔루션 (3개 필드)
   problem: string
@@ -105,6 +114,12 @@ export const STAGE_OPTIONS: { value: Stage; title: string; sub: string }[] = [
   { value: 'prototype', title: '프로토타입',  sub: '목업이나 와이어프레임이 있는 단계' },
   { value: 'beta',      title: '베타',        sub: '초기 사용자가 써보고 있는 단계' },
   { value: 'launched',  title: '출시 후',     sub: '정식으로 운영 중인 단계' },
+]
+
+export const ACCESS_METHOD_OPTIONS: { value: AccessMethod; title: string; sub: string }[] = [
+  { value: 'web_link', title: '웹 링크', sub: '링크만 공유하면 바로 체험 가능' },
+  { value: 'app_download', title: '앱 다운로드', sub: '앱스토어·플레이스토어에서 설치 후 체험' },
+  { value: 'physical_shipping', title: '실물 배송', sub: '제품을 리뷰어에게 배송한 뒤 체험' },
 ]
 
 export const AGE_GROUPS = ['10대', '20대', '30대', '40대', '50대', '60대+']
@@ -319,6 +334,10 @@ export function createEmptyDraft(): RequestFormData {
     stage: null,
     landingUrl: '',
     projectType: null,
+
+    accessMethod: 'web_link',
+    appStoreUrl: '',
+    playStoreUrl: '',
 
     problem: '',
     alternativeAndLimit: '',
