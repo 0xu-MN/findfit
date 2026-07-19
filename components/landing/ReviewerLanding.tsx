@@ -973,7 +973,7 @@ function LiveProjectsSection() {
   })
 
   return (
-    <section id="reviewer-live-projects" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+    <section id="reviewer-live-projects" className="snap-section-auto" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
       <div ref={containerRef} className="relative" style={{ height: `${n * 80}vh` }}>
         <div className="sticky top-0 h-screen w-full flex flex-col items-center justify-center overflow-hidden">
           <div className="text-center mb-14 px-8">
