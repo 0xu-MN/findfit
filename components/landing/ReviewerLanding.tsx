@@ -7,6 +7,9 @@ import Footer from './Footer'
 import CreatorPeek from './CreatorPeek'
 import ScrollIndicator from './ScrollIndicator'
 import RoleSection from './RoleSection'
+import AcrylicPortfolioVisual from './AcrylicPortfolioVisual'
+import TrendDashboardVisual from './TrendDashboardVisual'
+import CompensationVisual from './CompensationVisual'
 
 function ReviewerHeader({ onSwitchToCreator }: { onSwitchToCreator: () => void }) {
   return (
@@ -363,87 +366,11 @@ function FirstLookScene({ gradientId }: { gradientId: string }) {
   )
 }
 
-// 03 · 시장 트렌드 — a real little bar chart with a rising trend line drawn
-// across the tops, ending in an arrowhead: the market's direction, visibly.
-function TrendScene({ gradientId }: { gradientId: string }) {
-  const g = `url(#${gradientId})`
-  const bars = [
-    { x: 34, h: 30 },
-    { x: 62, h: 50 },
-    { x: 90, h: 40 },
-    { x: 118, h: 74 },
-    { x: 146, h: 96 },
-  ]
-  const base = 168
-  return (
-    <>
-      {bars.map((b, i) => (
-        <motion.rect
-          key={i}
-          {...sceneMotion(i)}
-          x={b.x - 10}
-          y={base - b.h}
-          width={20}
-          height={b.h}
-          rx={4}
-          fill="rgba(10,10,14,0.55)"
-          stroke={g}
-          strokeWidth={2}
-        />
-      ))}
-      <motion.path
-        {...sceneMotion(bars.length)}
-        d={`M ${bars[0].x} ${base - bars[0].h - 10} ${bars.slice(1).map((b) => `L ${b.x} ${base - b.h - 10}`).join(' ')} L 168 46`}
-        fill="none"
-        stroke={g}
-        strokeWidth={3}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <motion.path
-        {...sceneMotion(bars.length + 1)}
-        d="M 158 38 L 170 44 L 158 52"
-        fill="none"
-        stroke={g}
-        strokeWidth={3}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </>
-  )
-}
-
-// 04 · 사례금 — an open envelope with coins popping out of it: a reward
-// literally arriving in the mail.
-function CompensationScene({ gradientId }: { gradientId: string }) {
-  const g = `url(#${gradientId})`
-  const coins = [
-    { x: 76, y: 56, r: 15, delay: 1 },
-    { x: 108, y: 42, r: 18, delay: 2 },
-    { x: 128, y: 70, r: 13, delay: 3 },
-  ]
-  return (
-    <>
-      <motion.g {...sceneMotion(0)}>
-        <rect x={40} y={110} width={120} height={72} rx={10} fill="rgba(10,10,14,0.65)" stroke={g} strokeWidth={2.2} />
-        <path d="M 40 118 L 100 156 L 160 118" fill="none" stroke={g} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
-      </motion.g>
-      {coins.map((c, i) => (
-        <motion.g key={i} {...sceneMotion(c.delay)}>
-          <circle cx={c.x} cy={c.y} r={c.r} fill="rgba(10,10,14,0.7)" stroke={g} strokeWidth={2.2} />
-          <circle cx={c.x} cy={c.y} r={c.r - 5} fill="none" stroke={g} strokeWidth={1.2} opacity={0.7} />
-        </motion.g>
-      ))}
-    </>
-  )
-}
-
 function BenefitScene({ index, gradientId }: { index: number; gradientId: string }) {
   switch (index) {
     case 0: return <PortfolioScene gradientId={gradientId} />
     case 1: return <FirstLookScene gradientId={gradientId} />
-    case 2: return <TrendScene gradientId={gradientId} />
-    default: return <CompensationScene gradientId={gradientId} />
+    default: return null
   }
 }
 
@@ -476,6 +403,64 @@ function LiquidGlassVisual({ index, active }: { index: number; active: boolean }
   const reduced = usePrefersReducedMotion()
   const gradientId = useId()
   const layout = BLOB_LAYOUTS[index]
+
+  // 01 · 포트폴리오 gets the ported acrylic 3D scene instead — it's a
+  // complete, self-contained visual (own glass material, own ambient glow),
+  // so it skips the shared rainbow-blob background/scrim/icon entirely
+  // rather than layering on top of it.
+  if (index === 0) {
+    return (
+      <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
+        <motion.div
+          className="relative z-10"
+          style={{ width: 'clamp(420px, 46vw, 620px)', height: 'min(50vh, 500px)' }}
+          initial={{ scale: 0.6, opacity: 0, y: 16 }}
+          animate={active ? { scale: 1, opacity: 1, y: 0 } : { scale: 0.6, opacity: 0, y: 16 }}
+          transition={{ type: 'spring', stiffness: 210, damping: 20 }}
+        >
+          <AcrylicPortfolioVisual />
+        </motion.div>
+      </div>
+    )
+  }
+
+  // 03 · 시장 트렌드 gets the ported glass-dashboard hero scene instead —
+  // same reasoning as index 0: it's a complete, self-contained visual, so
+  // it skips the shared rainbow-blob background/scrim/icon entirely.
+  if (index === 2) {
+    return (
+      <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
+        <motion.div
+          className="relative z-10"
+          style={{ width: 'clamp(620px, 62vw, 820px)', height: 'min(50vh, 500px)' }}
+          initial={{ scale: 0.6, opacity: 0, y: 16 }}
+          animate={active ? { scale: 1, opacity: 1, y: 0 } : { scale: 0.6, opacity: 0, y: 16 }}
+          transition={{ type: 'spring', stiffness: 210, damping: 20 }}
+        >
+          <TrendDashboardVisual />
+        </motion.div>
+      </div>
+    )
+  }
+
+  // 04 · 사례금 gets the ported glass-wallet scene instead — same reasoning
+  // as index 0 and 2: it's a complete, self-contained visual, so it skips
+  // the shared rainbow-blob background/scrim/icon entirely.
+  if (index === 3) {
+    return (
+      <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
+        <motion.div
+          className="relative z-10"
+          style={{ width: 'clamp(420px, 46vw, 620px)', height: 'min(50vh, 500px)' }}
+          initial={{ scale: 0.6, opacity: 0, y: 16 }}
+          animate={active ? { scale: 1, opacity: 1, y: 0 } : { scale: 0.6, opacity: 0, y: 16 }}
+          transition={{ type: 'spring', stiffness: 210, damping: 20 }}
+        >
+          <CompensationVisual />
+        </motion.div>
+      </div>
+    )
+  }
 
   return (
     <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
@@ -665,7 +650,7 @@ function BenefitsSection() {
                 + queued list (right). The panel's edge facing the graphic
                 stays flat; only its outer/far edge bulges into a ")" curve —
                 so the shape never intrudes into the graphic's own space. */}
-            <div className="flex gap-2 lg:gap-6 items-stretch" style={{ height: 'min(40vh, 380px)' }}>
+            <div className="flex gap-2 lg:gap-6 items-stretch" style={{ height: 'min(50vh, 500px)' }}>
               <div className="relative flex-1 min-w-0 overflow-hidden">
                 {benefitCards.map((item, i) => (
                   <BenefitGraphicStage key={item.n} index={i} scrollYProgress={scrollYProgress} />
@@ -818,24 +803,41 @@ function ReviewerHowSection() {
                       className="absolute"
                       style={{ left: `${stationPct(i)}%`, top: 0, width: 1, height: 1 }}
                     >
-                      {/* Everything below is centered on this exact point (the dot) */}
+                      {/* Everything below is centered on this exact point (the dot).
+                          The centering transform lives on a plain (non-motion)
+                          wrapper, never on the layoutId element itself — framer
+                          motion's shared-layout FLIP animation drives the
+                          `transform` property on a `layoutId` element directly,
+                          so a manually-set `translate(-50%,-50%)` on that same
+                          element gets discarded once the layout animation
+                          takes over, leaving the marker off-center. Keeping the
+                          centering on an untouched parent and letting the
+                          motion element simply fill it (inset-0) sidesteps
+                          that conflict entirely. */}
                       {isActive && (
-                        <motion.span
-                          layoutId="how-current-label"
-                          className="absolute text-[#42A5F5] text-[11px] font-bold whitespace-nowrap px-1"
-                          style={{ left: 0, top: -46, transform: 'translateX(-50%)', background: '#0A0A0C' }}
-                          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                        >
-                          현재 단계
-                        </motion.span>
+                        <div className="absolute" style={{ left: 0, top: -46, transform: 'translateX(-50%)' }}>
+                          <motion.span
+                            layoutId="how-current-label"
+                            className="text-[#42A5F5] text-[11px] font-bold whitespace-nowrap px-1"
+                            style={{ background: '#0A0A0C' }}
+                            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                          >
+                            현재 단계
+                          </motion.span>
+                        </div>
                       )}
                       {isActive && (
-                        <motion.span
-                          layoutId="how-current-oval"
-                          className="absolute rounded-full"
-                          style={{ left: 0, top: 0, width: 40, height: 60, border: '1.5px solid #42A5F5', transform: 'translate(-50%, -50%)' }}
-                          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                        />
+                        <div
+                          className="absolute"
+                          style={{ left: 0, top: 0, width: 40, height: 60, transform: 'translate(-50%, -50%)' }}
+                        >
+                          <motion.span
+                            layoutId="how-current-oval"
+                            className="absolute inset-0 rounded-full"
+                            style={{ border: '1.5px solid #42A5F5' }}
+                            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                          />
+                        </div>
                       )}
                       <span
                         className="absolute rounded-full"
@@ -864,21 +866,25 @@ function ReviewerHowSection() {
 // now as a continuously auto-playing coverflow so it already reads as "a
 // live feed" rather than a static list, ahead of the real data existing.
 const liveProjects = [
-  { category: '헬스케어', color: '#22C55E', title: '당뇨 관리 앱 UI/UX 개선안 — 사용자 입장에서 어떤가요?', time: '약 20분', reward: '5,000원', deadline: '3일 후' },
-  { category: '푸드테크', color: '#F59E0B', title: '친환경 배달 포장재 아이디어 — 실제로 쓰겠어요?', time: '약 15분', reward: null, deadline: '7일 후' },
-  { category: 'B2B SaaS', color: '#A855F7', title: '스타트업 HR 툴 기능 우선순위 — 어떤 게 더 필요한가요?', time: '약 25분', reward: '8,000원', deadline: '5일 후' },
-  { category: '커머스', color: '#F97316', title: '무자본 D2C 브랜드 네이밍 검증 — 이 이름, 기억에 남나요?', time: '약 10분', reward: null, deadline: '2일 후' },
-  { category: '에듀테크', color: '#EF4444', title: '직장인 대상 마이크로러닝 앱 — 10분 학습, 실제로 효과 있을까요?', time: '약 20분', reward: '4,000원', deadline: '10일 후' },
+  { category: '헬스케어', color: '#42A5F5', title: '당뇨 관리 앱 UI/UX 개선안 — 사용자 입장에서 어떤가요?', time: '약 20분', reward: '5,000원', deadline: '3일 후' },
+  { category: '푸드테크', color: '#3B82F6', title: '친환경 배달 포장재 아이디어 — 실제로 쓰겠어요?', time: '약 15분', reward: null, deadline: '7일 후' },
+  { category: 'B2B SaaS', color: '#1E6FD6', title: '스타트업 HR 툴 기능 우선순위 — 어떤 게 더 필요한가요?', time: '약 25분', reward: '8,000원', deadline: '5일 후' },
+  { category: '커머스', color: '#5B8DEF', title: '무자본 D2C 브랜드 네이밍 검증 — 이 이름, 기억에 남나요?', time: '약 10분', reward: null, deadline: '2일 후' },
+  { category: '에듀테크', color: '#8FCBFF', title: '직장인 대상 마이크로러닝 앱 — 10분 학습, 실제로 효과 있을까요?', time: '약 20분', reward: '4,000원', deadline: '10일 후' },
 ]
 
-// Tall pill-shaped card, full-bleed gradient standing in for a project photo
-// (no real project images exist yet), with a bottom overlay carrying the
-// icon + copy — same visual language as the reference "peek carousel" card.
+// Every card rests as a thin, tall pill; only the one nearest the viewport's
+// centre widens out into the full card — an accordion, not a uniform
+// scale-down. Slot spacing is based on the resting (pill) width, so pills
+// sit close together and the widening centre card overlaps them (highest
+// zIndex already handles the stacking) rather than pushing them apart.
 const CARD_W = 220
 const CARD_H = 320
-const CARD_GAP = 28
-const PITCH = CARD_W + CARD_GAP
-const FLOW_SPEED = 34 // px/sec, continuous — never stops or pauses
+const PILL_W = 34
+const CARD_GAP = 14
+const PITCH = PILL_W + CARD_GAP
+const FLOW_SPEED = 22 // px/sec, continuous — never stops or pauses
+const EXPAND_RANGE = 1.15 // distance (in slot units) over which a pill expands to full width
 
 // Position of card `index` relative to the centre slot, wrapped into
 // (-total/2, total/2] so it's always the shortest signed distance — this is
@@ -894,46 +900,53 @@ function ProjectPill({
   p, index, x, total,
 }: { p: (typeof liveProjects)[number]; index: number; x: MotionValue<number>; total: number }) {
   const offset = useTransform(x, (latest) => wrappedOffset(index, latest, total))
-  // Centre of the viewport = distance 0 = full size/opacity; the further a
-  // card drifts, the smaller and dimmer it gets — a live, continuous coverflow.
-  const scale = useTransform(offset, (d) => Math.max(0.72, 1.08 - Math.abs(d) / (total / 2) * 0.5))
-  const opacity = useTransform(offset, (d) => Math.max(0.22, 1 - Math.abs(d) / (total / 2) * 0.85))
+  const slot = useTransform(offset, (d) => 1 - clamp01(Math.abs(d) / (PITCH * EXPAND_RANGE)))
+
+  const width = useTransform(slot, (t) => PILL_W + t * (CARD_W - PILL_W))
+  const radius = useTransform(slot, (t) => PILL_W / 2 + t * (36 - PILL_W / 2))
+  const contentOpacity = useTransform(slot, (t) => clamp01((t - 0.55) / 0.45))
   const zIndex = useTransform(offset, (d) => Math.round(100 - Math.abs(d)))
+  // Width is now animated (pill ↔ full card), so the old static
+  // `marginLeft: -CARD_W/2` centering trick no longer applies — recompute
+  // the horizontal center-offset from the live width on every frame instead.
+  const xCentered = useTransform([offset, width], ([o, w]: number[]) => o - w / 2)
 
   return (
     <motion.div
-      className="absolute top-1/2 left-1/2 shrink-0 overflow-hidden rounded-[36px]"
+      className="absolute top-1/2 left-1/2 shrink-0 overflow-hidden"
       style={{
-        width: CARD_W,
+        width,
         height: CARD_H,
-        marginLeft: -CARD_W / 2,
+        borderRadius: radius,
         marginTop: -CARD_H / 2,
-        x: offset,
-        scale,
-        opacity,
+        x: xCentered,
         zIndex,
       }}
     >
       <div className="absolute inset-0" style={{ background: `linear-gradient(155deg, ${p.color}, #0A0A0C 130%)` }} />
-      <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 55%)' }} />
-      <div className="absolute inset-x-0 bottom-0 p-5 flex items-start gap-3">
+      <motion.div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 55%)', opacity: contentOpacity }} />
+      <motion.div className="absolute inset-x-0 bottom-0 p-5 flex items-start gap-3" style={{ opacity: contentOpacity }}>
         <span
           className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0"
           style={{ background: 'rgba(255,255,255,0.16)', color: '#fff' }}
         >
           {p.category.slice(0, 2)}
         </span>
-        <div className="min-w-0">
-          <div className="text-white text-[13px] font-bold mb-1">{p.category}</div>
+        <div className="min-w-0 flex-1">
+          <div className="text-white text-[13px] font-bold mb-1 whitespace-nowrap">{p.category}</div>
           <div className="text-white/70 text-[11px] leading-snug break-keep line-clamp-2">{p.title}</div>
-          <div className="flex items-center gap-3 mt-2 text-[10.5px] text-white/50">
+          <div className="flex items-center gap-3 mt-2 text-[10.5px] text-white/50 whitespace-nowrap">
             <span>{p.time}</span>
-            <span style={{ color: p.reward ? '#fff' : undefined }}>{p.reward ?? '무보상'}</span>
+            <span style={{ color: p.reward ? '#4ADE80' : undefined }}>{p.reward ?? '무보상'}</span>
           </div>
         </div>
-      </div>
+      </motion.div>
     </motion.div>
   )
+}
+
+function clamp01(v: number) {
+  return Math.max(0, Math.min(1, v))
 }
 
 function LiveProjectsSection() {
