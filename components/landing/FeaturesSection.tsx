@@ -278,7 +278,7 @@ export default function FeaturesSection() {
   }
 
   return (
-    <section className="relative w-full min-h-[100vh] bg-[#F8F8F8] flex flex-col justify-center py-16 md:py-20 overflow-hidden"
+    <section className="relative w-full h-full bg-[#F8F8F8] flex flex-col justify-center py-8 md:py-10 overflow-hidden"
       style={{ scrollSnapAlign: 'start' }}>
 
       {/* 상하 페이드 */}
@@ -288,12 +288,14 @@ export default function FeaturesSection() {
 
       <div className="relative max-w-[1440px] mx-auto px-6 md:px-16 w-full">
 
-        {/* 헤더 */}
-        <div className="text-center mb-12">
-          <p className="text-xs font-semibold tracking-widest uppercase mb-3" style={{ color: BRAND }}>
+        {/* 헤더 — 이 섹션은 page.tsx에서 height:100vh로 고정하는 snap-section에
+            감싸여 있어서(overflow:clip), 전체 콘텐츠가 한 화면 안에 다 들어와야
+            페이지네이션(점+진행바+재생 버튼)이 잘려서 사라지지 않는다. */}
+        <div className="text-center mb-6">
+          <p className="text-xs font-semibold tracking-widest uppercase mb-2" style={{ color: BRAND }}>
             Core Features
           </p>
-          <h2 className="text-4xl font-bold tracking-tight text-[#1D1C1C] mb-3">검증에 필요한 모든 것</h2>
+          <h2 className="text-3xl font-bold tracking-tight text-[#1D1C1C] mb-2">검증에 필요한 모든 것</h2>
           <p className="text-[#999] text-sm max-w-[440px] mx-auto leading-relaxed">
             의뢰 등록부터 AI 리포트 수령까지<br /> 복잡한 과정 없이 72시간 안에 완료돼요.
           </p>
@@ -302,7 +304,7 @@ export default function FeaturesSection() {
         {/* 캐러셀 — 애플 macbook 페이지처럼: 모든 카드가 완전히 같은 크기이고,
             옆 카드는 축소/디밍되는 게 아니라 그냥 화면 가장자리 바깥으로 밀려나
             일부만 살짝 보이는 방식. 그래서 컨테이너를 섹션 폭 전체로 넓힘. */}
-        <div className="relative flex items-center justify-center w-screen left-1/2 -translate-x-1/2" style={{ height: 'min(68vh, 620px)' }}>
+        <div className="relative flex items-center justify-center w-screen left-1/2 -translate-x-1/2" style={{ height: 'min(56vh, 480px)' }}>
           {cards.map((card, i) => {
             const d = circularDelta(i, active, N)
             const isActive = d === 0
@@ -325,8 +327,8 @@ export default function FeaturesSection() {
                 transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
               >
                 {/* 상단: 타이틀 (작게) — 하단: 큰 모션그래픽 프레임 (실제 제품 화면처럼 브라우저 크롬 포함) */}
-                <div className="flex flex-col h-full p-7 md:p-10">
-                  <div className="mb-6 shrink-0">
+                <div className="flex flex-col h-full p-6 md:p-8">
+                  <div className="mb-4 shrink-0">
                     <h3 className="text-white font-bold mb-2 break-keep" style={{ fontSize: 'clamp(20px, 2.1vw, 28px)' }}>
                       {card.label}
                     </h3>
@@ -366,7 +368,7 @@ export default function FeaturesSection() {
         </div>
 
         {/* 페이지네이션 — 점 + 진행바 + 재생/일시정지 */}
-        <div className="flex items-center justify-center gap-3 mt-10">
+        <div className="flex items-center justify-center gap-3 mt-6">
           {cards.map((card, i) => (
             <button
               key={card.label}
