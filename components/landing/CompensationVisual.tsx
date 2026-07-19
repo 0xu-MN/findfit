@@ -87,9 +87,16 @@ export default function CompensationVisual() {
         style={{ width: '80%', height: '80%', background: 'radial-gradient(circle, rgba(229,169,61,0.28) 0%, transparent 72%)', filter: 'blur(45px)' }}
       />
 
-      {/* Sized to fill as much of the parent stage as possible (was capped
-          at 340px regardless of how much bigger the stage actually was) */}
-      <div className="comp-float relative" style={{ width: 'min(98%, 560px)', height: 'min(98%, 560px)' }}>
+      {/* Every child below (the coin stack especially) is positioned with a
+          mix of %-based and fixed-px values tuned for a 340px box — growing
+          this box itself made the %-based icon scale up while the fixed-px
+          coin stack stayed the same absolute size, so it visually drifted
+          away from the icon. Keep the box at its original authored size and
+          scale the whole thing up uniformly instead — same relative layout,
+          just bigger — on an outer wrapper so it doesn't fight the float
+          animation's own transform on the inner element. */}
+      <div style={{ width: 'min(80%, 340px)', aspectRatio: '1 / 1', transform: 'scale(1.55)', transformOrigin: 'center center' }}>
+        <div className="comp-float relative w-full h-full">
         {/* Clipboard + checkmark line art */}
         <svg
           className="comp-neon absolute"
@@ -199,6 +206,7 @@ export default function CompensationVisual() {
               ))}
             </AnimatePresence>
           </button>
+        </div>
         </div>
       </div>
     </div>

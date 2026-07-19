@@ -268,20 +268,27 @@ export default function TrendDashboardVisual() {
                     </feMerge>
                   </filter>
                 </defs>
-                <motion.g
-                  transform="translate(130 130)"
-                  initial={{ opacity: 0, rotate: 0 }}
-                  animate={{ opacity: 1, rotate: 360 }}
-                  transition={{
-                    opacity: { duration: 0.6, delay: 1.2 },
-                    rotate: { duration: 22, repeat: Infinity, ease: 'linear', delay: 1.2 },
-                  }}
-                  style={{ transformOrigin: '0px 0px' }}
-                >
-                  <circle r="75" fill="none" stroke="#7B3FF2" strokeWidth="32" strokeDasharray="250 470" strokeLinecap="round" filter={`url(#${id('donutGlow')})`} opacity="0.85" />
-                  <circle r="75" fill="none" stroke="#6FE7D6" strokeWidth="32" strokeDasharray="150 470" strokeDashoffset="-260" strokeLinecap="round" filter={`url(#${id('donutGlow')})`} opacity="0.9" />
-                  <circle r="34" fill="#06181b" />
-                </motion.g>
+                {/* Static positioning group — framer animates `transform` on
+                    whichever element it's attached to, which would silently
+                    clobber this translate() if it lived on the same node as
+                    the rotate animation below (that's what sent the donut
+                    off to the wrong spot). Position here, rotate on the
+                    child instead. */}
+                <g transform="translate(130 130)">
+                  <motion.g
+                    initial={{ opacity: 0, rotate: 0 }}
+                    animate={{ opacity: 1, rotate: 360 }}
+                    transition={{
+                      opacity: { duration: 0.6, delay: 1.2 },
+                      rotate: { duration: 22, repeat: Infinity, ease: 'linear', delay: 1.2 },
+                    }}
+                    style={{ transformOrigin: '0px 0px' }}
+                  >
+                    <circle r="75" fill="none" stroke="#7B3FF2" strokeWidth="32" strokeDasharray="250 470" strokeLinecap="round" filter={`url(#${id('donutGlow')})`} opacity="0.85" />
+                    <circle r="75" fill="none" stroke="#6FE7D6" strokeWidth="32" strokeDasharray="150 470" strokeDashoffset="-260" strokeLinecap="round" filter={`url(#${id('donutGlow')})`} opacity="0.9" />
+                    <circle r="34" fill="#06181b" />
+                  </motion.g>
+                </g>
               </svg>
             </div>
 
