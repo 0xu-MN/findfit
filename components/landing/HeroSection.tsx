@@ -11,7 +11,26 @@ const trustItems = [
 export default function HeroSection() {
   return (
     <section className="relative w-full overflow-hidden bg-[#F8F8F8]" style={{ height: '100vh', minHeight: '700px' }}>
-      <div className="max-w-[1440px] mx-auto h-full flex items-center px-16">
+      {/* Shared capsule graphic — identical position/size to the reviewer
+          hero's copy (see ReviewerLanding.tsx `#reviewer-hero`), clipped to
+          its left half (the "?") here so switching between Creator/Reviewer
+          reads as one graphic revealing its other half in the same spot. */}
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          top: '50%',
+          left: '50%',
+          width: 'clamp(420px, 40vw, 640px)',
+          aspectRatio: '1376 / 768',
+          transform: 'translate(-50%, -50%)',
+          clipPath: 'inset(0 50% 0 0)',
+        }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/hero/qa-capsule.png" alt="" className="w-full h-full object-contain" />
+      </div>
+
+      <div className="max-w-[1440px] mx-auto h-full flex items-center px-16 relative z-10">
 
         {/* Left — text */}
         <div className="flex flex-col justify-center w-full max-w-[680px] z-10">

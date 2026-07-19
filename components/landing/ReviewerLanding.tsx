@@ -1018,8 +1018,27 @@ export default function ReviewerLanding({ onSwitchToCreator }: Props) {
           background: 'radial-gradient(ellipse 70% 60% at 60% 40%, rgba(66,165,245,0.1) 0%, transparent 70%)',
         }} />
 
+        {/* Shared capsule graphic — identical position/size to the creator
+            hero's copy (see HeroSection.tsx), clipped to its right half
+            (the "!") here so switching between Creator/Reviewer reads as
+            one graphic revealing its other half in the same spot. */}
+        <div
+          className="absolute pointer-events-none"
+          style={{
+            top: '50%',
+            left: '50%',
+            width: 'clamp(420px, 40vw, 640px)',
+            aspectRatio: '1376 / 768',
+            transform: 'translate(-50%, -50%)',
+            clipPath: 'inset(0 0 0 50%)',
+          }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/hero/qa-capsule.png" alt="" className="w-full h-full object-contain" />
+        </div>
+
         <div className="max-w-[1440px] mx-auto px-16 h-full flex items-center relative z-10">
-          <div className="max-w-[680px]">
+          <div className="max-w-[680px] ml-auto">
             <div className="inline-flex items-center gap-2 mb-8 px-4 py-1.5 rounded-full"
               style={{ background: 'rgba(66,165,245,0.12)', border: '1px solid rgba(66,165,245,0.25)' }}>
               <div className="w-1.5 h-1.5 rounded-full bg-[#42A5F5] animate-pulse" />
