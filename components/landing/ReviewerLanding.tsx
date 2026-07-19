@@ -10,6 +10,7 @@ import RoleSection from './RoleSection'
 import AcrylicPortfolioVisual from './AcrylicPortfolioVisual'
 import TrendDashboardVisual from './TrendDashboardVisual'
 import CompensationVisual from './CompensationVisual'
+import IdeaFirstLookVisual from './IdeaFirstLookVisual'
 
 function ReviewerHeader({ onSwitchToCreator }: { onSwitchToCreator: () => void }) {
   return (
@@ -419,6 +420,25 @@ function LiquidGlassVisual({ index, active }: { index: number; active: boolean }
           transition={{ type: 'spring', stiffness: 210, damping: 20 }}
         >
           <AcrylicPortfolioVisual />
+        </motion.div>
+      </div>
+    )
+  }
+
+  // 02 · 선경험 gets the ported neon-bulb 3D scene instead — same reasoning
+  // as index 0: it's a complete, self-contained visual, so it skips the
+  // shared rainbow-blob background/scrim/icon entirely.
+  if (index === 1) {
+    return (
+      <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
+        <motion.div
+          className="relative z-10"
+          style={{ width: 'clamp(420px, 46vw, 620px)', height: 'min(50vh, 500px)' }}
+          initial={{ scale: 0.6, opacity: 0, y: 16 }}
+          animate={active ? { scale: 1, opacity: 1, y: 0 } : { scale: 0.6, opacity: 0, y: 16 }}
+          transition={{ type: 'spring', stiffness: 210, damping: 20 }}
+        >
+          <IdeaFirstLookVisual />
         </motion.div>
       </div>
     )
