@@ -129,17 +129,18 @@ export default function AcrylicPortfolioVisual() {
           >
             <div className="flex gap-1" style={{ transform: 'translateZ(10px)' }}>
               {Array.from({ length: 5 }).map((_, idx) => (
-                <span
+                <motion.span
                   key={idx}
                   className={`text-lg font-bold leading-none ${idx < STAR_COUNT ? 'text-transparent bg-clip-text' : 'text-purple-950/60'}`}
                   style={{
                     backgroundImage: idx < STAR_COUNT ? PALETTE.gradient : 'none',
                     textShadow: idx < STAR_COUNT ? `0 2px 8px ${PALETTE.glow}` : 'none',
-                    transform: 'translateZ(5px)',
                   }}
+                  animate={idx < STAR_COUNT ? { y: [0, -6, 0], z: 5 } : { z: 5 }}
+                  transition={idx < STAR_COUNT ? { duration: 1.4, repeat: Infinity, ease: 'easeInOut', delay: idx * 0.15 } : undefined}
                 >
                   ★
-                </span>
+                </motion.span>
               ))}
             </div>
             <div className="absolute bottom-[-6px] right-[24px] w-3 h-3 bg-white/10 rotate-45 border-r border-b border-white/20" />

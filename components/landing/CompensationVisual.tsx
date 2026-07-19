@@ -84,10 +84,12 @@ export default function CompensationVisual() {
       {/* Ambient glow only — no boxed badge background behind the icon */}
       <div
         className="absolute rounded-full pointer-events-none"
-        style={{ width: '65%', height: '65%', background: 'radial-gradient(circle, rgba(229,169,61,0.28) 0%, transparent 72%)', filter: 'blur(45px)' }}
+        style={{ width: '80%', height: '80%', background: 'radial-gradient(circle, rgba(229,169,61,0.28) 0%, transparent 72%)', filter: 'blur(45px)' }}
       />
 
-      <div className="comp-float relative" style={{ width: 'min(80%, 340px)', aspectRatio: '1 / 1' }}>
+      {/* Sized to fill as much of the parent stage as possible (was capped
+          at 340px regardless of how much bigger the stage actually was) */}
+      <div className="comp-float relative" style={{ width: 'min(98%, 560px)', height: 'min(98%, 560px)' }}>
         {/* Clipboard + checkmark line art */}
         <svg
           className="comp-neon absolute"

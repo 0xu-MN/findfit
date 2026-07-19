@@ -270,9 +270,13 @@ export default function TrendDashboardVisual() {
                 </defs>
                 <motion.g
                   transform="translate(130 130)"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.6, delay: 1.2 }}
+                  initial={{ opacity: 0, rotate: 0 }}
+                  animate={{ opacity: 1, rotate: 360 }}
+                  transition={{
+                    opacity: { duration: 0.6, delay: 1.2 },
+                    rotate: { duration: 22, repeat: Infinity, ease: 'linear', delay: 1.2 },
+                  }}
+                  style={{ transformOrigin: '0px 0px' }}
                 >
                   <circle r="75" fill="none" stroke="#7B3FF2" strokeWidth="32" strokeDasharray="250 470" strokeLinecap="round" filter={`url(#${id('donutGlow')})`} opacity="0.85" />
                   <circle r="75" fill="none" stroke="#6FE7D6" strokeWidth="32" strokeDasharray="150 470" strokeDashoffset="-260" strokeLinecap="round" filter={`url(#${id('donutGlow')})`} opacity="0.9" />
@@ -281,7 +285,9 @@ export default function TrendDashboardVisual() {
               </svg>
             </div>
 
-            {/* Bar chart, bottom-right */}
+            {/* Bar chart, bottom-right — grows in, then keeps a slow
+                continuous "breathing" scale loop so the graph reads as live
+                data, not a static drawing */}
             <div className="absolute bottom-[14%] right-[10%] w-[200px] h-[100px] pointer-events-none z-[15]">
               <svg width="200" height="100" viewBox="0 0 200 100" className="w-full h-full">
                 <defs>
@@ -290,17 +296,24 @@ export default function TrendDashboardVisual() {
                     <stop offset="100%" stopColor="#0a2a2f" />
                   </linearGradient>
                 </defs>
-                {BARS.map((bar, i) => (
-                  <motion.rect
-                    key={i}
-                    x={bar.x} width={22} rx={5}
-                    fill={`url(#${id('barGrad')})`}
-                    opacity={0.8}
-                    initial={{ y: 100, height: 0 }}
-                    animate={{ y: 100 - bar.h, height: bar.h }}
-                    transition={{ duration: 1.4, ease: 'backOut', delay: 2.15 + i * 0.1 }}
-                  />
-                ))}
+                <motion.g
+                  initial={{ scale: 1 }}
+                  animate={{ scale: [1, 1.06, 1] }}
+                  transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut', delay: 3.6 }}
+                  style={{ transformOrigin: '100px 100px' }}
+                >
+                  {BARS.map((bar, i) => (
+                    <motion.rect
+                      key={i}
+                      x={bar.x} width={22} rx={5}
+                      fill={`url(#${id('barGrad')})`}
+                      opacity={0.8}
+                      initial={{ y: 100, height: 0 }}
+                      animate={{ y: 100 - bar.h, height: bar.h }}
+                      transition={{ duration: 1.4, ease: 'backOut', delay: 2.15 + i * 0.1 }}
+                    />
+                  ))}
+                </motion.g>
               </svg>
             </div>
 
