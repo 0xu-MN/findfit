@@ -31,10 +31,16 @@ export default function LandingPage() {
       window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })
     }
 
-    // View Transitions API — 별도 슬라이드/스케일 연출 없이, 브라우저가
-    // 이전 화면 스냅샷을 아주 짧게 크로스페이드하며 다음 화면으로 넘긴다.
-    // (지속시간은 globals.css의 ::view-transition-old/new(root)에서 제어)
-    // 미지원 브라우저(Safari 등)는 그냥 즉시 전환됨.
+    // View Transitions API — "슬라이딩 도어"처럼, 새 화면이 옆에서 밀고
+    // 들어와 이전 화면을 덮는다(크로스페이드 아님 — 이전 화면은 그 자리에
+    // 고정된 채 새 화면에 가려질 뿐). 방향은 data-nav-dir로 globals.css에
+    // 전달 — 리뷰어로 갈 땐 오른쪽에서, 크리에이터로 돌아올 땐 왼쪽에서
+    // 밀고 들어온다. 미지원 브라우저(Safari 등)는 그냥 즉시 전환됨.
+    document.documentElement.setAttribute(
+      'data-nav-dir',
+      next === 'reviewer' ? 'to-reviewer' : 'to-creator'
+    )
+
     type DocumentWithViewTransition = Document & {
       startViewTransition?: (callback: () => void) => void
     }

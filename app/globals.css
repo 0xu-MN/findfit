@@ -140,15 +140,33 @@ html {
   to   { transform: translateX(-50%); }
 }
 
-/* View Transitions API (크리에이터⇄리뷰어 전환) — 슬라이드/스케일 같은
-   별도 연출 없이, 아주 짧은 크로스페이드로 화면이 휙 지나가듯 전환되게
-   함. 이전엔 CSS 슬라이드 애니메이션과 View Transition 크로스페이드가
-   동시에 겹쳐 실행되면서(대형 배경 이미지까지 겹쳐 리렌더) 버벅였음 —
-   이제 View Transition 하나만, 짧게. */
-::view-transition-old(root),
+/* View Transitions API (크리에이터⇄리뷰어 전환) — "슬라이딩 도어" 효과.
+   기본 크로스페이드(양쪽 다 겹쳐서 서서히 사라지고/나타나는 것)를 쓰지
+   않고, 이전 화면은 제자리에 고정해두고 새 화면만 옆에서 밀고 들어와
+   덮게 만든다. app/page.tsx가 전환 직전 <html data-nav-dir="to-reviewer|
+   to-creator">를 세팅해서 방향을 알려준다. */
+::view-transition-old(root) {
+  animation: none;
+}
 ::view-transition-new(root) {
-  animation-duration: 0.15s;
-  animation-timing-function: linear;
+  animation: none;
+  animation-duration: 0.55s;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  animation-fill-mode: both;
+}
+:root[data-nav-dir='to-reviewer']::view-transition-new(root) {
+  animation-name: slide-door-from-right;
+}
+:root[data-nav-dir='to-creator']::view-transition-new(root) {
+  animation-name: slide-door-from-left;
+}
+@keyframes slide-door-from-right {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+@keyframes slide-door-from-left {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
 }
 
 /* 섹션 스냅 스크롤 */
