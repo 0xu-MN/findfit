@@ -25,7 +25,7 @@ export default function HeroSection() {
             src="/hero/hero-scene-full.png"
             alt=""
             className="w-full h-full object-cover"
-            style={{ objectPosition: 'center 60%' }}
+            style={{ objectPosition: 'center 72%' }}
           />
         </div>
         {/* Legibility scrim — opaque near the text (left), fading out toward

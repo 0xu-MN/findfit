@@ -17,7 +17,6 @@ type View = 'creator' | 'reviewer'
 
 export default function LandingPage() {
   const [view, setView] = useState<View>('creator')
-  const [slideDir, setSlideDir] = useState<'right' | 'left'>('right')
 
   useEffect(() => {
     document.documentElement.classList.add('snap-active')
@@ -28,15 +27,14 @@ export default function LandingPage() {
     if (next === view) return
 
     const applyState = () => {
-      setSlideDir(next === 'reviewer' ? 'right' : 'left')
       setView(next)
       window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })
     }
 
-    // View Transitions API — 이전 화면과 새 화면을 실제로 크로스디졸브한다.
-    // 크리에이터/리뷰어 히어로가 같은 배경 이미지의 반쪽씩을 같은 위치에
-    // 그리고 있어서, 이 크로스페이드 덕분에 "하나의 배경이 이어지는" 것처럼
-    // 보인다. 미지원 브라우저(Safari 등)는 기존 slide-in 애니메이션으로 대체.
+    // View Transitions API — 별도 슬라이드/스케일 연출 없이, 브라우저가
+    // 이전 화면 스냅샷을 아주 짧게 크로스페이드하며 다음 화면으로 넘긴다.
+    // (지속시간은 globals.css의 ::view-transition-old/new(root)에서 제어)
+    // 미지원 브라우저(Safari 등)는 그냥 즉시 전환됨.
     type DocumentWithViewTransition = Document & {
       startViewTransition?: (callback: () => void) => void
     }
@@ -48,14 +46,9 @@ export default function LandingPage() {
     }
   }
 
-  const handleAnimationEnd = (e: React.AnimationEvent<HTMLElement>) => {
-    const target = e.currentTarget
-    target.classList.remove('perspective-slide-right', 'perspective-slide-left')
-  }
-
   if (view === 'reviewer') {
     return (
-      <main key="reviewer" className="perspective-slide-right" onAnimationEnd={handleAnimationEnd}>
+      <main key="reviewer">
         <ReviewerLanding onSwitchToCreator={() => switchTo('creator')} />
       </main>
     )
@@ -67,7 +60,7 @@ export default function LandingPage() {
       <ScrollIndicator side="left" mode="creator" />
       <ReviewerPeek onEnter={() => switchTo('reviewer')} />
 
-      <main key="creator" className={slideDir === 'left' ? 'perspective-slide-left' : ''} onAnimationEnd={handleAnimationEnd}>
+      <main key="creator">
 
         <section id="hero-section" className="snap-section">
           <HeroSection />

@@ -140,29 +140,15 @@ html {
   to   { transform: translateX(-50%); }
 }
 
-@keyframes slideInRight {
-  from { opacity: 0; transform: translateX(8vw) scale(0.985); }
-  to   { opacity: 1; transform: none; }
-}
-@keyframes slideInLeft {
-  from { opacity: 0; transform: translateX(-8vw) scale(0.985); }
-  to   { opacity: 1; transform: none; }
-}
-.perspective-slide-right {
-  animation: slideInRight 0.85s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-.perspective-slide-left {
-  animation: slideInLeft 0.85s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-
-/* View Transitions API (크리에이터⇄리뷰어 전환) — 기본 크로스페이드(0.25s)가
-   너무 짧고 뚝뚝 끊기는 느낌이라 지속시간/이징을 늘려서 두 화면(같은 배경
-   이미지의 반쪽씩)이 부드럽게 겹쳐 넘어가도록 조정. 미지원 브라우저는 이
-   규칙 자체가 무시되고 위 slide-in 애니메이션만 적용된다. */
+/* View Transitions API (크리에이터⇄리뷰어 전환) — 슬라이드/스케일 같은
+   별도 연출 없이, 아주 짧은 크로스페이드로 화면이 휙 지나가듯 전환되게
+   함. 이전엔 CSS 슬라이드 애니메이션과 View Transition 크로스페이드가
+   동시에 겹쳐 실행되면서(대형 배경 이미지까지 겹쳐 리렌더) 버벅였음 —
+   이제 View Transition 하나만, 짧게. */
 ::view-transition-old(root),
 ::view-transition-new(root) {
-  animation-duration: 0.7s;
-  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  animation-duration: 0.15s;
+  animation-timing-function: linear;
 }
 
 /* 섹션 스냅 스크롤 */
