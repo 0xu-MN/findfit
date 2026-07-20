@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# supabase CLI local cache (project ref, pooler URL 등 — 로컬 링크 정보)
+supabase/.temp/

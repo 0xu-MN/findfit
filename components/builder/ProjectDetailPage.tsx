@@ -217,37 +217,49 @@ export default function ProjectDetailPage({ projectId }: Props) {
             {matches.map((r) => {
               const done = Boolean(r.submitted_at) || r.status === 'completed'
               return (
-                <div key={r.id} className="flex items-center gap-2 rounded-xl bg-[#F5F5F5] px-3 py-2">
-                  <div
-                    className={`w-2 h-2 rounded-full shrink-0 ${done ? 'bg-[#2E7D32]' : 'bg-[#CCC]'}`}
-                  />
-                  <span className="text-[10px] font-bold text-[#666]">{r.nickname ?? '익명 리뷰어'}</span>
-                  <span className="text-[9px] font-bold text-[#999] ml-auto">
-                    {done ? '평가 완료' : '진행 중'}
-                  </span>
+                <div key={r.id} className="flex flex-col gap-1.5 rounded-xl bg-[#F5F5F5] px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`w-2 h-2 rounded-full shrink-0 ${done ? 'bg-[#2E7D32]' : 'bg-[#CCC]'}`}
+                    />
+                    <span className="text-[10px] font-bold text-[#666]">{r.nickname ?? '익명 리뷰어'}</span>
+                    <span className="text-[9px] font-bold text-[#999] ml-auto">
+                      {done ? '평가 완료' : '진행 중'}
+                    </span>
 
-                  {/* 배송형 프로젝트 — 리뷰어별 배송 상태 수동 제어 */}
-                  {isShipping && (
-                    <div className="flex items-center gap-1.5 pl-2 ml-1 border-l border-[#1D1C1C]/10">
-                      <span className="text-[9px] font-black text-[#1565C0]">
-                        {SHIPPING_LABEL[r.shipping_status]}
-                      </span>
-                      {r.shipping_status === 'pending' && (
-                        <button
-                          onClick={() => updateShipping(r.id, 'shipped')}
-                          className="text-[9px] font-black px-2 py-0.5 rounded bg-[#1565C0] text-white hover:opacity-90"
-                        >
-                          발송 처리
-                        </button>
-                      )}
-                      {r.shipping_status === 'shipped' && (
-                        <button
-                          onClick={() => updateShipping(r.id, 'delivered')}
-                          className="text-[9px] font-black px-2 py-0.5 rounded border border-[#1565C0] text-[#1565C0] hover:bg-[#1565C0]/5"
-                        >
-                          배송 완료
-                        </button>
-                      )}
+                    {/* 배송형 프로젝트 — 리뷰어별 배송 상태 수동 제어 */}
+                    {isShipping && (
+                      <div className="flex items-center gap-1.5 pl-2 ml-1 border-l border-[#1D1C1C]/10">
+                        <span className="text-[9px] font-black text-[#1565C0]">
+                          {SHIPPING_LABEL[r.shipping_status]}
+                        </span>
+                        {r.shipping_status === 'pending' && (
+                          <button
+                            onClick={() => updateShipping(r.id, 'shipped')}
+                            disabled={!r.shipping_address}
+                            title={!r.shipping_address ? '리뷰어가 아직 배송지를 입력하지 않았어요' : undefined}
+                            className="text-[9px] font-black px-2 py-0.5 rounded bg-[#1565C0] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            발송 처리
+                          </button>
+                        )}
+                        {r.shipping_status === 'shipped' && (
+                          <button
+                            onClick={() => updateShipping(r.id, 'delivered')}
+                            className="text-[9px] font-black px-2 py-0.5 rounded border border-[#1565C0] text-[#1565C0] hover:bg-[#1565C0]/5"
+                          >
+                            배송 완료
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 배송지 — 리뷰어가 승인 후 입력한 주소 (발송 처리 전 확인용) */}
+                  {isShipping && r.shipping_address && (
+                    <div className="flex items-start gap-1.5 pl-3.5 text-[9px] font-bold text-[#666]">
+                      <span className="text-[#999] shrink-0">배송지</span>
+                      <span className="whitespace-pre-wrap">{r.shipping_address}</span>
                     </div>
                   )}
                 </div>

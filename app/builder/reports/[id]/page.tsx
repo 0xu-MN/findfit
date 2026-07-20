@@ -23,6 +23,15 @@ type ReportData = {
   pivot_scenarios?: string[]
 }
 
+// ai_reports 테이블의 최상위 컬럼(PSF 서브스코어 + verdict) — report_data
+// JSONB와 별도로 저장되어 있어 따로 들고 온다 (lib/ai/generateReport.ts)
+type ReportMeta = {
+  verdict: 'GO' | 'CAUTION' | 'RECONSIDER' | null
+  problem_exists_pct: number | null
+  solution_acceptance_pct: number | null
+  purchase_intent_pct: number | null
+}
+
 type ProjectMeta = {
   id: string
   title: string
@@ -38,6 +47,7 @@ export default function ReportDetailPage({ params }: { params: { id: string } })
   const router = useRouter()
   const [project, setProject] = useState<ProjectMeta | null>(null)
   const [report, setReport] = useState<ReportData | null>(null)
+  const [meta, setMeta] = useState<ReportMeta | null>(null)
   const [engine, setEngine] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -54,6 +64,7 @@ export default function ReportDetailPage({ params }: { params: { id: string } })
           const { report: existing } = await getRes.json()
           if (existing) {
             setReport((existing.report_data ?? {}) as ReportData)
+            setMeta(existing as ReportMeta)
             setEngine(existing.ai_engine_used ?? null)
             setLoading(false)
             return
@@ -65,6 +76,7 @@ export default function ReportDetailPage({ params }: { params: { id: string } })
       if (!res.ok) throw new Error(`리포트 생성 실패 (${res.status})`)
       const { report: saved } = await res.json()
       setReport((saved?.report_data ?? {}) as ReportData)
+      setMeta((saved ?? null) as ReportMeta | null)
       setEngine(saved?.ai_engine_used ?? null)
     } catch (e) {
       setError(e instanceof Error ? e.message : '리포트 생성 실패')
@@ -205,6 +217,14 @@ export default function ReportDetailPage({ params }: { params: { id: string } })
               />
             ) : (
               <>
+                {meta?.verdict && (
+                  <VerdictBanner
+                    verdict={meta.verdict}
+                    problemExistsPct={meta.problem_exists_pct}
+                    solutionAcceptancePct={meta.solution_acceptance_pct}
+                    purchaseIntentPct={meta.purchase_intent_pct}
+                  />
+                )}
                 <StandardReportView
                   data={{
                     psf_score: report.psf_score ?? 0,
@@ -268,6 +288,60 @@ export default function ReportDetailPage({ params }: { params: { id: string } })
             )}
           </>
         )}
+      </div>
+    </div>
+  )
+}
+
+const VERDICT_META: Record<'GO' | 'CAUTION' | 'RECONSIDER', { label: string; color: string; bg: string; border: string }> = {
+  GO: { label: 'GO — 계속 진행하세요', color: '#15803D', bg: '#F0FDF4', border: '#BBF7D0' },
+  CAUTION: { label: 'CAUTION — 방향을 점검해보세요', color: '#B45309', bg: '#FFFBEB', border: '#FDE68A' },
+  RECONSIDER: { label: 'RECONSIDER — 재검토가 필요해요', color: '#B91C1C', bg: '#FEF2F2', border: '#FECACA' },
+}
+
+// PSF 서브스코어 3종 + 최종 판정 — ai_reports 최상위 컬럼(report_data 밖)이라
+// 별도로 렌더링한다.
+function VerdictBanner({
+  verdict,
+  problemExistsPct,
+  solutionAcceptancePct,
+  purchaseIntentPct,
+}: {
+  verdict: 'GO' | 'CAUTION' | 'RECONSIDER'
+  problemExistsPct: number | null
+  solutionAcceptancePct: number | null
+  purchaseIntentPct: number | null
+}) {
+  const meta = VERDICT_META[verdict]
+  const subscores = [
+    { label: '문제 공감도', value: problemExistsPct },
+    { label: '솔루션 수용도', value: solutionAcceptancePct },
+    { label: '구매 의향', value: purchaseIntentPct },
+  ]
+
+  return (
+    <div
+      className="rounded-3xl border p-6 mb-4 flex flex-col gap-4"
+      style={{ background: meta.bg, borderColor: meta.border }}
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-[9px] font-black text-white px-2.5 py-1 rounded-full" style={{ background: meta.color }}>
+          FindFit 판정
+        </span>
+        <span className="text-base font-black" style={{ color: meta.color }}>
+          {meta.label}
+        </span>
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        {subscores.map((s) => (
+          <div key={s.label} className="rounded-2xl bg-white/70 px-3 py-2.5 flex flex-col gap-1">
+            <span className="text-[9px] font-bold text-[#666]">{s.label}</span>
+            <span className="text-lg font-black" style={{ color: meta.color }}>
+              {s.value ?? '—'}
+              {s.value !== null && '%'}
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   )

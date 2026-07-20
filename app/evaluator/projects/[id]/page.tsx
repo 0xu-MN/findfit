@@ -6,7 +6,9 @@ import {
   CheckCircle2,
   Clock,
   Coins,
+  ExternalLink,
   Loader2,
+  Smartphone,
   Users,
   XCircle,
 } from 'lucide-react'
@@ -30,6 +32,8 @@ const MATCH_STATUS_CONFIG = {
   dropped:   { label: '거절됨',    color: '#999',    icon: XCircle,       bg: '#999' },
 } as const
 
+type AccessInfo = { url?: string; appStoreUrl?: string; playStoreUrl?: string }
+
 type Project = {
   id: string
   title: string
@@ -42,6 +46,8 @@ type Project = {
   incentive_exists: boolean
   incentive_budget: number | null
   problem: string | null
+  access_method: 'web_link' | 'app_download' | 'physical_shipping' | null
+  access_info: AccessInfo | null
   created_at: string
 }
 
@@ -211,6 +217,11 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
               </button>
             )}
           </div>
+        )}
+
+        {/* 제품 체험 링크 — 승인된 리뷰어에게만 노출 (배송형은 리뷰 페이지에서 별도 안내) */}
+        {myMatch?.status === 'accepted' && project.access_method !== 'physical_shipping' && (
+          <AccessLinks accessMethod={project.access_method} accessInfo={project.access_info} />
         )}
 
         {/* 프로젝트 카드 */}
@@ -391,4 +402,68 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
       )}
     </div>
   )
+}
+
+// 승인된 리뷰어에게 제품 접근 링크를 보여준다 — access_method에 저장은
+// 되지만 어디에도 노출되지 않던 부분(웹링크/앱스토어 링크)을 여기서 표시.
+function AccessLinks({
+  accessMethod,
+  accessInfo,
+}: {
+  accessMethod: Project['access_method']
+  accessInfo: Project['access_info']
+}) {
+  if (accessMethod === 'web_link' && accessInfo?.url) {
+    return (
+      <div className="rounded-2xl bg-white border border-[#1D1C1C]/8 p-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <ExternalLink className="w-4 h-4 text-[#1565C0] shrink-0" />
+          <span className="text-[11px] font-bold text-[#666]">체험 링크가 준비됐어요</span>
+        </div>
+        <a
+          href={accessInfo.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[10px] font-black text-white bg-[#1565C0] px-3 py-1.5 rounded-lg hover:bg-[#1255a3] transition-colors shrink-0"
+        >
+          바로 체험하기
+        </a>
+      </div>
+    )
+  }
+
+  if (accessMethod === 'app_download' && (accessInfo?.appStoreUrl || accessInfo?.playStoreUrl)) {
+    return (
+      <div className="rounded-2xl bg-white border border-[#1D1C1C]/8 p-4 flex flex-col gap-3">
+        <div className="flex items-center gap-2">
+          <Smartphone className="w-4 h-4 text-[#1565C0] shrink-0" />
+          <span className="text-[11px] font-bold text-[#666]">앱을 설치하고 체험해보세요</span>
+        </div>
+        <div className="flex gap-2">
+          {accessInfo.appStoreUrl && (
+            <a
+              href={accessInfo.appStoreUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 text-center text-[10px] font-black text-white bg-[#1D1C1C] px-3 py-2 rounded-lg hover:opacity-90 transition-colors"
+            >
+              App Store
+            </a>
+          )}
+          {accessInfo.playStoreUrl && (
+            <a
+              href={accessInfo.playStoreUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 text-center text-[10px] font-black text-white bg-[#1D1C1C] px-3 py-2 rounded-lg hover:opacity-90 transition-colors"
+            >
+              Google Play
+            </a>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  return null
 }

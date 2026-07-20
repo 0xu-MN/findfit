@@ -13,12 +13,15 @@ type Question = {
   order_index: number
 }
 
+type AccessInfo = { url?: string; appStoreUrl?: string; playStoreUrl?: string }
+
 type Project = {
   id: string
   title: string
   one_liner: string | null
   project_type: string | null
   access_method: string | null
+  access_info: AccessInfo | null
   target_count: number
   completed_count: number
 }
@@ -70,7 +73,7 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
         // projects_public 뷰 — creator_id 제외 (migration 009)
         supabase
           .from('projects_public')
-          .select('id, title, one_liner, project_type, access_method, target_count, completed_count')
+          .select('id, title, one_liner, project_type, access_method, access_info, target_count, completed_count')
           .eq('id', params.id)
           .single(),
         supabase.from('review_questions').select('*').eq('project_id', params.id).order('order_index'),
@@ -268,6 +271,42 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
             <p className="text-[11px] text-[#999] font-bold mt-1">{project.one_liner}</p>
           )}
         </div>
+
+        {/* 제품 체험 링크 — 답변하면서 다시 들어가볼 수 있도록 상단에 노출 */}
+        {project?.access_method === 'web_link' && project.access_info?.url && (
+          <a
+            href={project.access_info.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-[#1565C0]/10 text-[#1565C0] text-[11px] font-black py-2.5 hover:bg-[#1565C0]/15 transition-colors"
+          >
+            제품 다시 체험하기 ↗
+          </a>
+        )}
+        {project?.access_method === 'app_download' && (project.access_info?.appStoreUrl || project.access_info?.playStoreUrl) && (
+          <div className="flex gap-2">
+            {project.access_info?.appStoreUrl && (
+              <a
+                href={project.access_info.appStoreUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 text-center rounded-xl bg-[#1565C0]/10 text-[#1565C0] text-[11px] font-black py-2.5 hover:bg-[#1565C0]/15 transition-colors"
+              >
+                App Store ↗
+              </a>
+            )}
+            {project.access_info?.playStoreUrl && (
+              <a
+                href={project.access_info.playStoreUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 text-center rounded-xl bg-[#1565C0]/10 text-[#1565C0] text-[11px] font-black py-2.5 hover:bg-[#1565C0]/15 transition-colors"
+              >
+                Google Play ↗
+              </a>
+            )}
+          </div>
+        )}
 
         {/* 질문 목록 */}
         <div className="flex flex-col gap-4">
