@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/client'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { calcSettlement } from './tax'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -19,7 +19,7 @@ type ReviewerPortoneInfo = {
 }
 
 async function getReviewerPortoneInfo(reviewerIds: string[]): Promise<ReviewerPortoneInfo[]> {
-  const supabase: AnySupabase = createClient()
+  const supabase: AnySupabase = createAdminClient()
   const { data } = await supabase
     .from('reviewer_profiles')
     .select('id:user_id, portone_partner_id, is_account_verified')
@@ -43,7 +43,7 @@ export async function executeDistribution(
   method: DistributionMethod,
   allocations: Allocation[]
 ): Promise<void> {
-  const supabase: AnySupabase = createClient()
+  const supabase: AnySupabase = createAdminClient()
 
   // 1. distributions 레코드 생성 (세금 계산 포함)
   await supabase.from('distributions').insert(

@@ -17,14 +17,26 @@ export async function POST(
       await req.json()
 
     const supabase: AnySupabase = await createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: '로그인이 필요합니다' }, { status: 401 })
+    }
+
+    // RLS(projects_owner_all)가 소유자가 아니면 이미 null을 반환하지만,
+    // 명시적으로도 확인해서 에러 메시지를 분명하게 한다.
     const { data: project } = await supabase
       .from('projects')
-      .select('status, distribution_method, incentive_budget')
+      .select('creator_id, status, distribution_method, incentive_budget')
       .eq('id', id)
       .single()
 
     if (!project) {
       return NextResponse.json({ error: '프로젝트를 찾을 수 없습니다' }, { status: 404 })
+    }
+    if (project.creator_id !== user.id) {
+      return NextResponse.json({ error: '권한이 없습니다' }, { status: 403 })
     }
 
     if (project.status !== 'reviewing' || project.distribution_method) {

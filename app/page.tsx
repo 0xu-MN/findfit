@@ -26,9 +26,26 @@ export default function LandingPage() {
 
   const switchTo = (next: View) => {
     if (next === view) return
-    setSlideDir(next === 'reviewer' ? 'right' : 'left')
-    setView(next)
-    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })
+
+    const applyState = () => {
+      setSlideDir(next === 'reviewer' ? 'right' : 'left')
+      setView(next)
+      window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })
+    }
+
+    // View Transitions API — 이전 화면과 새 화면을 실제로 크로스디졸브한다.
+    // 크리에이터/리뷰어 히어로가 같은 배경 이미지의 반쪽씩을 같은 위치에
+    // 그리고 있어서, 이 크로스페이드 덕분에 "하나의 배경이 이어지는" 것처럼
+    // 보인다. 미지원 브라우저(Safari 등)는 기존 slide-in 애니메이션으로 대체.
+    type DocumentWithViewTransition = Document & {
+      startViewTransition?: (callback: () => void) => void
+    }
+    const doc = document as DocumentWithViewTransition
+    if (typeof doc.startViewTransition === 'function') {
+      doc.startViewTransition(applyState)
+    } else {
+      applyState()
+    }
   }
 
   const handleAnimationEnd = (e: React.AnimationEvent<HTMLElement>) => {
