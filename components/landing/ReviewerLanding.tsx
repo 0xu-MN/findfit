@@ -1009,32 +1009,31 @@ export default function ReviewerLanding({ onSwitchToCreator }: Props) {
 
       {/* Hero */}
       <section id="reviewer-hero" className="snap-section relative">
-        {/* dot grid */}
-        <div className="absolute inset-0 pointer-events-none" style={{
-          backgroundImage: 'radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px)',
-          backgroundSize: '40px 40px',
-        }} />
-        <div className="absolute inset-0 pointer-events-none" style={{
-          background: 'radial-gradient(ellipse 70% 60% at 60% 40%, rgba(66,165,245,0.1) 0%, transparent 70%)',
-        }} />
-
-        {/* Shared capsule graphic — identical position/size to the creator
-            hero's copy (see HeroSection.tsx), clipped to its right half
-            (the "!") here so switching between Creator/Reviewer reads as
-            one graphic revealing its other half in the same spot. */}
-        <div
-          className="absolute pointer-events-none"
-          style={{
-            top: '50%',
-            left: '50%',
-            width: 'clamp(420px, 40vw, 640px)',
-            aspectRatio: '1376 / 768',
-            transform: 'translate(-50%, -50%)',
-            clipPath: 'inset(0 0 0 50%)',
-          }}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/hero/qa-capsule.png" alt="" className="w-full h-full object-contain" />
+        {/* Full-bleed hero background — the same wide diorama image as the
+            creator hero (see HeroSection.tsx), rendered at double viewport
+            width and shifted left by exactly one viewport so this section
+            shows its right half (the cool/blue room). Positioned identically
+            to the creator copy so switching between the two pages reads as
+            one continuous scene revealing its other half. */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden>
+          <div style={{ position: 'absolute', top: 0, left: '-100vw', width: '200vw', height: '100%' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/hero/hero-scene-full.png"
+              alt=""
+              className="w-full h-full object-cover"
+              style={{ objectPosition: 'center 60%' }}
+            />
+          </div>
+          {/* Legibility scrim — opaque near the text (right), fading out
+              toward the image (left). */}
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                'linear-gradient(to left, #0D0D10 0%, rgba(13,13,16,0.94) 22%, rgba(13,13,16,0.6) 42%, rgba(13,13,16,0.12) 62%, transparent 78%)',
+            }}
+          />
         </div>
 
         <div className="max-w-[1440px] mx-auto px-16 h-full flex items-center relative z-10">

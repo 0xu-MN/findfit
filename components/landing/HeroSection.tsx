@@ -11,23 +11,32 @@ const trustItems = [
 export default function HeroSection() {
   return (
     <section className="relative w-full overflow-hidden bg-[#F8F8F8]" style={{ height: '100vh', minHeight: '700px' }}>
-      {/* Shared capsule graphic — identical position/size to the reviewer
-          hero's copy (see ReviewerLanding.tsx `#reviewer-hero`), clipped to
-          its left half (the "?") here so switching between Creator/Reviewer
-          reads as one graphic revealing its other half in the same spot. */}
-      <div
-        className="absolute pointer-events-none"
-        style={{
-          top: '50%',
-          left: '50%',
-          width: 'clamp(420px, 40vw, 640px)',
-          aspectRatio: '1376 / 768',
-          transform: 'translate(-50%, -50%)',
-          clipPath: 'inset(0 50% 0 0)',
-        }}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/hero/qa-capsule.png" alt="" className="w-full h-full object-contain" />
+      {/* Full-bleed hero background — one wide diorama image shared with the
+          reviewer hero (see ReviewerLanding.tsx `#reviewer-hero`), rendered
+          at double viewport width and left-aligned here so this section
+          shows exactly its left half (the warm/orange room). The reviewer
+          hero renders the identical image shifted left by one viewport, so
+          the two halves line up as if it's one continuous scene split
+          across the two pages. */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden>
+        <div style={{ position: 'absolute', top: 0, left: 0, width: '200vw', height: '100%' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/hero/hero-scene-full.png"
+            alt=""
+            className="w-full h-full object-cover"
+            style={{ objectPosition: 'center 60%' }}
+          />
+        </div>
+        {/* Legibility scrim — opaque near the text (left), fading out toward
+            the image (right) so the scene reads clearly without washing it out. */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              'linear-gradient(to right, #F8F8F8 0%, rgba(248,248,248,0.94) 22%, rgba(248,248,248,0.6) 42%, rgba(248,248,248,0.12) 62%, transparent 78%)',
+          }}
+        />
       </div>
 
       <div className="max-w-[1440px] mx-auto h-full flex items-center px-16 relative z-10">
