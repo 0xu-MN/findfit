@@ -77,7 +77,8 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
   useEffect(() => {
     const load = async () => {
       const [{ data: proj }, { data: { user } }] = await Promise.all([
-        supabase.from('projects').select('*').eq('id', params.id).single(),
+        // projects_public 뷰 — creator_id 제외 (migration 009)
+        supabase.from('projects_public').select('*').eq('id', params.id).single(),
         supabase.auth.getUser(),
       ])
       setProject(proj ?? null)

@@ -2,10 +2,6 @@
 
 import { CheckCircle2, Loader2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnySupabase = any
 
 type Distribution = {
   id: string
@@ -30,8 +26,6 @@ function relativeDate(iso: string | null) {
 }
 
 export default function AdminDistributionsPage() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase: AnySupabase = createClient()
   const [distributions, setDistributions] = useState<Distribution[]>([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'pending' | 'completed'>('pending')
@@ -39,15 +33,12 @@ export default function AdminDistributionsPage() {
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase
-        .from('distributions')
-        .select('*, projects(title)')
-        .order('created_at', { ascending: false })
+      const res = await fetch('/api/admin/distributions')
+      const { distributions: data } = await res.json()
       setDistributions(data ?? [])
       setLoading(false)
     }
     load()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const filtered = distributions.filter((d) =>

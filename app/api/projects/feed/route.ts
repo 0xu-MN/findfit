@@ -64,8 +64,9 @@ export async function GET() {
       reviewer = profile
     }
 
+    // projects_public 뷰 사용 — creator_id를 뺀 컬럼만 노출 (migration 009)
     const { data: projects } = await supabase
-      .from('projects')
+      .from('projects_public')
       .select('*')
       .eq('status', 'active')
       .order('created_at', { ascending: false })

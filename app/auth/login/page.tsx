@@ -12,13 +12,19 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const routeByRole = async (userId: string) => {
+  const routeByRole = async (userId: string): Promise<string | null> => {
     const supabase = createClient()
-    const { data } = await supabase.from('users').select('role').eq('id', userId).single()
+    const { data } = await supabase.from('users').select('role, status').eq('id', userId).single()
+
+    // 정지/탈퇴 계정은 로그인 자체를 막는다
+    if (data?.status === 'suspended') return '정지된 계정입니다. 고객센터로 문의해주세요.'
+    if (data?.status === 'withdrawn') return '탈퇴 처리된 계정입니다.'
+
     const role = data?.role
     if (role === 'builder') router.push('/builder/dashboard')
     else if (role === 'evaluator') router.push('/evaluator/dashboard')
     else router.push('/auth/role-select')
+    return null
   }
 
   const handleLogin = async () => {
@@ -32,7 +38,11 @@ export default function LoginPage() {
       setLoading(false)
       return
     }
-    await routeByRole(data.user.id)
+    const blockReason = await routeByRole(data.user.id)
+    if (blockReason) {
+      await supabase.auth.signOut()
+      setError(blockReason)
+    }
     setLoading(false)
   }
 

@@ -23,6 +23,16 @@ export default function RoleSelectPage() {
       return
     }
 
+    // 이미 역할이 정해진 유저는 이 화면을 통해 임의로 역할을 바꿀 수 없다
+    // (크리에이터/리뷰어 신원·활동 이력이 역할에 묶여 있어, 재선택은
+    // 관리자 개입이 필요한 예외 상황으로 취급한다)
+    const { data: existing } = await supabase.from('users').select('role').eq('id', user.id).single()
+    if (existing?.role) {
+      setError('이미 역할이 설정된 계정입니다. 변경이 필요하면 관리자에게 문의해주세요.')
+      setLoading(null)
+      return
+    }
+
     const { error: updateError } = await supabase.from('users').update({ role }).eq('id', user.id)
     if (updateError) {
       setError(updateError.message)

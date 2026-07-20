@@ -47,7 +47,7 @@ export async function generateAndSaveReport(projectId: string, supabase: any) {
   const [{ data: project }, { data: questionsRaw }, { data: answersRaw }] = await Promise.all([
     supabase
       .from('projects')
-      .select('id, title, project_type, psf_pmf_type, problem, solution')
+      .select('id, title, project_type, psf_pmf_type, problem, solution, target_count, completed_count')
       .eq('id', projectId)
       .single(),
     supabase
@@ -62,6 +62,9 @@ export async function generateAndSaveReport(projectId: string, supabase: any) {
   ])
 
   if (!project) throw new Error('프로젝트를 찾을 수 없습니다.')
+  if (project.completed_count < project.target_count) {
+    throw new Error('아직 목표 리뷰 수에 도달하지 않았습니다.')
+  }
 
   const questions: QuestionRow[] = questionsRaw ?? []
   const answers: AnswerRow[] = answersRaw ?? []

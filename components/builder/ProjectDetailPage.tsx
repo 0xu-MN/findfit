@@ -85,8 +85,9 @@ export default function ProjectDetailPage({ projectId }: Props) {
         .select('id, question_text, options, order_index')
         .eq('project_id', projectId)
         .order('order_index'),
+      // project_matches_for_creator 뷰 — reviewer_id/이메일 등 제외 (migration 009)
       supabase
-        .from('project_matches')
+        .from('project_matches_for_creator')
         .select('id, nickname, status, submitted_at, shipping_status, shipping_address')
         .eq('project_id', projectId),
     ])
@@ -101,10 +102,14 @@ export default function ProjectDetailPage({ projectId }: Props) {
   }, [load])
 
   const updateShipping = async (matchId: string, status: ShippingStatus) => {
-    const supabase = createClient()
-    // 낙관적 업데이트
+    // 낙관적 업데이트 — 실제 반영은 서버 API에서 소유권 검증 후 서비스 롤로
+    // 처리 (project_matches는 RLS상 리뷰어 본인만 직접 UPDATE 가능하므로)
     setMatches((prev) => prev.map((m) => (m.id === matchId ? { ...m, shipping_status: status } : m)))
-    await supabase.from('project_matches').update({ shipping_status: status }).eq('id', matchId)
+    await fetch(`/api/builder/matches/${matchId}/shipping`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shipping_status: status }),
+    })
   }
 
   if (!hydrated) {

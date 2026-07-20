@@ -20,7 +20,7 @@ export async function POST(
     if (!user) return jsonError('로그인이 필요합니다', 401)
 
     const { data: project } = await supabase
-      .from('projects')
+      .from('projects_public')
       .select('status, completed_count, target_count, access_method')
       .eq('id', id)
       .single()
@@ -39,14 +39,13 @@ export async function POST(
 
     if (existing) return jsonError('이미 참여 중인 프로젝트입니다', 400)
 
-    // 닉네임 자동 할당 (A, B, C, ...)
-    const { count } = await supabase
-      .from('project_matches')
-      .select('id', { count: 'exact', head: true })
-      .eq('project_id', id)
-
-    const idx = (count ?? 0) % 26
-    const nickname = `Reviewer_${String.fromCharCode(65 + idx)}`
+    // 닉네임 자동 할당 — 프로젝트별 원자적 시퀀스(RPC, SECURITY DEFINER)로
+    // 발급. count 기반 방식은 26명을 넘으면 겹치고 동시 요청 시 레이스
+    // 컨디션이 있어 폐기 (migration 009).
+    const { data: nickname, error: nicknameError } = await supabase.rpc('assign_reviewer_nickname', {
+      p_project_id: id,
+    })
+    if (nicknameError || !nickname) return jsonError('닉네임 발급에 실패했습니다', 500)
 
     await supabase.from('project_matches').insert({
       project_id: id,

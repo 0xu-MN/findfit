@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import Link from 'next/link'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
@@ -7,22 +7,25 @@ import { redirect } from 'next/navigation'
 type AnySupabase = any
 
 async function getAdminStats() {
-  const supabase: AnySupabase = await createClient()
+  const supabase: AnySupabase = createAdminClient()
 
   const [
     { count: pendingApplications },
     { count: pendingDistributions },
     { count: activeProjects },
+    { count: pendingReview },
   ] = await Promise.all([
     supabase.from('project_matches').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
     supabase.from('distributions').select('id', { count: 'exact', head: true }).neq('status', 'completed'),
     supabase.from('projects').select('id', { count: 'exact', head: true }).eq('status', 'active'),
+    supabase.from('projects').select('id', { count: 'exact', head: true }).eq('status', 'pending_review'),
   ])
 
   return {
     pendingApplications: pendingApplications ?? 0,
     pendingDistributions: pendingDistributions ?? 0,
     activeProjects: activeProjects ?? 0,
+    pendingReview: pendingReview ?? 0,
   }
 }
 
@@ -93,6 +96,20 @@ export default async function AdminDashboardPage() {
             desc="사례금 지급 완료 처리"
             count={stats.pendingDistributions}
             color="#F77019"
+          />
+          <NavCard
+            href="/admin/requests"
+            title="프로젝트 검수"
+            desc="등록된 프로젝트 승인/반려"
+            count={stats.pendingReview}
+            color="#1565C0"
+          />
+          <NavCard
+            href="/admin/evaluators"
+            title="유저 관리"
+            desc="크리에이터·리뷰어 검색/정지/탈퇴"
+            count={0}
+            color="#1D1C1C"
           />
         </div>
       </main>

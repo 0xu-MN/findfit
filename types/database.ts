@@ -8,6 +8,8 @@
 //   실제 화면/피드/리뷰/리포트 흐름은 현행 테이블을 사용한다.
 
 export type UserRole = 'builder' | 'evaluator' | 'admin'
+// users.status (migration 009)
+export type UserStatus = 'active' | 'suspended' | 'withdrawn'
 export type EvaluatorGrade = 'general' | 'expert' | 'domain'
 export type RequestStage = 'psf' | 'pmf'
 export type RequestStatus = 'pending' | 'active' | 'completed' | 'cancelled'
@@ -24,8 +26,9 @@ export type SeanEllisScore = 1 | 2 | 3 | 4
 export type ProjectType = 'light' | 'standard' | 'deep'
 // projects.psf_pmf_type / question_templates.psf_pmf_type
 export type PsfPmfType = 'psf' | 'pmf'
-// projects.status — 피드 노출은 'active'
-export type ProjectStatus = 'draft' | 'active' | 'completed' | 'cancelled'
+// projects.status — 피드 노출은 'active'. pending_review/rejected는 검수
+// 기능 자체는 구현되어 있으나 이번 라운드는 강제 적용하지 않음(계획 참고).
+export type ProjectStatus = 'draft' | 'pending_review' | 'active' | 'rejected' | 'completed' | 'cancelled'
 // projects.access_method (migration 008)
 export type AccessMethod = 'web_link' | 'app_download' | 'physical_shipping'
 // project_matches.status
@@ -69,18 +72,25 @@ export interface Database {
           id: string
           email: string
           role: UserRole | null
+          status: UserStatus
           created_at: string
         }
         Insert: {
           id: string
           email: string
           role?: UserRole | null
+          status?: UserStatus
           created_at?: string
         }
         Update: {
           role?: UserRole | null
+          // status: DB에서 authenticated 롤의 UPDATE 권한이 REVOKE되어 있어
+          // (본인 스스로 정지 해제 불가) 브라우저 클라이언트로는 실제로 안
+          // 먹는다 — 타입만 허용해두고, 실질 차단은 DB 권한이 담당한다.
+          // 서비스 롤(관리자 API)에서만 의미 있게 사용된다.
+          status?: UserStatus
         }
-      
+
         Relationships: []
       }
 
@@ -111,6 +121,7 @@ export interface Database {
           creator_level: string | null
           access_method: AccessMethod
           access_info: AccessInfo
+          nickname_seq: number
           created_at: string
         }
         Insert: {
@@ -138,6 +149,7 @@ export interface Database {
           creator_level?: string | null
           access_method?: AccessMethod
           access_info?: AccessInfo
+          nickname_seq?: number
           created_at?: string
         }
         Update: Partial<Database['public']['Tables']['projects']['Insert']>
@@ -210,6 +222,10 @@ export interface Database {
           shipping_status: ShippingStatus
           shipping_address: string | null
           received_confirmed_at: string | null
+          applicant_email: string | null
+          applicant_domain: string[] | null
+          applicant_intro: string | null
+          applied_at: string | null
         }
         Insert: {
           id?: string
@@ -222,6 +238,10 @@ export interface Database {
           shipping_status?: ShippingStatus
           shipping_address?: string | null
           received_confirmed_at?: string | null
+          applicant_email?: string | null
+          applicant_domain?: string[] | null
+          applicant_intro?: string | null
+          applied_at?: string | null
         }
         Update: Partial<Database['public']['Tables']['project_matches']['Insert']>
       
@@ -561,8 +581,63 @@ export interface Database {
         Relationships: []
       }
     }
-    Views: Record<string, never>
-    Functions: Record<string, never>
+    Views: {
+      /* ── projects_public (migration 009) — creator_id 제외 ─────── */
+      projects_public: {
+        Row: {
+          id: string
+          title: string
+          one_liner: string | null
+          categories: string[]
+          stage: string | null
+          project_type: ProjectType
+          psf_pmf_type: PsfPmfType
+          status: ProjectStatus
+          problem: string | null
+          solution: string | null
+          alternative_limit: string | null
+          target_age_range: string | null
+          target_jobs: string[] | null
+          landing_url: string | null
+          target_count: number
+          completed_count: number
+          deadline: string | null
+          incentive_exists: boolean
+          incentive_budget: number | null
+          distribution_method: string | null
+          creator_level: string | null
+          access_method: AccessMethod
+          access_info: AccessInfo
+          created_at: string
+        }
+        Relationships: []
+      }
+      /* ── project_matches_for_creator (migration 009) — reviewer_id/이메일 제외 ─── */
+      project_matches_for_creator: {
+        Row: {
+          id: string
+          project_id: string | null
+          nickname: string | null
+          status: MatchStatus
+          accepted_at: string | null
+          submitted_at: string | null
+          shipping_status: ShippingStatus
+          shipping_address: string | null
+          received_confirmed_at: string | null
+        }
+        Relationships: []
+      }
+    }
+    Functions: {
+      increment_completed_count: {
+        Args: { project_id: string }
+        Returns: void
+      }
+      assign_reviewer_nickname: {
+        Args: { p_project_id: string }
+        Returns: string
+      }
+    }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>
   }

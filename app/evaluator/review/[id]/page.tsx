@@ -67,8 +67,9 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
       if (m.submitted_at) { setSubmitted(true); setLoading(false); return }
 
       const [{ data: proj }, { data: qs }] = await Promise.all([
+        // projects_public 뷰 — creator_id 제외 (migration 009)
         supabase
-          .from('projects')
+          .from('projects_public')
           .select('id, title, one_liner, project_type, access_method, target_count, completed_count')
           .eq('id', params.id)
           .single(),

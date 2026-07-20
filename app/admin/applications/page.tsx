@@ -2,10 +2,6 @@
 
 import { CheckCircle2, Clock, Loader2, XCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnySupabase = any
 
 type ApplicationStatus = 'pending' | 'accepted' | 'dropped'
 
@@ -42,8 +38,6 @@ function relativeDate(iso: string | null) {
 }
 
 export default function AdminApplicationsPage() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase: AnySupabase = createClient()
   const [applications, setApplications] = useState<Application[]>([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<ApplicationStatus>('pending')
@@ -51,15 +45,14 @@ export default function AdminApplicationsPage() {
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase
-        .from('project_matches')
-        .select('id, status, nickname, applicant_email, applicant_domain, applicant_intro, applied_at, accepted_at, projects(id, title)')
-        .order('applied_at', { ascending: false })
+      // project_matches는 RLS로 리뷰어 본인만 조회 가능해져서, 관리자는
+      // 서비스 롤로 대신 조회하는 서버 API를 거친다 (migration 009)
+      const res = await fetch('/api/admin/applications')
+      const { applications: data } = await res.json()
       setApplications(data ?? [])
       setLoading(false)
     }
     load()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const filtered = applications.filter((a) => a.status === tab)

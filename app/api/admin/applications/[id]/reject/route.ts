@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
@@ -41,7 +41,7 @@ export async function POST(
   }
 
   const { id } = await context.params
-  const supabase: AnySupabase = await createClient()
+  const supabase: AnySupabase = createAdminClient()
 
   const { data: match } = await supabase
     .from('project_matches')
