@@ -45,6 +45,7 @@ function ReviewsContent() {
   const router = useRouter()
   const [matches, setMatches] = useState<Match[]>([])
   const [loading, setLoading] = useState(true)
+  const [droppingId, setDroppingId] = useState<string | null>(null)
 
   useEffect(() => {
     const load = async () => {
@@ -64,12 +65,23 @@ function ReviewsContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // H-5: 리뷰어 자진 하차 — 관리자가 수동으로 거절 처리하는 것만 가능하던
+  // 이전 상태를 보완, 참여 취소 버튼에서 직접 호출.
+  const dropMatch = async (matchId: string) => {
+    setDroppingId(matchId)
+    const res = await fetch(`/api/evaluator/matches/${matchId}/drop`, { method: 'POST' })
+    if (res.ok) {
+      setMatches((prev) => prev.map((m) => (m.id === matchId ? { ...m, status: 'dropped' } : m)))
+    }
+    setDroppingId(null)
+  }
+
   const accepted  = matches.filter((m) => m.status === 'accepted')
   const pending   = matches.filter((m) => m.status === 'pending')
   const completed = matches.filter((m) => m.status === 'completed')
   const dropped   = matches.filter((m) => m.status === 'dropped')
 
-  const renderGroup = (title: string, items: Match[], clickable: boolean) => {
+  const renderGroup = (title: string, items: Match[], clickable: boolean, showCancel = false) => {
     if (items.length === 0) return null
     return (
       <section className="flex flex-col gap-2">
@@ -80,7 +92,9 @@ function ReviewsContent() {
           <div className="divide-y divide-[#1D1C1C]/5">
             {items.map((m) => {
               const cfg = STATUS_CONFIG[m.status]
-              const Tag = clickable ? 'button' : 'div'
+              // A cancel button can't nest inside a <button> row, so rows
+              // that show one fall back to a <div> with the same onClick.
+              const Tag = clickable && !showCancel ? 'button' : 'div'
               return (
                 <Tag
                   key={m.id}
@@ -115,6 +129,19 @@ function ReviewsContent() {
                   >
                     {cfg.label}
                   </span>
+
+                  {showCancel && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (confirm('이 리뷰 참여를 취소할까요? 취소하면 다시 되돌릴 수 없어요.')) dropMatch(m.id)
+                      }}
+                      disabled={droppingId === m.id}
+                      className="text-[10px] font-black px-2.5 py-1 rounded-lg flex-shrink-0 text-[#999] hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
+                    >
+                      {droppingId === m.id ? '취소 중…' : '참여 취소'}
+                    </button>
+                  )}
                 </Tag>
               )
             })}
@@ -147,7 +174,7 @@ function ReviewsContent() {
         </div>
       ) : (
         <>
-          {renderGroup('평가 작성 필요', accepted, true)}
+          {renderGroup('평가 작성 필요', accepted, true, true)}
           {renderGroup('검토 중', pending, false)}
           {renderGroup('제출 완료', completed, false)}
           {renderGroup('거절됨', dropped, false)}

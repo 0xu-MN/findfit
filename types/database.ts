@@ -123,6 +123,7 @@ export interface Database {
           access_info: AccessInfo
           nickname_seq: number
           created_at: string
+          extra_data: Record<string, unknown> | null
         }
         Insert: {
           id?: string
@@ -151,6 +152,7 @@ export interface Database {
           access_info?: AccessInfo
           nickname_seq?: number
           created_at?: string
+          extra_data?: Record<string, unknown> | null
         }
         Update: Partial<Database['public']['Tables']['projects']['Insert']>
       
@@ -164,6 +166,7 @@ export interface Database {
           project_id: string | null
           question_text: string
           question_type: ReviewQuestionType
+          question_key: string | null
           options: string[] | null
           is_required: boolean
           source: ReviewQuestionSource
@@ -175,6 +178,7 @@ export interface Database {
           project_id?: string | null
           question_text: string
           question_type?: ReviewQuestionType
+          question_key?: string | null
           options?: string[] | null
           is_required?: boolean
           source?: ReviewQuestionSource

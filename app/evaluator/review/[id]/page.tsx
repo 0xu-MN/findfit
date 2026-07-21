@@ -122,44 +122,24 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
       setError('모든 질문에 답변해주세요')
       return
     }
+    if (!match) return
 
     setSubmitting(true)
     setError(null)
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    // 답변 insert + 매칭 상태 갱신 + 완료율 체크 + 리포트 생성까지 서버
+    // 라우트 하나로 처리 (C-1) — 브라우저는 이 요청 하나만 성공하면 된다.
+    const res = await fetch(`/api/reviews/${match.id}/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answers }),
+    })
 
-    const { error: insertErr } = await supabase.from('review_answers').insert(
-      questions.map((q) => ({
-        project_id: params.id,
-        reviewer_id: user.id,
-        question_id: q.id,
-        answer_text: answers[q.id],
-      }))
-    )
-
-    if (insertErr) {
-      setError('제출 중 오류가 발생했습니다')
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      setError(body.error ?? '제출 중 오류가 발생했습니다')
       setSubmitting(false)
       return
-    }
-
-    await supabase
-      .from('project_matches')
-      .update({ submitted_at: new Date().toISOString(), status: 'completed' })
-      .eq('project_id', params.id)
-      .eq('reviewer_id', user.id)
-
-    await supabase.rpc('increment_completed_count', { project_id: params.id })
-
-    // 완료율 도달 시 AI 리포트 자동 생성 트리거
-    // (이번 제출로 completed_count가 target_count에 도달하는지 확인)
-    if (project && project.completed_count + 1 >= project.target_count) {
-      try {
-        await fetch(`/api/ai-report/${params.id}`, { method: 'POST' })
-      } catch {
-        // 리포트 생성 실패해도 제출 자체는 성공 처리 (Builder가 재생성 가능)
-      }
     }
 
     setSubmitted(true)

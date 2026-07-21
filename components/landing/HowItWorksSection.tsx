@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, useEffect, useMemo } from 'react'
+import { useRef, useState, useEffect, useMemo, useId } from 'react'
 import { motion, useScroll, useTransform, useMotionValueEvent } from 'framer-motion'
 
 const steps = [
@@ -25,7 +25,12 @@ const H_LEN = 48     // horizontal shelf between hollows — lengthened further
 const D = H_LEN / 2   // each hollow sits this far left/right of centre, alternating
 const PAD_T = 26     // entry straight, above the first hollow (shortened again)
 const PAD_B = 26     // exit straight, below the last hollow (shortened again)
-const CORNER = 7      // small fixed corner that blends a vertical tangent into a horizontal one (and back)
+// Was 7 when the line was a 1.5px hairline — a corner radius has to be at
+// least half the stroke width or the outward and inward edges of a thick
+// round stroke overlap themselves at the bend (the stroke "pinches"), which
+// rendered as a dark notch right at the entry/exit bends once the line
+// became a thick glowing tube. 16 clears half of TUBE_HALO (22) with margin.
+const CORNER = 16
 
 const SVG_H = PAD_T + steps.length * HOLLOW_H + PAD_B
 
@@ -105,7 +110,19 @@ function bellyYPct(i: number) {
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
+// Tube widths in constant screen pixels (paired with vector-effect=
+// "non-scaling-stroke" below) — the path's viewBox is stretched by different
+// x/y scale factors (preserveAspectRatio="none", and SVG_W/SVG_H aren't the
+// same aspect as the rendered box), so a plain unitless strokeWidth would
+// render as an ellipse-shaped tube instead of a round one; non-scaling-stroke
+// keeps it a constant round cross-section regardless of that stretch.
+const TUBE_HALO = 6
+const TUBE_MID = 4
+const TUBE_CORE = 2.5
+
 export default function HowItWorksSection() {
+  const haloFilterId = useId()
+  const midFilterId = useId()
   const containerRef = useRef<HTMLDivElement>(null)
   const pathRef = useRef<SVGPathElement>(null)
   const [pathLen, setPathLen] = useState(0)
@@ -233,27 +250,85 @@ export default function HowItWorksSection() {
                 viewBox={`0 0 ${SVG_W} ${SVG_H}`}
                 preserveAspectRatio="none"
                 fill="none"
+                style={{ overflow: 'visible' }}
               >
                 {/* Hidden reference path for getTotalLength() */}
                 <path ref={pathRef} d={pathD} stroke="none" fill="none" />
 
-                {/* Gray base track */}
+                <defs>
+                  <filter id={haloFilterId} x="-80%" y="-80%" width="260%" height="260%">
+                    <feGaussianBlur stdDeviation="4" />
+                  </filter>
+                  <filter id={midFilterId} x="-80%" y="-80%" width="260%" height="260%">
+                    <feGaussianBlur stdDeviation="2" />
+                  </filter>
+                </defs>
+
+                {/* Base (unlit) tube — dim frosted-glass rail, same round
+                    tube shape as the lit line below just without the glow */}
                 <path
                   d={pathD}
-                  stroke="rgba(255,255,255,0.13)"
+                  stroke="rgba(255,255,255,0.16)"
+                  strokeWidth={TUBE_CORE}
                   strokeLinecap="round"
-                  style={{ strokeWidth: '1.5px' }}
+                  strokeLinejoin="round"
+                  vectorEffect="non-scaling-stroke"
                 />
 
-                {/* Orange progress line */}
+                {/* Orange progress tube — glowing neon tube that draws in with
+                    scroll: a blurred halo + a tighter glow + a bright solid
+                    core, all sharing the same scroll-driven dash offset so
+                    they draw in together as one continuous line (an earlier
+                    version carved a dark channel down the middle for a
+                    recessed-groove look, but at the widths used here it read
+                    as the line being split/broken, so it's a plain solid
+                    core instead) */}
                 {pathLen > 0 && (
-                  <motion.path
-                    d={pathD}
-                    stroke="#F77019"
-                    strokeLinecap="round"
-                    strokeDasharray={pathLen}
-                    style={{ strokeWidth: '1.5px', strokeDashoffset: orangeOffset }}
-                  />
+                  <>
+                    {/* No vector-effect="non-scaling-stroke" on these three —
+                        that attribute makes the renderer reinterpret
+                        stroke-dasharray/-dashoffset in device-pixel space
+                        instead of the path's own user-space units (which is
+                        what getTotalLength() measures pathLen in). With the
+                        x/y axes stretched by different amounts here
+                        (preserveAspectRatio="none"), that mismatch made the
+                        dash pattern repeat partway along the path — a second
+                        lit island appearing beyond the actual drawn point,
+                        i.e. exactly the "line looks broken/disconnected"
+                        symptom. The base (unlit) track below has no dash, so
+                        it keeps non-scaling-stroke safely. */}
+                    <motion.path
+                      d={pathD}
+                      stroke="#F77019"
+                      strokeWidth={TUBE_HALO}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      opacity={0.28}
+                      filter={`url(#${haloFilterId})`}
+                      strokeDasharray={pathLen}
+                      style={{ strokeDashoffset: orangeOffset }}
+                    />
+                    <motion.path
+                      d={pathD}
+                      stroke="#F77019"
+                      strokeWidth={TUBE_MID}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      opacity={0.55}
+                      filter={`url(#${midFilterId})`}
+                      strokeDasharray={pathLen}
+                      style={{ strokeDashoffset: orangeOffset }}
+                    />
+                    <motion.path
+                      d={pathD}
+                      stroke="#FFA555"
+                      strokeWidth={TUBE_CORE}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeDasharray={pathLen}
+                      style={{ strokeDashoffset: orangeOffset }}
+                    />
+                  </>
                 )}
               </svg>
 

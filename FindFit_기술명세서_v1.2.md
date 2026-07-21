@@ -1,14 +1,15 @@
-# FindFit 기술 명세서 v1.1
+# FindFit 기술 명세서 v1.3
 
-> 기획서 v3.1 기반 — 개발 바로 진행 가능한 수준의 상세 명세
+> 기획서 v3.4 기반 — 개발 바로 진행 가능한 수준의 상세 명세
 
 | 항목 | 내용 |
 |------|------|
 | 기술 스택 | Next.js 14 App Router + TypeScript + Supabase + Claude API + Gemini API + PortOne |
-| 참조 기획서 | FindFit 서비스 기획서 v3.1 |
+| 참조 기획서 | FindFit 서비스 기획서 v3.4 |
 | 작성일 | 2026 |
 | **변경 이력** | **v1.1 — Feature Flag 시스템 추가 / 베타 비활성화 기능 명세 / pytrends 대체 처리 / EXP 분기 수정** |
 | **변경 이력** | **v1.2 — Reviewer 5개 화면 기술 명세 / Admin 운영 4개 화면 기술 명세 / project_matches 지원 플로우 스키마 / Admin 인증 미들웨어** |
+| **변경 이력** | **v1.3 — 기술 스택 결정문서 v1.0 전체 통합 / Zustand 스토어 3개 명세 / LLM 아키텍처 상세 / AWS Neptune + Bedrock KB 계획 / 단계별 로드맵 / 전체 환경변수 목록 / purchase_intent 컬럼 마이그레이션 / 리텐션 ⑤⑥⑦ 구현 명세** |
 
 ---
 
@@ -2122,7 +2123,509 @@ export async function POST(req: Request, { params }) {
 
 ---
 
+---
+
+## 15. [v1.3 신규] Zustand 스토어 명세
+
+> 기술 스택 결정문서 v1.0 섹션 2.1 기반
+
+**채택 근거**: Next.js 14 App Router와 최적 호환, Redux 대비 보일러플레이트 없음, 솔로 파운더 관리 가능한 복잡도, 서버 DB(Supabase)와 다른 레이어로 충돌 없음
+
+### 15.1 스토어 1 — 프로젝트 등록 위자드
+
+```typescript
+// store/projectWizardStore.ts
+interface ProjectWizardStore {
+  currentStep: number
+  step1Data: Step1Data | null    // 기본 정보 (제목, 카테고리, 단계)
+  step2Data: Step2Data | null    // 서비스 설명
+  step3Data: Step3Data | null    // 타겟 설정
+  step4Data: Step4Data | null    // 질문 구성
+  step5Data: Step5Data | null    // 사례금 설정
+  step6Data: Step6Data | null    // 최종 확인 + 결제
+  agentSessionId: string | null  // Agent에서 넘어온 경우 세션 ID
+  entryPath: 'agent' | 'direct' | 'agent_panel'
+  reset: () => void
+}
+```
+
+**동작 원칙**
+- 위자드 중간 이탈 후 복귀: Supabase `projects` 테이블 `draft` 상태로 자동 저장 → 복귀 시 DB에서 다시 로드
+- Zustand에는 현재 스텝 UI 상태만 유지 (영구 저장 X)
+- Zustand persist 미들웨어 적용 여부: 추후 UX 검증 후 결정 (localStorage에 상태 저장 시 이탈 후 복귀 UX 개선 가능)
+
+### 15.2 스토어 2 — Agent 대화 상태
+
+```typescript
+// store/agentStore.ts
+interface AgentStore {
+  messages: Message[]
+  context: AgentContext           // 카테고리, 키워드, 레퍼런스
+  isLoading: boolean
+  currentPhase: 1 | 2 | 3 | 4   // Agent 4단계 진행 상태
+  showProjectCTA: boolean        // "프로젝트 등록하기" CTA 표시 여부
+  addMessage: (message: Message) => void
+  updateContext: (partial: Partial<AgentContext>) => void
+  reset: () => void
+}
+```
+
+**동작 원칙**
+- Zustand: 현재 대화 UI 상태 (새로고침 시 초기화)
+- Supabase `agent_sessions`: 대화 히스토리 영구 저장
+- 동기화 타이밍: 메시지 전송 즉시 Supabase INSERT → Zustand는 렌더링 전용
+
+### 15.3 스토어 3 — 사용자 세션 상태
+
+```typescript
+// store/userStore.ts
+interface UserStore {
+  role: 'creator' | 'reviewer'
+  profile: CreatorProfile | ReviewerProfile | null
+  toggleRole: () => void  // ENABLE_ROLE_SWITCH=true 시에만 실제 작동
+}
+```
+
+**동작 원칙**
+- `toggleRole()`은 `ENABLE_ROLE_SWITCH=false` 일 때 호출 시 no-op 처리 또는 "Scale Phase에서 지원 예정" 메시지 표시
+- Scale Phase 이전: UI에서 역할 전환 버튼 자체 숨김 처리
+
+### 15.4 Zustand vs Redux vs Context API 비교
+
+| 항목 | Redux | Context API | Zustand |
+|------|-------|-------------|---------|
+| 설정 복잡도 | 높음 | 낮음 | 낮음 |
+| 리렌더링 최적화 | 복잡 | 어려움 | 자동 |
+| FindFit 규모 적합성 | 과함 | 가능하지만 불안정 | 최적 |
+| Agent 실시간 상태 | 복잡 | 성능 문제 | 문제없음 |
+
+---
+
+## 16. [v1.3 신규] LLM 아키텍처 상세
+
+> 기술 스택 결정문서 v1.0 섹션 2.3 기반
+
+### 16.1 역할 분리 원칙
+
+| LLM | 역할 | 활성 시점 |
+|-----|------|---------|
+| Claude API (claude-sonnet-4-6) | Agent 대화 + 추론 전용 | MVP 상시 (항상 Claude) |
+| Gemini 2.0 Flash | AI 리포트 생성 | 베타 (`AI_ENGINE=gemini`, 비용 0) |
+| Claude Sonnet | AI 리포트 생성 | 정식 출시 (`ENABLE_CLAUDE_REPORT=true`) |
+
+> **핵심 원칙**: Agent 대화는 항상 Claude API. 리포트 생성 엔진만 Feature Flag로 분기. 두 역할을 혼용하지 않는다.
+
+### 16.2 AI 엔진 분기 구현
+
+```typescript
+// lib/features/flags.ts (기존 파일에 AI_ENGINE 환경변수 연동)
+export const FEATURES = {
+  claudeReport: process.env.ENABLE_CLAUDE_REPORT === 'true',
+  // 베타: false (Gemini 고정)
+  // 출시: true (Claude Sonnet 전환)
+  // ... 기타 기존 flags 유지
+} as const
+
+// lib/ai/index.ts
+export async function generateReport(
+  project: Project,
+  reviews: Review[],
+  creatorLevel: string
+) {
+  const useClaudeReport =
+    FEATURES.claudeReport || process.env.AI_ENGINE === 'claude'
+
+  const prompt = buildReportPrompt(project, reviews, creatorLevel)
+
+  return useClaudeReport
+    ? await callClaude(prompt)      // Claude Sonnet — 고품질, 유료
+    : await callGemini(prompt)      // Gemini 2.0 Flash — 베타 무료
+}
+```
+
+### 16.3 Agent Phase 2 병렬 호출 — 안정성 패턴
+
+```typescript
+// Agent Phase 2: 외부 데이터 소스 병렬 호출 (안정성 우선)
+const [naverResult, metaResult, webResult, similarwebResult] =
+  await Promise.allSettled([
+    fetchNaverTrend(keywords),              // 항상 실행 (MVP)
+    FEATURES.metaAds
+      ? fetchMetaAdsCount(category)         // ENABLE_META_ADS=true 시만
+      : Promise.resolve(null),
+    fetchWebReferences(keywords),            // 항상 실행 (MVP)
+    FEATURES.similarweb
+      ? fetchSimilarWeb(domain)             // ENABLE_SIMILARWEB=true 시만 (Growth Phase)
+      : Promise.resolve(null),
+  ])
+// Promise.allSettled → 하나 실패해도 나머지로 분석 진행
+// 실패/비활성 API의 섹션은 Agent 메시지에서 자동 생략
+```
+
+### 16.4 LLM 안정성 체크리스트
+
+```
+[ ] Promise.allSettled로 API 병렬 호출
+    → 하나 실패해도 나머지로 분석 진행
+
+[ ] 각 외부 API 타임아웃 설정 (3초)
+    → 느린 API가 전체 요청을 블로킹하지 않도록
+
+[ ] Fallback 메시지 처리
+    → API 응답 없을 때 "분석 준비 중" 표시 (사용자에게 에러 노출 금지)
+
+[ ] Claude API 토큰 비용 관리
+    → 대화 히스토리 압축 로직 (오래된 메시지 요약 후 truncation)
+    → 베타에서는 Gemini 고정으로 리포트 비용 0
+
+[ ] 프롬프트 JSON 파싱 안정성
+    → try-catch + 마크다운 코드블록 제거 (```json ... ``` → 내용만 추출)
+    → 파싱 실패 시 재시도 1회, 2회 실패 시 에러 리포트 반환
+```
+
+### 16.5 Zustand + Supabase 동시 운영 체크리스트
+
+```
+[ ] Zustand는 클라이언트 메모리 상태
+    → 새로고침 시 초기화 → Supabase에서 다시 로드하는 패턴 구현
+
+[ ] 위자드 중간 저장
+    → Supabase projects 테이블 draft 상태로 자동 저장
+    → Zustand에는 현재 스텝 UI 상태만 유지
+
+[ ] Agent 세션 동기화
+    → Zustand: 현재 대화 UI 상태 (렌더링용)
+    → Supabase agent_sessions: 영구 저장 (복구용)
+    → 두 곳 동기화 타이밍: 메시지 전송 즉시 양쪽 동시 업데이트
+```
+
+---
+
+## 17. [v1.3 신규] AWS Neptune + Amazon Bedrock KB 도입 계획
+
+> 기술 스택 결정문서 v1.0 섹션 2.5 기반
+
+### 17.1 Neptune이 FindFit에 필요한 이유
+
+Neptune은 그래프 DB로, 관계형 DB와 달리 "데이터 사이의 관계와 패턴"을 조회한다.
+
+```
+Supabase(관계형 DB)가 답하는 질문:
+→ "이 Creator의 프로젝트 목록이 뭔가?"
+
+Neptune이 답하는 질문:
+→ "헬스케어 카테고리에서 PSF 70점 이상 받은
+   Creator들의 공통적인 타겟 설정 패턴은?"
+→ "이 아이디어와 유사한 검증 케이스에서
+   가장 많이 나온 피드백 패턴은?"
+```
+
+### 17.2 Neptune 연동 전후 리포트 품질 비교
+
+```
+Neptune 없는 리포트 (MVP):
+"PSF 스코어 74점입니다."
+
+Neptune 있는 리포트 (Scale Phase):
+"PSF 스코어 74점입니다.
+ 동일 카테고리(헬스케어) 평균은 61점, 상위 20%는 78점 이상이에요.
+ 비슷한 구독형 서비스 검증 23건 중 성공 패턴을 보면
+ 타겟을 50대+로 좁히고 월 구독 대신 3개월 단위로
+ 설계한 경우가 많아요."
+```
+
+### 17.3 도입 조건 및 타임라인
+
+| 조건 | 내용 |
+|------|------|
+| 최소 검증 케이스 | 200건 이상 |
+| 예상 시점 | Scale Phase (출시 6개월 후) |
+| Feature Flag | `ENABLE_NEPTUNE=false` → 조건 충족 후 `true` |
+| 비용 | Neptune Serverless — 사용량 기반 과금 |
+| 선행 작업 | Supabase 스키마를 그래프 이전 가능하게 설계 (지금부터) |
+
+**지금 Neptune을 도입하지 않는 이유**
+- 검증 케이스 0건 상태에서 그래프 패턴 분석 불가
+- Supabase + Neptune 동기화 로직 → 솔로 파운더 운영 부담 2배
+- 인프라 비용 대비 즉각적 가치 없음
+
+### 17.4 지금 당장 해야 할 Neptune 이전 준비 (스키마 설계 시 반영)
+
+```sql
+-- ✅ reviews 테이블: reviewer domain 태그를 배열로 저장
+-- → 나중에 그래프 엣지 (creator ↔ reviewer_domain)로 이전 가능
+-- 예: applicant_domain TEXT[] (project_matches에 이미 존재)
+
+-- ✅ ai_reports 테이블: psf_score, conclusion, key_insights JSON으로 저장
+-- → 나중에 Neptune 노드 속성으로 이전 가능 (이미 JSONB로 설계됨)
+
+-- ✅ creator_id → category → psf_score → reviewer_domain 관계 명확히 보존
+-- → ETL 비용 최소화를 위해 외래 키 관계 정확히 유지
+```
+
+### 17.5 Amazon Bedrock Knowledge Base
+
+- **역할**: FindFit 누적 검증 리포트를 AI가 참조 자료로 활용
+- **효과**: "건강기능식품 구독 서비스를 검증한 이전 케이스 7건을 분석해보면..." 수준의 인사이트 가능
+- **품질 변화**: "AI 생성 분석" → "실제 데이터 기반 분석"
+- **도입 조건**: `ENABLE_NEPTUNE=true` 전환 이후
+- **Feature Flag**: `ENABLE_BEDROCK=false`
+- **환경변수**: `AWS_BEDROCK_KB_ID` (Knowledge Base ID)
+
+---
+
+## 18. [v1.3 신규] 기술 스택 단계별 로드맵
+
+> 기술 스택 결정문서 v1.0 섹션 5 기반. 개발 섹션 11(체크리스트)의 기술적 맥락.
+
+### 18.1 MVP (0~1개월)
+
+```
+✅ 확정 스택
+→ Next.js 14 App Router + TypeScript
+→ Zustand (스토어 3개 — 섹션 15)
+→ Supabase (PostgreSQL + Auth + Edge Functions Deno)
+→ Claude API claude-sonnet-4-6 (Agent 대화 전용, 항상 Claude)
+→ Gemini 2.0 Flash (AI_ENGINE=gemini, 리포트 생성, 베타 무료)
+→ 네이버 데이터랩 API (국내 검색 트렌드)
+→ 웹 검색 MCP (타사 레퍼런스 자동 수집)
+→ PortOne (결제)
+→ Resend (이메일 알림)
+
+❌ 이 단계에서 제외
+→ Neptune, SimilarWeb, Google Trends
+→ DynamoDB, MongoDB, DocumentDB
+→ FCM, 자동 배분, EXP 시스템, 역할 전환, 크레딧 시스템
+```
+
+### 18.2 Growth Phase (1~6개월, 케이스 100건+)
+
+```
+추가 활성화 (환경변수 전환)
+→ ENABLE_META_ADS=true     (Meta Ad Library API)
+→ ENABLE_GOOGLE_TRENDS=true (FastAPI 마이크로서비스 배포 후)
+→ ENABLE_AUTO_DISTRIBUTE=true (PortOne 파트너정산 셋업 후)
+→ ENABLE_FCM_PUSH=true     (Firebase 셋업 후)
+→ ENABLE_EXP_SYSTEM=true   (EXP 정책 기획 확정 후)
+→ ENABLE_CLAUDE_REPORT=true + AI_ENGINE=claude (비용 모니터링 후)
+→ 리텐션 전략 ③ (트렌드 알림 + 월간 브리핑 개발)
+```
+
+### 18.3 Scale Phase (6~12개월, 케이스 200건+)
+
+```
+추가 활성화 (환경변수 전환)
+→ ENABLE_NEPTUNE=true       (케이스 200건+ 달성 후)
+→ ENABLE_BEDROCK=true       (Neptune 연동 완료 후)
+→ ENABLE_SIMILARWEB=true    (수익 정당화 후)
+→ ENABLE_VOLUME_DISCOUNT=true
+→ ENABLE_ROLE_SWITCH=true   (DB 마이그레이션: role → roles 배열)
+→ 리텐션 전략 ② (역할 전환 활성화)
+```
+
+### 18.4 도입하지 않는 기술과 이유
+
+| 기술 | 미도입 이유 |
+|------|-----------|
+| MongoDB / DocumentDB | Supabase JSONB로 충분. 이중 DB 관리 부담. |
+| DynamoDB | Supabase가 동일 역할. 트래픽 폭발 시 재검토. |
+| Firebase | Supabase로 통합. 분산 불필요. |
+| Redux | 과도한 보일러플레이트. Zustand로 충분. |
+| GraphQL | REST API로 충분한 규모. |
+
+---
+
+## 19. [v1.3 신규] 전체 환경변수 완전 목록
+
+> 기술 스택 결정문서 v1.0 섹션 4 기반. 기존 섹션 12.1 목록을 포함한 완전 목록.
+
+```env
+# ===== AI 엔진 =====
+AI_ENGINE=gemini                    # 베타: gemini / 출시: claude
+ENABLE_CLAUDE_REPORT=false          # 베타: false / 출시: true
+
+# ===== Agent 데이터 소스 =====
+ENABLE_GOOGLE_TRENDS=false          # Python 마이크로서비스 배포 완료 후
+GOOGLE_TRENDS_API_URL=              # FastAPI 서비스 URL (Railway/Render)
+ENABLE_META_ADS=false               # Meta 앱 심사 통과 후
+META_ACCESS_TOKEN=                  # Meta 발급 토큰
+ENABLE_SIMILARWEB=false             # 수익 정당화 후 (Growth Phase)
+SIMILARWEB_API_KEY=                 # SimilarWeb API 키
+
+# ===== 수익 기능 =====
+ENABLE_VOLUME_DISCOUNT=false        # 베타: false / 출시: 정책 확정 후
+ENABLE_AUTO_DISTRIBUTE=false        # 베타: 수동 이체 / 출시: PortOne 파트너정산
+
+# ===== 성장 기능 =====
+ENABLE_EXP_SYSTEM=false             # 베타: false / 출시: EXP 정책 확정 후
+ENABLE_ROLE_SWITCH=false            # Scale Phase (6~12개월) 이후 (DB 마이그레이션 필수)
+ENABLE_FCM_PUSH=false               # 베타: 이메일만 / 출시: Firebase 셋업 후
+ENABLE_CREDIT_SYSTEM=false          # 베타: 직접 결제 / 출시: 크레딧 정책 확정 후
+
+# ===== 인프라 (Scale Phase) =====
+ENABLE_NEPTUNE=false                # 케이스 200건+ 달성 후
+AWS_NEPTUNE_ENDPOINT=               # Neptune Serverless 클러스터 엔드포인트
+ENABLE_BEDROCK=false                # Neptune 연동 완료 후
+AWS_BEDROCK_KB_ID=                  # Bedrock Knowledge Base ID
+```
+
+**기존 섹션 12.1에서 누락된 항목 요약**
+
+| Flag | 누락 이유 | 단계 |
+|------|---------|------|
+| `AI_ENGINE` | 신규 추가 | MVP (기본값: gemini) |
+| `ENABLE_SIMILARWEB` | 신규 추가 | Growth Phase |
+| `ENABLE_CREDIT_SYSTEM` | 신규 추가 | 출시 후 |
+| `ENABLE_NEPTUNE` | 신규 추가 | Scale Phase |
+| `ENABLE_BEDROCK` | 신규 추가 | Scale Phase |
+
+---
+
+## 20. [v1.3 신규] MVP 리텐션 전략 기술 구현 명세
+
+> 기획서 v3.4 섹션 18 기반. 전략 ⑤⑥⑦ 즉시 구현 명세.
+
+### 20.1 DB 스키마 추가 — purchase_intent 컬럼
+
+```sql
+-- [v1.3 마이그레이션] reviews 테이블에 Reviewer 구매 의향 컬럼 추가
+ALTER TABLE reviews
+  ADD COLUMN IF NOT EXISTS purchase_intent BOOLEAN DEFAULT NULL;
+  -- NULL: 미응답 (선택 항목)
+  -- TRUE: 구매/구독 의향 있음
+  -- FALSE: 구매/구독 의향 없음
+
+-- 평가 폼 Step 2에 추가할 질문:
+-- "이 서비스를 실제로 구매하거나 구독하시겠습니까?" (선택 응답)
+-- 응답 시 purchase_intent = true/false 저장
+
+-- ⚠️ 주의: 외부 방문자 신호는 별도 테이블 (v1.1에서 설계)
+-- public_intents 테이블은 이 컬럼과 절대 합산하지 않음
+-- (신뢰도 오염 방지 — 기획서 v3.4 섹션 18.3 참조)
+```
+
+### 20.2 전략 ⑤ — 의뢰 진행 알림 구현
+
+기존 알림 인프라(섹션 10.2)에 Creator 대상 트리거 2개 추가:
+
+```typescript
+// 트리거 1: Admin이 Reviewer 수락 처리 후 (api/admin/applications/[id]/accept에 추가)
+await sendNotification(project.creator_id, 'PROJECT_REVIEWER_ACCEPTED', {
+  projectTitle: project.title,
+  reviewerNickname: match.nickname,
+  acceptedCount: currentAcceptedCount.toString(),
+  targetCount: project.target_count.toString()
+})
+
+// 트리거 2: Reviewer가 평가 제출 완료 후 (api/reviews/[matchId] POST에 추가)
+await sendNotification(project.creator_id, 'PROJECT_REVIEW_SUBMITTED', {
+  projectTitle: project.title,
+  completedCount: newCompletedCount.toString(),
+  targetCount: project.target_count.toString()
+})
+// 전원 완료 시 PROJECT_COMPLETED 알림은 기존 섹션 10.2에 이미 있음
+```
+
+**섹션 10.2 알림 유형 보완 (v1.3 추가)**
+
+| 유형 | 트리거 | 수신자 | 채널 |
+|------|--------|--------|------|
+| PROJECT_REVIEWER_ACCEPTED | Admin 수락 처리 완료 | Creator | 이메일 |
+| PROJECT_REVIEW_SUBMITTED | 개별 Reviewer 제출 | Creator | 이메일 |
+
+### 20.3 전략 ⑥ — 30일 체크인 Edge Function
+
+```typescript
+// supabase/functions/retention-checkin/index.ts
+// Cron: 매일 UTC 00:00 (KST 09:00)
+
+Deno.serve(async () => {
+  const thirtyDaysAgo = new Date()
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+
+  // 마지막 프로젝트 생성일이 30일 초과인 Creator 목록
+  const { data: creatorStats } = await supabase
+    .rpc('get_inactive_creators_30d', {
+      cutoff_date: thirtyDaysAgo.toISOString()
+    })
+  // RPC 함수: projects 테이블에서 creator_id별 MAX(created_at) 집계 후 cutoff 이전 필터
+
+  for (const creator of creatorStats ?? []) {
+    await sendNotification(creator.creator_id, 'RETENTION_CHECKIN_30D', {
+      daysSince: '30',
+      lastProjectTitle: creator.last_project_title
+    })
+  }
+
+  return new Response(JSON.stringify({
+    processed: creatorStats?.length ?? 0
+  }))
+})
+```
+
+```toml
+# supabase/config.toml 추가
+[functions.retention-checkin]
+schedule = "0 0 * * *"    # 매일 UTC 00:00 (KST 09:00)
+```
+
+**알림 유형 추가**
+
+| 유형 | 트리거 | 수신자 | 채널 |
+|------|--------|--------|------|
+| RETENTION_CHECKIN_30D | 마지막 프로젝트 30일 경과 | Creator | 이메일 |
+
+### 20.4 전략 ⑦ — 검증 점수 누적 표시
+
+```typescript
+// app/(creator)/dashboard/page.tsx (서버 컴포넌트)
+
+// 집계 쿼리 — ai_reports 테이블 기반
+const { data: reportStats } = await supabase
+  .from('ai_reports')
+  .select('psf_score, project_id, created_at')
+  .eq('creator_id', userId)
+  .order('created_at', { ascending: true })
+
+const stats = reportStats ?? []
+
+const verificationStats = {
+  totalCount: stats.length,
+  avgScore: stats.length > 0
+    ? Math.round(stats.reduce((sum, r) => sum + (r.psf_score ?? 0), 0) / stats.length)
+    : null,
+  highestScore: stats.length > 0
+    ? Math.max(...stats.map(r => r.psf_score ?? 0))
+    : null,
+  latestScore: stats.length > 0
+    ? stats[stats.length - 1].psf_score
+    : null,
+}
+
+// 대시보드 표시 예시
+// ┌─────────────────────────────────────┐
+// │ 검증 횟수: 3회                       │
+// │ 평균 PSF 스코어: 71점                │
+// │ 최고 점수: 82점   최근: 74점          │
+// └─────────────────────────────────────┘
+```
+
+### 20.5 전략별 구현 공수 요약
+
+| 전략 | 구현 항목 | 예상 공수 | 권장 시점 |
+|------|---------|---------|---------|
+| ⑤ 의뢰 진행 알림 | 알림 유형 2개 + 기존 API에 트리거 추가 | 반나절 | Week 2 |
+| ⑥ 30일 체크인 | Edge Function 1개 + Cron 등록 + 이메일 템플릿 1개 | 하루 | Week 3 |
+| ⑦ 검증 점수 | 대시보드 집계 쿼리 + UI 컴포넌트 | 반나절 | Week 2 |
+| DB 마이그레이션 | reviews.purchase_intent 컬럼 추가 | 10분 | Week 1 |
+
+**총 예상 공수: 2일 이내**
+
+---
+
 *© 2026 FindFit | CONFIDENTIAL*
 
 ---
 <!-- v1.1 변경 사항: Feature Flag 시스템 추가 / pytrends 대체 처리 / EXP 분기 수정 / 볼륨 디스카운트 flag 제어 / auto-distribute Cron 주석 처리 / FCM 베타 제외 / 알림 통합 함수 추가 / 베타→출시 전환 가이드 추가 -->
+<!-- v1.2 변경 사항: Reviewer 5개 화면 기술 명세 (섹션 13) / Admin 운영 4개 화면 기술 명세 (섹션 14) / project_matches 지원 플로우 스키마 / Admin 인증 미들웨어 -->
+<!-- v1.3 변경 사항: 기술 스택 결정문서 v1.0 전체 통합 / Zustand 스토어 3개 상세 명세 (섹션 15) / LLM 아키텍처 상세 — Claude Agent + Gemini/Claude 리포트 분기 (섹션 16) / AWS Neptune + Bedrock KB 도입 계획 (섹션 17) / 기술 스택 단계별 로드맵 MVP→Growth→Scale (섹션 18) / 전체 환경변수 완전 목록 (섹션 19) / reviews.purchase_intent 컬럼 마이그레이션 (섹션 20.1) / 리텐션 전략 ⑤⑥⑦ 기술 구현 명세 (섹션 20.2~20.5) -->

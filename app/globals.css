@@ -145,17 +145,27 @@ html {
    않고, 이전 화면은 제자리에 고정해두고 새 화면만 옆에서 밀고 들어와
    덮게 만든다. app/page.tsx가 전환 직전 <html data-nav-dir="to-reviewer|
    to-creator">를 세팅해서 방향을 알려준다. */
-::view-transition-old(root) {
-  animation: none;
-}
+/* Both layers move together (old page pushed partway out + dims slightly,
+   new page slides fully in) instead of the old page sitting frozen while a
+   rigid new pane slides over it — a static/moving pair reads as one flat
+   screenshot getting mechanically shoved aside; giving the outgoing page its
+   own (smaller, opposite-direction) motion + a fade makes the pair move
+   together like a real push-transition instead. */
+::view-transition-old(root),
 ::view-transition-new(root) {
   animation: none;
-  animation-duration: 0.55s;
-  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  animation-duration: 0.68s;
+  animation-timing-function: cubic-bezier(0.32, 0.72, 0.23, 1);
   animation-fill-mode: both;
+}
+:root[data-nav-dir='to-reviewer']::view-transition-old(root) {
+  animation-name: push-out-to-left;
 }
 :root[data-nav-dir='to-reviewer']::view-transition-new(root) {
   animation-name: slide-door-from-right;
+}
+:root[data-nav-dir='to-creator']::view-transition-old(root) {
+  animation-name: push-out-to-right;
 }
 :root[data-nav-dir='to-creator']::view-transition-new(root) {
   animation-name: slide-door-from-left;
@@ -167,6 +177,29 @@ html {
 @keyframes slide-door-from-left {
   from { transform: translateX(-100%); }
   to   { transform: translateX(0); }
+}
+@keyframes push-out-to-left {
+  from { transform: translateX(0); opacity: 1; }
+  to   { transform: translateX(-22%); opacity: 0.7; }
+}
+@keyframes push-out-to-right {
+  from { transform: translateX(0); opacity: 1; }
+  to   { transform: translateX(22%); opacity: 0.7; }
+}
+
+/* The hero diorama background (HeroSection.tsx / ReviewerLanding.tsx
+   `#reviewer-hero`, both tagged `.hero-bg-shared`) is the same image cropped
+   to a different offset on each page. Naming it its own view-transition
+   group makes the browser morph directly between the two crops — a
+   continuous pan across the room — instead of it being baked into the
+   root snapshot and just riding along with the rigid page-slide above. This
+   is what actually sells "one continuous scene", not the root slide. */
+.hero-bg-shared {
+  view-transition-name: hero-bg;
+}
+::view-transition-group(hero-bg) {
+  animation-duration: 0.75s;
+  animation-timing-function: cubic-bezier(0.32, 0.72, 0.23, 1);
 }
 
 /* 섹션 스냅 스크롤 */

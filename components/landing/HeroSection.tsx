@@ -12,14 +12,16 @@ export default function HeroSection() {
   return (
     <section className="relative w-full overflow-hidden bg-[#F8F8F8]" style={{ height: '100vh', minHeight: '700px' }}>
       {/* Full-bleed hero background — one wide diorama image shared with the
-          reviewer hero (see ReviewerLanding.tsx `#reviewer-hero`), rendered
-          at double viewport width and left-aligned here so this section
-          shows exactly its left half (the warm/orange room). The reviewer
-          hero renders the identical image shifted left by one viewport, so
-          the two halves line up as if it's one continuous scene split
-          across the two pages. */}
+          reviewer hero (see ReviewerLanding.tsx `#reviewer-hero`), zoomed in
+          (288vw instead of a plain 200vw split) and offset so this page's
+          window is centered on the orange-room character instead of on a
+          strict half-and-half split — a plain half-split left him crammed
+          against the shared wall at the very edge of the screen. Reviewer's
+          crop is offset independently the same way, so the two no longer
+          meet at an exact seam, but each side is framed around its own
+          person instead. */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden>
-        <div style={{ position: 'absolute', top: 0, left: 0, width: '200vw', height: '100%' }}>
+        <div className="hero-bg-shared" style={{ position: 'absolute', top: 0, left: '-62vw', width: '288vw', height: '100%' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/hero/hero-scene-full.png"

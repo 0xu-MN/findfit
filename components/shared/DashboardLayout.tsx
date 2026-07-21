@@ -17,7 +17,9 @@ import {
   FolderOpen,
   Wallet,
   Columns2,
-  FileText
+  FileText,
+  Landmark,
+  UserCog
 } from 'lucide-react'
 
 interface DashboardLayoutProps {
@@ -80,6 +82,13 @@ export default function DashboardLayout({ role, children, rightPanel }: Dashboar
         { icon: LayoutDashboard, label: '대시보드', path: '/evaluator/dashboard' },
         { icon: FolderOpen, label: '참여 리뷰', path: '/evaluator/reviews' },
         { icon: Wallet, label: '포인트 지갑', path: '/evaluator/wallet' },
+        // H-4: 매칭 점수에 쓰이는 domain_tags를 리뷰어가 설정할 화면이 없어
+        // 전원 매칭 점수가 낮게 고정돼 있던 문제.
+        { icon: UserCog, label: '프로필', path: '/evaluator/profile' },
+        // H-1: 계좌 등록 화면(app/reviewer/account-setup) 자체는 이미 완성돼
+        // 있었는데 어디서도 링크가 없어 도달 불가능했다 — 정산 로직을 고쳐도
+        // 계좌 등록한 리뷰어가 없으면 무용지물이라 내비게이션에 추가.
+        { icon: Landmark, label: '계좌 등록', path: '/reviewer/account-setup' },
       ]
 
   const rightTabs = [

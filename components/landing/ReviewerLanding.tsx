@@ -1010,13 +1010,11 @@ export default function ReviewerLanding({ onSwitchToCreator }: Props) {
       {/* Hero */}
       <section id="reviewer-hero" className="snap-section relative">
         {/* Full-bleed hero background — the same wide diorama image as the
-            creator hero (see HeroSection.tsx), rendered at double viewport
-            width and shifted left by exactly one viewport so this section
-            shows its right half (the cool/blue room). Positioned identically
-            to the creator copy so switching between the two pages reads as
-            one continuous scene revealing its other half. */}
+            creator hero (see HeroSection.tsx), zoomed in and offset to
+            centre on the blue-room character instead of a strict half
+            split (see the matching comment in HeroSection.tsx). */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden>
-          <div style={{ position: 'absolute', top: 0, left: '-100vw', width: '200vw', height: '100%' }}>
+          <div className="hero-bg-shared" style={{ position: 'absolute', top: 0, left: '-148.2vw', width: '288vw', height: '100%' }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/hero/hero-scene-full.png"

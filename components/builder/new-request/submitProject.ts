@@ -46,6 +46,7 @@ function buildAccessInfo(data: RequestFormData): AccessInfo {
 function buildQuestionRows(data: RequestFormData, psfPmfType: PsfPmfType): {
   question_text: string
   question_type: ReviewQuestionType
+  question_key: string | null
   options: string[] | null
   is_required: boolean
   source: ReviewQuestionSource
@@ -72,6 +73,9 @@ function buildQuestionRows(data: RequestFormData, psfPmfType: PsfPmfType): {
   return ordered.map((q, idx) => ({
     question_text: q.text,
     question_type: normalizeQuestionType(q.type),
+    // 고정 문항만 안정적인 key를 가진다 (psf-1/psf-3/sean-ellis 등) — 커스텀
+    // 질문의 id는 문항 식별용이 아니라 의미 없는 key라 null로 둔다 (M-1).
+    question_key: q.isFixed ? q.id : null,
     options: q.options ?? null,
     is_required: Boolean(q.isFixed),
     source: 'manual',
@@ -120,6 +124,17 @@ export async function submitProject(data: RequestFormData): Promise<SubmitProjec
       distribution_method: data.distributionMethod,
       access_method: data.accessMethod as AccessMethod,
       access_info: buildAccessInfo(data),
+      // H-2: 마법사에서 입력받지만 전용 컬럼이 없어 그냥 버려지던 필드들 —
+      // 전용 컬럼으로 승격되기 전까지 유실만 막아둔다 (migration 011).
+      extra_data: {
+        occupations: data.occupations,
+        interests: data.interests,
+        targetContext: data.targetContext,
+        decisionFactor: data.decisionFactor,
+        validationGoal: data.validationGoal,
+        hypothesis: data.hypothesis,
+        targetReviewerRoles: data.targetReviewerRoles,
+      },
     })
     .select('id')
     .single()

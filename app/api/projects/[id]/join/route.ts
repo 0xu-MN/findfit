@@ -56,7 +56,7 @@ export async function POST(
       shipping_status: project.access_method === 'physical_shipping' ? 'pending' : 'not_required',
     })
 
-    return NextResponse.json({ redirectTo: `/projects/${id}/review`, nickname })
+    return NextResponse.json({ redirectTo: `/evaluator/review/${id}`, nickname })
   } catch (err) {
     console.error(err)
     return NextResponse.json({ error: '서버 오류' }, { status: 500 })
