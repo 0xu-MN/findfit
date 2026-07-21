@@ -5,10 +5,11 @@ import { motion, useScroll, useTransform } from 'framer-motion'
 import PainPointSection from './PainPointSection'
 import ComparisonSection from './ComparisonSection'
 
-// Pins the empathy section in place, then swaps it out for the comparison
-// content via a horizontal slide. The internal scroll distance is kept short
-// (well under one viewport) so a single wheel/trackpad scroll drives the
-// whole slide in one continuous motion instead of needing several scrolls.
+// Sequence:
+// 1. PainPointSection ("혹시 이런 경험 있으신가요?")
+// 2. Horizontal slide -> ComparisonSection ("Why FindFit?")
+// 3. Scroll blur transition -> Quote reveal ("FindFit 이전과 이후...")
+// 4. Scroll down to next section
 export default function PainToCompareReveal() {
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -17,19 +18,21 @@ export default function PainToCompareReveal() {
     offset: ['start start', 'end end'],
   })
 
-  // Track is 200% wide (two panels); moving it by -50% of its own width
-  // shifts exactly one panel (100vw) to the left.
-  const trackX = useTransform(scrollYProgress, [0, 1], ['0%', '-50%'])
+  // Phase 1 (0 -> 0.45): Horizontal slide from PainPointSection to ComparisonSection
+  const trackX = useTransform(scrollYProgress, [0, 0.45], ['0%', '-50%'])
 
   return (
-    <div ref={containerRef} className="relative" style={{ height: '125vh' }}>
+    <div ref={containerRef} className="relative" style={{ height: '260vh' }}>
       <div className="sticky top-0 h-screen overflow-hidden">
         <motion.div className="flex h-full" style={{ width: '200%', x: trackX }}>
+          {/* Panel 1: PainPointSection */}
           <div className="h-full overflow-y-auto" style={{ width: '50%' }}>
             <PainPointSection />
           </div>
-          <div className="h-full overflow-y-auto" style={{ width: '50%' }}>
-            <ComparisonSection />
+
+          {/* Panel 2: ComparisonSection (Why FindFit) with interactive blur & quote phase */}
+          <div className="h-full overflow-hidden" style={{ width: '50%' }}>
+            <ComparisonSection progress={scrollYProgress} />
           </div>
         </motion.div>
       </div>

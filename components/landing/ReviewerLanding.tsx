@@ -1014,13 +1014,13 @@ export default function ReviewerLanding({ onSwitchToCreator }: Props) {
             centre on the blue-room character instead of a strict half
             split (see the matching comment in HeroSection.tsx). */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden>
-          <div className="hero-bg-shared" style={{ position: 'absolute', top: 0, left: '-148.2vw', width: '288vw', height: '100%' }}>
+          <div className="hero-bg-shared" style={{ position: 'absolute', top: 0, left: '-102vw', width: '204vw', height: '100%' }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/hero/hero-scene-full.png"
               alt=""
               className="w-full h-full object-cover"
-              style={{ objectPosition: 'center 72%' }}
+              style={{ objectPosition: 'center 48%' }}
             />
           </div>
           {/* Legibility scrim — opaque near the text (right), fading out

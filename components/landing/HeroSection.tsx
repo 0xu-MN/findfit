@@ -21,13 +21,13 @@ export default function HeroSection() {
           meet at an exact seam, but each side is framed around its own
           person instead. */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden>
-        <div className="hero-bg-shared" style={{ position: 'absolute', top: 0, left: '-62vw', width: '288vw', height: '100%' }}>
+        <div className="hero-bg-shared" style={{ position: 'absolute', top: 0, left: '-2vw', width: '204vw', height: '100%' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/hero/hero-scene-full.png"
             alt=""
             className="w-full h-full object-cover"
-            style={{ objectPosition: 'center 72%' }}
+            style={{ objectPosition: 'center 48%' }}
           />
         </div>
         {/* Legibility scrim — opaque near the text (left), fading out toward

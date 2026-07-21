@@ -1,168 +1,240 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
-import { Check, BadgeCheck } from 'lucide-react'
+import { useRef } from 'react'
+import { motion, useScroll, useTransform, MotionValue } from 'framer-motion'
+import {
+  MessageSquare,
+  UserX,
+  Lock,
+  UserCheck,
+  Clock,
+  Target,
+  Users,
+  ShieldCheck,
+  Sparkles,
+  BarChart3,
+} from 'lucide-react'
 
-// Same 5 capabilities on both sides — blurred/illegible on the DIY side
-// (you can't actually verify them), crisp + checked on the FindFit side.
-const items = [
-  '실제 프로필 기반 검증',
-  '낯선 타겟에게 노출',
-  'NDA로 유출 방지',
-  'AI 중립 질문 설계',
-  '10명 동일 기준 데이터',
+const diyItems = [
+  {
+    icon: MessageSquare,
+    title: '관심 있어서 자원한 사람 검증',
+    num: '1',
+  },
+  {
+    icon: UserX,
+    title: '이미 아는 지인·팔로워에게만 노출',
+    num: '2',
+  },
+  {
+    icon: Lock,
+    title: '법적 보호 없이 공유',
+    num: '3',
+  },
+  {
+    icon: UserCheck,
+    title: '창업자가 직접 질문, 답변 유도',
+    num: '4',
+  },
+  {
+    icon: Clock,
+    title: '세션마다 질문·깊이 제각각',
+    num: '5',
+  },
 ]
 
-export default function ComparisonSection() {
-  const sectionRef = useRef<HTMLDivElement>(null)
+const findfitItems = [
+  {
+    icon: Target,
+    title: '실제 프로필 기반 검증',
+    num: '1',
+  },
+  {
+    icon: Users,
+    title: '낯선 타겟에게 노출',
+    num: '2',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'NDA로 유출 방지',
+    num: '3',
+  },
+  {
+    icon: Sparkles,
+    title: 'AI 중립 질문 설계',
+    num: '4',
+  },
+  {
+    icon: BarChart3,
+    title: '10명 동일 기준 데이터',
+    num: '5',
+  },
+]
 
-  useEffect(() => {
-    const targets = sectionRef.current?.querySelectorAll('.fade-up-init')
-    if (!targets) return
-    const observer = new IntersectionObserver(
-      (entries) => entries.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target) } }),
-      { threshold: 0.15 }
-    )
-    targets.forEach((el) => observer.observe(el))
-    return () => observer.disconnect()
-  }, [])
+interface ComparisonSectionProps {
+  progress?: MotionValue<number>
+}
+
+export default function ComparisonSection({ progress }: ComparisonSectionProps) {
+  const localRef = useRef<HTMLDivElement>(null)
+
+  const { scrollYProgress: localScroll } = useScroll({
+    target: localRef,
+    offset: ['start start', 'end end'],
+  })
+
+  const activeProgress = progress || localScroll
+
+  // Phase 1 (0 -> 0.5): Grid is crisp & readable.
+  // Phase 2 (0.5 -> 0.85): Grid blurs out, quote overlay fades in prominently.
+  // Phase 3 (0.85 -> 1.0): Quote stays emphasized before scrolling to next section.
+  const blurValue = useTransform(activeProgress, [0.5, 0.75], ['blur(0px)', 'blur(22px)'])
+  const contentOpacity = useTransform(activeProgress, [0.5, 0.75], [1, 0.2])
+  const contentScale = useTransform(activeProgress, [0.5, 0.75], [1, 0.95])
+
+  const overlayOpacity = useTransform(activeProgress, [0.55, 0.75, 0.92, 1], [0, 1, 1, 0.8])
+  const overlayScale = useTransform(activeProgress, [0.55, 0.75], [0.92, 1])
 
   return (
-    <section ref={sectionRef} className="w-full h-full bg-[#0D0D0F] flex items-center overflow-hidden">
-      <div className="max-w-[1140px] mx-auto px-6 w-full">
-
-        <div className="fade-up-init text-center mb-6">
-          <span className="inline-block text-[12px] font-bold text-[#F77019] mb-2">
-            왜 FindFit이어야 할까요
-          </span>
-          <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white mb-2">
-            SNS 모집 테스트 vs FindFit
-          </h2>
-          <p className="text-white/45 text-[13px] md:text-sm leading-relaxed max-w-[560px] mx-auto">
-            DIY 모집 테스트는 &ldquo;이미 관심 있는 사람&rdquo;의 반응이고, FindFit은 &ldquo;진짜 시장&rdquo;의 반응입니다.
-          </p>
+    <div ref={localRef} className="relative w-full h-full">
+      <div className="relative h-screen w-full bg-[#08080A] overflow-hidden flex flex-col justify-center items-center">
+        
+        {/* Lightbulb central visual background (Image 2) */}
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/why-findfit-bulb.png"
+            alt=""
+            className="h-[88%] max-h-[820px] w-auto object-contain opacity-90"
+          />
         </div>
 
-        <div
-          className="fade-up-init delay-1 relative overflow-hidden"
+        {/* Main Comparison Grid Content */}
+        <motion.div
+          className="relative z-10 w-full max-w-[1240px] px-6 py-6 flex flex-col justify-center h-full"
           style={{
-            background: 'rgba(255,255,255,0.03)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            borderRadius: '24px',
+            filter: blurValue,
+            opacity: contentOpacity,
+            scale: contentScale,
           }}
         >
-          {/* Central divider + floating badge, connecting both sides */}
-          <div
-            className="hidden md:block absolute top-0 bottom-0 left-1/2 w-px"
-            style={{
-              transform: 'translateX(-50%)',
-              background: 'linear-gradient(180deg, rgba(247,112,25,0.55), rgba(247,112,25,0.12) 45%, rgba(247,112,25,0.03))',
-            }}
-          />
-          <div
-            className="hidden md:flex absolute left-1/2 top-6 items-center gap-1.5 px-3.5 py-1.5 rounded-full z-10"
-            style={{
-              transform: 'translateX(-50%)',
-              background: 'linear-gradient(135deg, #F77019, #C24E0E)',
-              boxShadow: '0 10px 28px rgba(247,112,25,0.4)',
-            }}
-          >
-            <BadgeCheck className="w-3.5 h-3.5 text-white" strokeWidth={2.5} />
-            <span className="text-white text-[12px] font-semibold whitespace-nowrap">신뢰도 차이 78%</span>
+          {/* Section Header Badge */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center px-4.5 py-1.5 rounded-full border border-[#F77019]/60 bg-[#161618] shadow-[0_0_16px_rgba(247,112,25,0.35)] mb-2">
+              <span className="text-[#F77019] text-xs font-extrabold tracking-widest uppercase">
+                Why FindFit?
+              </span>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2">
-
-            {/* Left — Problem (DIY) */}
-            <div className="p-6 md:px-10 md:pb-9 pt-12 md:pr-10 md:pt-14 flex flex-col">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="w-1.5 h-1.5 rounded-full bg-white/40" />
-                <span className="text-white/50 text-[13px] font-semibold tracking-wide">Problem</span>
-              </div>
-              <h3 className="text-white text-xl font-bold mb-2">SNS·커뮤니티 자체 모집</h3>
-              <p className="text-white/45 text-[13px] leading-relaxed mb-5 max-w-[420px]">
-                &ldquo;테스트해주실 분 모집합니다&rdquo;를 올리고, 지인 위주로 피드백을 받는 방식입니다. 구조가 없어 결과를 믿기 어렵습니다.
-              </p>
-
-              {/* Blurred / illegible pills — can't actually verify these */}
-              <div className="flex flex-col gap-2 mb-5">
-                {items.map((label, i) => (
-                  <div
-                    key={i}
-                    className="px-3.5 py-2 rounded-full text-[12.5px] text-white/50 select-none"
-                    style={{
-                      background: 'rgba(255,255,255,0.04)',
-                      border: '1px solid rgba(255,255,255,0.06)',
-                      filter: 'blur(3px)',
-                      opacity: 0.6,
-                    }}
-                  >
-                    {label}
-                  </div>
-                ))}
+          {/* 2-Column Layout */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 lg:gap-24 items-center">
+            
+            {/* Left Column — FIND FIT 없이 */}
+            <div className="flex flex-col items-center md:items-start text-center md:text-left">
+              {/* Badge */}
+              <div className="inline-flex items-center px-4 py-1.5 rounded-full border border-white/20 bg-[#141416]/90 backdrop-blur-md mb-4 shadow-md">
+                <span className="text-white/70 text-xs font-semibold tracking-wider">
+                  FIND FIT 없이
+                </span>
               </div>
 
-              {/* One compact stat highlight */}
-              <div
-                className="mt-auto flex items-center gap-4 px-4 py-3 rounded-2xl"
-                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
-              >
-                <span className="text-white text-[26px] font-bold tracking-tight shrink-0">7%</span>
-                <p className="text-white/40 text-[12px] leading-snug">
-                  &ldquo;괜찮다&rdquo;고 답한 8/10명 중 실제 지속 사용률
-                </p>
+              {/* Title */}
+              <h3 className="text-2xl md:text-3xl font-bold text-white tracking-tight mb-8">
+                느리고, 편향되고, 불확실한 검증
+              </h3>
+
+              {/* List Cards */}
+              <div className="w-full space-y-3.5">
+                {diyItems.map((item, idx) => {
+                  const IconComp = item.icon
+                  return (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between px-5 py-3.5 rounded-2xl bg-[#121214]/85 border border-white/10 backdrop-blur-md shadow-lg"
+                    >
+                      <div className="flex items-center gap-3.5">
+                        <div className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+                          <IconComp className="w-4 h-4 text-white/70" />
+                        </div>
+                        <span className="text-[14px] md:text-[15px] font-medium text-white/80">
+                          {item.title}
+                        </span>
+                      </div>
+                      <span className="w-6 h-6 rounded-full bg-white/10 text-white/50 text-xs font-bold flex items-center justify-center shrink-0">
+                        {item.num}
+                      </span>
+                    </div>
+                  )
+                })}
               </div>
             </div>
 
-            {/* Right — Solution (FindFit) */}
-            <div className="p-6 md:px-10 md:pb-9 pt-12 md:pl-10 md:pt-14 flex flex-col" style={{ background: 'rgba(247,112,25,0.04)' }}>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#F77019]" />
-                <span className="text-[#F77019] text-[13px] font-semibold tracking-wide">Solution</span>
+            {/* Right Column — FIND FIT과 함께 */}
+            <div className="flex flex-col items-center md:items-start text-center md:text-left">
+              {/* Badge */}
+              <div className="inline-flex items-center px-4 py-1.5 rounded-full border border-[#F77019]/60 bg-[#1A110B] backdrop-blur-md shadow-[0_0_15px_rgba(247,112,25,0.25)] mb-4">
+                <span className="text-[#F77019] text-xs font-bold tracking-wider">
+                  FIND FIT과 함께
+                </span>
               </div>
 
-              <div className="flex items-center gap-2.5 mb-2">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(247,112,25,0.15)' }}>
-                  <img src="/logo.png" alt="" className="w-5 h-5 object-contain" />
-                </div>
-                <h3 className="text-white text-xl font-bold">FindFit</h3>
-              </div>
-              <p className="text-white/60 text-[13px] leading-relaxed mb-5 max-w-[440px]">
-                AI 에이전트가 중립적으로 질문을 설계하고, 낯선 타겟 10명의 구조화된 피드백을 리포트 한 장으로 정리합니다.
-              </p>
+              {/* Title */}
+              <h3 className="text-2xl md:text-3xl font-bold text-white tracking-tight mb-8">
+                빠르고, 객관적이고, 신뢰할 수 있는 검증
+              </h3>
 
-              {/* Crisp, checked pills — same 5 items, now verifiable */}
-              <div className="flex flex-col gap-2 mb-5">
-                {items.map((label, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between px-3.5 py-2 rounded-full text-[12.5px] text-white"
-                    style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}
-                  >
-                    <span>{label}</span>
-                    <span className="flex items-center justify-center w-4 h-4 rounded-full shrink-0" style={{ background: '#22C55E' }}>
-                      <Check className="w-3 h-3 text-white" strokeWidth={3} />
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Matching compact stat highlight */}
-              <div
-                className="mt-auto flex items-center gap-4 px-4 py-3 rounded-2xl"
-                style={{ background: 'rgba(247,112,25,0.1)', border: '1px solid rgba(247,112,25,0.18)' }}
-              >
-                <span className="text-[#F77019] text-[26px] font-bold tracking-tight shrink-0">10/10</span>
-                <p className="text-white/60 text-[12px] leading-snug">
-                  동일한 질문·기준으로 답한 리뷰어 수 — 그대로 비교 가능
-                </p>
+              {/* List Cards */}
+              <div className="w-full space-y-3.5">
+                {findfitItems.map((item, idx) => {
+                  const IconComp = item.icon
+                  return (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between px-5 py-3.5 rounded-2xl bg-[#1A110B]/90 border border-[#F77019]/35 backdrop-blur-md shadow-[0_4px_20px_rgba(247,112,25,0.12)]"
+                    >
+                      <div className="flex items-center gap-3.5">
+                        <div className="w-9 h-9 rounded-xl bg-[#F77019]/20 border border-[#F77019]/40 flex items-center justify-center text-[#F77019] shrink-0">
+                          <IconComp className="w-4 h-4 text-[#F77019]" />
+                        </div>
+                        <span className="text-[14px] md:text-[15px] font-semibold text-white">
+                          {item.title}
+                        </span>
+                      </div>
+                      <span className="w-6 h-6 rounded-full bg-[#F77019] text-white text-xs font-bold flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(247,112,25,0.6)]">
+                        {item.num}
+                      </span>
+                    </div>
+                  )
+                })}
               </div>
             </div>
 
           </div>
-        </div>
+        </motion.div>
+
+        {/* Phase 2: Emphasis Quote Overlay */}
+        <motion.div
+          className="absolute inset-0 z-30 flex flex-col items-center justify-center px-6 pointer-events-none"
+          style={{
+            opacity: overlayOpacity,
+            scale: overlayScale,
+          }}
+        >
+          <div className="w-full max-w-[820px] text-center p-10 md:p-16 rounded-3xl bg-black/80 border border-[#F77019]/40 backdrop-blur-2xl shadow-[0_0_70px_rgba(247,112,25,0.3)]">
+            <span className="text-[#F77019] text-xs font-extrabold uppercase tracking-[0.3em] mb-5 block">
+              Why FindFit
+            </span>
+            <h2 className="text-2xl md:text-4xl lg:text-5xl font-black text-white leading-tight tracking-tight">
+              &ldquo;FindFit 이전과 이후.<br />
+              <span className="mt-2 block bg-gradient-to-r from-[#F77019] via-[#FFA066] to-[#F77019] bg-clip-text text-transparent">
+                당신이 듣게 되는 목소리가 달라집니다
+              </span>&rdquo;
+            </h2>
+          </div>
+        </motion.div>
 
       </div>
-    </section>
+    </div>
   )
 }
