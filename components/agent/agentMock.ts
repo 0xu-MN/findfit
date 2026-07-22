@@ -154,6 +154,10 @@ export function generatePhaseResponse(
   userInput: string,
   context: AgentContext,
   _isToastSelection: boolean,
+  // Phase 2→3 전환에서만 쓰인다 — 실제 네이버 데이터랩 API 호출(서버 전용 키가
+  // 필요해 이 파일에서 직접 호출할 수 없다)은 AgentPanel이 미리 해서 결과
+  // 문장을 여기로 넘겨준다. 안 넘겨주면(로딩 실패 등) 기존 정적 문구로 대체.
+  realTrendLine?: string,
 ): { message: AgentMessage; updatedContext: AgentContext } {
 
   const phase = context.phase
@@ -218,7 +222,7 @@ export function generatePhaseResponse(
 
     const targetCustomer = isSkip ? undefined : userInput
     const categoryKey = context.category ?? 'default'
-    const trendText = TREND_TEXTS[categoryKey] ?? TREND_TEXTS.default
+    const trendText = realTrendLine ?? TREND_TEXTS[categoryKey] ?? TREND_TEXTS.default
 
     const skipLine = isSkip
       ? '그것도 검증하면서 찾아가면 돼요! 🙌\n\n'

@@ -73,6 +73,9 @@ export interface Database {
           email: string
           role: UserRole | null
           status: UserStatus
+          nickname: string | null
+          real_name: string | null
+          phone: string | null
           created_at: string
         }
         Insert: {
@@ -80,6 +83,9 @@ export interface Database {
           email: string
           role?: UserRole | null
           status?: UserStatus
+          nickname?: string | null
+          real_name?: string | null
+          phone?: string | null
           created_at?: string
         }
         Update: {
@@ -89,6 +95,9 @@ export interface Database {
           // 먹는다 — 타입만 허용해두고, 실질 차단은 DB 권한이 담당한다.
           // 서비스 롤(관리자 API)에서만 의미 있게 사용된다.
           status?: UserStatus
+          nickname?: string | null
+          real_name?: string | null
+          phone?: string | null
         }
 
         Relationships: []

@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { routeToDashboardOrLogin } from '@/lib/auth/routeToDashboard'
 
 const navLinks = [
   { label: '서비스', href: '#service' },
@@ -10,12 +12,22 @@ const navLinks = [
 
 export default function Header() {
   const [scrolled, setScrolled] = useState(false)
+  const router = useRouter()
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 60)
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
+
+  // "시작하기"가 로그인 여부와 무관하게 /builder/dashboard로 바로 꽂혀 있었음
+  // — /builder/dashboard 자체엔 인증 가드가 없어서, 로그인 안 한 사람도 그냥
+  // (텅 빈/깨진) 대시보드로 들어가지고 로그인 화면을 아예 못 봤다. 세션이
+  // 있으면 role에 맞는 대시보드로, 없으면 로그인 화면으로 보낸다.
+  const handleStart = (e: React.MouseEvent) => {
+    e.preventDefault()
+    routeToDashboardOrLogin(router)
+  }
 
   return (
     <>
@@ -49,7 +61,7 @@ export default function Header() {
               </a>
             ))}
           </nav>
-          <a href="/builder/dashboard" className="bg-[#F77019] hover:opacity-90 text-white text-sm font-semibold px-5 py-2.5 rounded-full transition-all">
+          <a href="/auth/login" onClick={handleStart} className="bg-[#F77019] hover:opacity-90 text-white text-sm font-semibold px-5 py-2.5 rounded-full transition-all">
             시작하기
           </a>
         </div>
@@ -70,7 +82,7 @@ export default function Header() {
             <a href="#reviewer" className="text-sm font-medium text-[#1D1C1C] hover:text-[#F77019] transition-colors">
               리뷰어 모집
             </a>
-            <a href="/builder/dashboard" className="bg-[#F77019] hover:opacity-90 text-white text-sm font-semibold px-5 py-2.5 rounded-full transition-all">
+            <a href="/auth/login" onClick={handleStart} className="bg-[#F77019] hover:opacity-90 text-white text-sm font-semibold px-5 py-2.5 rounded-full transition-all">
               시작하기
             </a>
           </div>

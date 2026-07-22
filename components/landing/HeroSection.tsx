@@ -1,6 +1,8 @@
 'use client'
 
 import { ArrowRight, ChevronDown } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { routeToDashboardOrLogin } from '@/lib/auth/routeToDashboard'
 
 const trustItems = [
   { value: '72시간', label: '내 리포트 수령' },
@@ -9,6 +11,12 @@ const trustItems = [
 ]
 
 export default function HeroSection() {
+  const router = useRouter()
+  const goToDashboard = (e: React.MouseEvent) => {
+    e.preventDefault()
+    routeToDashboardOrLogin(router)
+  }
+
   return (
     <section className="relative w-full overflow-hidden bg-[#F8F8F8]" style={{ height: '100vh', minHeight: '700px' }}>
       {/* Full-bleed hero background — one wide diorama image shared with the
@@ -63,11 +71,11 @@ export default function HeroSection() {
           </p>
 
           <div className="flex items-center gap-4 mt-10">
-            <a href="/builder/dashboard" className="flex items-center gap-2 font-semibold rounded-full bg-[#F77019] text-white px-7 py-3.5 text-[15px] shadow-[0_4px_24px_rgba(247,112,25,0.35)] hover:scale-[1.03] transition-transform">
+            <a href="/auth/login" onClick={goToDashboard} className="flex items-center gap-2 font-semibold rounded-full bg-[#F77019] text-white px-7 py-3.5 text-[15px] shadow-[0_4px_24px_rgba(247,112,25,0.35)] hover:scale-[1.03] transition-transform">
               내 아이디어 검증받기
               <ArrowRight className="w-4 h-4" />
             </a>
-            <a href="/evaluator/dashboard" className="font-semibold rounded-full border-[1.5px] border-[#1D1C1C] text-[#1D1C1C] px-7 py-3.5 text-[15px] hover:bg-[#F77019] hover:border-[#F77019] hover:text-white transition-all">
+            <a href="/auth/login" onClick={goToDashboard} className="font-semibold rounded-full border-[1.5px] border-[#1D1C1C] text-[#1D1C1C] px-7 py-3.5 text-[15px] hover:bg-[#F77019] hover:border-[#F77019] hover:text-white transition-all">
               평가단 참여하기
             </a>
           </div>

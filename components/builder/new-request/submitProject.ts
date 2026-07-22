@@ -130,7 +130,7 @@ export async function submitProject(data: RequestFormData): Promise<SubmitProjec
         occupations: data.occupations,
         interests: data.interests,
         targetContext: data.targetContext,
-        decisionFactor: data.decisionFactor,
+        decisionFactors: data.decisionFactors,
         validationGoal: data.validationGoal,
         hypothesis: data.hypothesis,
         targetReviewerRoles: data.targetReviewerRoles,

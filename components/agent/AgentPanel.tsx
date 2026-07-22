@@ -64,8 +64,25 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
     setIsTyping(true)
 
     const delay = 700 + Math.random() * 600
-    setTimeout(() => {
-      const { message, updatedContext } = generatePhaseResponse(value, context, isToastSelection)
+    setTimeout(async () => {
+      // Phase 2 → 3 전환에서만 실제 트렌드 데이터가 필요하다 (기획서 5.3
+      // Phase 2 "실시간 데이터 수집"). 이 요청 하나만 fetch로 보내고 나머지
+      // phase는 그대로 동기 로직.
+      let realTrendLine: string | undefined
+      if (context.phase === 2) {
+        try {
+          const res = await fetch('/api/agent/trend', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ category: context.category ?? 'default' }),
+          })
+          if (res.ok) realTrendLine = (await res.json()).line
+        } catch {
+          // 실패해도 generatePhaseResponse가 정적 문구로 대체
+        }
+      }
+
+      const { message, updatedContext } = generatePhaseResponse(value, context, isToastSelection, realTrendLine)
       setMessages(prev => [...prev, message])
       setContext(updatedContext)
       setIsTyping(false)
@@ -111,7 +128,10 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
             <Bot className="w-4 h-4 text-white" />
           </div>
           <div className="flex-1 min-w-0">
-            <span className="text-[13px] font-black text-[#1D1C1C]">FindFit Agent</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[13px] font-black text-[#1D1C1C]">FindFit Agent</span>
+              <span className="text-[8px] font-black text-[#F77019] bg-[#F77019]/10 px-1.5 py-0.5 rounded-full uppercase tracking-wide">Beta</span>
+            </div>
             <div className="flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E] animate-pulse" />
               <span className="text-[9px] font-bold text-[#999]">온라인</span>
@@ -228,7 +248,10 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
             <Bot className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h2 className="text-[18px] font-black text-[#1D1C1C]">FindFit Agent</h2>
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-[18px] font-black text-[#1D1C1C]">FindFit Agent</h2>
+              <span className="text-[9px] font-black text-[#F77019] bg-[#F77019]/10 px-2 py-0.5 rounded-full uppercase tracking-wide">Beta</span>
+            </div>
             <p className="text-[11px] font-bold text-[#999]">아이디어 이해 · 시장 맥락 파악 · 검증 등록 안내</p>
           </div>
           <div className="ml-auto flex items-center gap-1.5">

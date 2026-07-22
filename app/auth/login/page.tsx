@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
 import { createClient } from '@/lib/supabase/client'
+import SocialLoginButtons from '@/components/auth/SocialLoginButtons'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -101,6 +102,8 @@ export default function LoginPage() {
           >
             계정이 없으신가요? 회원가입
           </button>
+
+          <SocialLoginButtons />
         </div>
       </div>
     </div>

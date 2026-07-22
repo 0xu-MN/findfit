@@ -3,6 +3,8 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { motion, useScroll, useMotionValueEvent, useTransform, type MotionValue } from 'framer-motion'
 import { ArrowRight, ArrowLeft } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { routeToDashboardOrLogin } from '@/lib/auth/routeToDashboard'
 import Footer from './Footer'
 import CreatorPeek from './CreatorPeek'
 import ScrollIndicator from './ScrollIndicator'
@@ -13,6 +15,12 @@ import CompensationVisual from './CompensationVisual'
 import IdeaFirstLookVisual from './IdeaFirstLookVisual'
 
 function ReviewerHeader({ onSwitchToCreator }: { onSwitchToCreator: () => void }) {
+  const router = useRouter()
+  const goToDashboard = (e: React.MouseEvent) => {
+    e.preventDefault()
+    routeToDashboardOrLogin(router)
+  }
+
   return (
     <header className="fixed top-0 left-0 w-full z-50">
       <div className="max-w-[1440px] mx-auto px-12 pt-0 pb-5 flex items-center justify-between">
@@ -26,7 +34,8 @@ function ReviewerHeader({ onSwitchToCreator }: { onSwitchToCreator: () => void }
             크리에이터 알아보기
           </button>
           <a
-            href="/evaluator/dashboard"
+            href="/auth/login"
+            onClick={goToDashboard}
             className="text-white text-sm font-semibold px-5 py-2.5 rounded-full transition-colors"
             style={{ background: '#42A5F5', boxShadow: '0 4px 16px rgba(66,165,245,0.3)' }}
           >
@@ -996,6 +1005,12 @@ function LiveProjectsSection() {
 interface Props { onSwitchToCreator: () => void }
 
 export default function ReviewerLanding({ onSwitchToCreator }: Props) {
+  const router = useRouter()
+  const goToDashboard = (e: React.MouseEvent) => {
+    e.preventDefault()
+    routeToDashboardOrLogin(router)
+  }
+
   useEffect(() => {
     document.documentElement.classList.add('snap-active')
     return () => document.documentElement.classList.remove('snap-active')
@@ -1053,7 +1068,8 @@ export default function ReviewerLanding({ onSwitchToCreator }: Props) {
               전문성을 수익으로 연결하세요.
             </p>
             <a
-              href="/evaluator/dashboard"
+              href="/auth/login"
+              onClick={goToDashboard}
               className="flex items-center gap-2 font-bold rounded-full text-white hover:scale-[1.03] transition-transform"
               style={{ background: '#42A5F5', padding: '16px 36px', fontSize: '16px', boxShadow: '0 4px 32px rgba(66,165,245,0.35)' }}
             >
@@ -1083,7 +1099,8 @@ export default function ReviewerLanding({ onSwitchToCreator }: Props) {
               그 데이터가 제품의 방향을 결정해요. 전문성을 살려 부수입까지 얻으세요.
             </p>
             <a
-              href="/evaluator/dashboard"
+              href="/auth/login"
+              onClick={goToDashboard}
               className="group flex items-center gap-3 rounded-full font-semibold text-white transition-colors"
               style={{ padding: '15px 32px', fontSize: '14px', letterSpacing: '0.04em', border: '1px solid rgba(255,255,255,0.3)' }}
             >

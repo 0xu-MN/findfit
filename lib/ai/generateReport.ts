@@ -114,7 +114,9 @@ export async function generateAndSaveReport(projectId: string, supabase: any) {
   }
 
   const prompt = buildPrompt(reviews, projectForReport)
-  const aiResult = await callGemini(prompt)
+  // report prompts always ask for an object shape (never the question-suggest
+  // array shape), so this narrowing is safe.
+  const aiResult = (await callGemini(prompt)) as Record<string, unknown>
 
   // 5) recommendation / verdict / psf_score 결정
   const recommendation = (aiResult.recommendation as Recommendation | undefined) ?? null

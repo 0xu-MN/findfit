@@ -147,7 +147,9 @@ export default function Step4Light({ data, onChange }: Props) {
             <h3 className="text-sm font-black">
               {STYLE_CARDS.find((c) => c.value === data.lightQuestionStyle)?.title} 질문 작성
             </h3>
-            <p className="text-[10px] text-[#999] font-bold">최대 {LIGHT_MAX_QUESTIONS}개 (Sean Ellis 미포함)</p>
+            <p className="text-[10px] text-[#999] font-bold">
+              {Number.isFinite(LIGHT_MAX_QUESTIONS) ? `최대 ${LIGHT_MAX_QUESTIONS}개` : '무제한'} (Sean Ellis 미포함)
+            </p>
           </div>
 
           <QuestionBuilder

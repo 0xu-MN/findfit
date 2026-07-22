@@ -39,6 +39,35 @@ export type QuestionSuggestion = {
   options: string[] | null
 }
 
+export type InterestSuggestProject = {
+  title: string
+  one_liner: string
+  category: string
+  problem: string
+  solution: string
+}
+
+export function buildInterestSuggestionPrompt(project: InterestSuggestProject, existing: string[]): string {
+  return `당신은 타겟 고객 리서치 전문가입니다.
+
+[서비스 정보]
+서비스명: ${project.title}
+한 줄 소개: ${project.one_liner}
+카테고리: ${project.category}
+문제: ${project.problem}
+솔루션: ${project.solution}
+
+[이미 추가된 관심사 키워드 - 중복 금지]
+${existing.join(', ') || '없음'}
+
+[요청]
+이 서비스에 관심 가질 만한 타겟 고객의 관심사 키워드를 5~8개 추천하세요.
+매칭 알고리즘에 쓰이는 태그라 짧고 구체적인 명사형으로 작성하세요.
+
+아래 JSON 배열로만 반환하세요:
+["키워드1", "키워드2", "키워드3"]`
+}
+
 export function buildQuestionRecommendationPrompt(
   project: ProjectForSuggest,
   requiredQuestions: QuestionTemplate[],

@@ -68,7 +68,7 @@ export type RequestFormData = {
   jobRoles: string[] // 직군 — PM/개발자/디자이너/마케터/etc (활동 상태가 직장인/프리랜서/자영업자/창업자일 때 의미 있음)
   interests: string[]
   targetContext: string
-  decisionFactor: DecisionFactor | null
+  decisionFactors: DecisionFactor[]
 
   // Step 4 — 공통
   validationGoal: string
@@ -312,12 +312,14 @@ export const PSF_STANDARD_QUESTIONS: Question[] = [
   },
 ]
 
-// Light 질문 최대 개수 (Sean Ellis 미포함)
-export const LIGHT_MAX_QUESTIONS = 5
-// Standard/Deep 작성 가능 질문 (Sean Ellis 자동 포함되어 총 10개 = 작성 9개)
-export const STD_DEEP_MAX_WRITABLE = 9
-// PSF 모드에서 4개 필수 질문이 자동 포함되므로 작성 가능 최대 = 9 - 4 = 5
-export const PSF_MAX_WRITABLE = STD_DEEP_MAX_WRITABLE - PSF_STANDARD_QUESTIONS.length
+// 질문 개수 제한 없음 — 예전엔 Light 5개 / Standard(PSF) 5개 / Standard(PMF) 9개로
+// 하드캡을 걸어뒀는데, 실제로 검증하려는 내용에 따라 필요한 문항 수가 다르니
+// 무제한으로 풀어달라는 피드백. Infinity로 두면 "최대 {max}개" 같은 표시 문구만
+// UI 쪽에서 별도로 "무제한"으로 바꿔주면 되고, remaining/비교 로직은 그대로 둬도
+// 자연스럽게 항상 여유 있음으로 계산된다.
+export const LIGHT_MAX_QUESTIONS = Infinity
+export const STD_DEEP_MAX_WRITABLE = Infinity
+export const PSF_MAX_WRITABLE = Infinity
 
 export function createEmptyDraft(): RequestFormData {
   const now = new Date().toISOString()
@@ -348,7 +350,7 @@ export function createEmptyDraft(): RequestFormData {
     jobRoles: [],
     interests: [],
     targetContext: '',
-    decisionFactor: null,
+    decisionFactors: [],
 
     validationGoal: '',
     hypothesis: '',

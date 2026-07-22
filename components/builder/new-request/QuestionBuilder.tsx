@@ -67,12 +67,17 @@ export default function QuestionBuilder({ questions, onChange, max, allowedTypes
     updateQuestion(qid, { options: next })
   }
 
-  const addOption = (qid: string) => {
+  const addOption = (qid: string, focusNew = false) => {
     const q = writable.find((x) => x.id === qid)
     if (!q || !q.options) return
     const maxOptions = q.type === 'ab_test' ? 2 : q.type === 'keyword' ? 10 : 6
     if (q.options.length >= maxOptions) return
+    const newIndex = q.options.length
     updateQuestion(qid, { options: [...q.options, ''] })
+    if (focusNew) {
+      // the new input doesn't exist in the DOM until this render commits
+      requestAnimationFrame(() => document.getElementById(`opt-${qid}-${newIndex}`)?.focus())
+    }
   }
 
   const removeOption = (qid: string, idx: number) => {
@@ -87,7 +92,9 @@ export default function QuestionBuilder({ questions, onChange, max, allowedTypes
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-bold">질문 목록</span>
-        <span className="text-[9px] text-[#999] font-bold">최대 {max}개 · 남은 {remaining}개</span>
+        <span className="text-[9px] text-[#999] font-bold">
+          {Number.isFinite(max) ? `최대 ${max}개 · 남은 ${remaining}개` : '무제한'}
+        </span>
       </div>
 
       {/* 작성된 질문들 */}
@@ -119,9 +126,23 @@ export default function QuestionBuilder({ questions, onChange, max, allowedTypes
                   <div key={idx} className="flex items-center gap-2">
                     <span className="text-[10px] font-bold text-[#999] w-4">{idx + 1}.</span>
                     <input
+                      id={`opt-${q.id}-${idx}`}
                       type="text"
                       value={opt}
                       onChange={(e) => updateOption(q.id, idx, e.target.value)}
+                      onKeyDown={(e) => {
+                        // Enter on the last option row adds (and jumps into) a
+                        // new one, so typing several options in a row doesn't
+                        // need a mouse click on "+ 옵션 추가" between each one.
+                        if (e.key !== 'Enter' || e.nativeEvent.isComposing) return
+                        e.preventDefault()
+                        const isLast = idx === q.options!.length - 1
+                        if (isLast && q.type !== 'ab_test') {
+                          addOption(q.id, true)
+                        } else {
+                          document.getElementById(`opt-${q.id}-${idx + 1}`)?.focus()
+                        }
+                      }}
                       placeholder={
                         q.type === 'ab_test' ? `옵션 ${idx + 1}` : q.type === 'keyword' ? `키워드 ${idx + 1}` : `선택지 ${idx + 1}`
                       }

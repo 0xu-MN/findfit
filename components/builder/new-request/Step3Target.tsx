@@ -1,5 +1,6 @@
 'use client'
 
+import { Loader2, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import { AGE_GROUPS, DECISION_FACTORS, JOB_ROLES, OCCUPATIONS, type RequestFormData } from './types'
 
@@ -10,6 +11,8 @@ type Props = {
 
 export default function Step3Target({ data, onChange }: Props) {
   const [interestInput, setInterestInput] = useState('')
+  const [interestSuggestions, setInterestSuggestions] = useState<string[]>([])
+  const [loadingSuggest, setLoadingSuggest] = useState(false)
 
   const toggle = (key: 'ageGroups' | 'occupations' | 'jobRoles', val: string) => {
     const arr = data[key]
@@ -32,6 +35,39 @@ export default function Step3Target({ data, onChange }: Props) {
   }
 
   const removeInterest = (v: string) => onChange({ interests: data.interests.filter((i) => i !== v) })
+
+  const fetchInterestSuggestions = async () => {
+    setLoadingSuggest(true)
+    setInterestSuggestions([])
+    try {
+      const res = await fetch('/api/interests/suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project: {
+            title: data.productName,
+            one_liner: data.oneLineDesc,
+            category: data.categories[0] ?? '',
+            problem: data.problem,
+            solution: data.ourDifference,
+          },
+          existing: data.interests,
+        }),
+      })
+      if (res.ok) {
+        const json = await res.json()
+        setInterestSuggestions((json.suggestions ?? []).filter((k: string) => !data.interests.includes(k)))
+      }
+    } finally {
+      setLoadingSuggest(false)
+    }
+  }
+
+  const addInterestValue = (v: string) => {
+    if (data.interests.length >= 5 || data.interests.includes(v)) return
+    onChange({ interests: [...data.interests, v] })
+    setInterestSuggestions((prev) => prev.filter((k) => k !== v))
+  }
 
   return (
     <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 flex flex-col gap-6 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
@@ -92,7 +128,12 @@ export default function Step3Target({ data, onChange }: Props) {
             value={interestInput}
             onChange={(e) => setInterestInput(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') {
+              // 한글 입력은 마지막 글자를 조합 중일 때 Enter를 누르면 브라우저가
+              // 조합 확정용 keydown을 한 번 더 보내는 경우가 있어, 이걸 그대로
+              // 처리하면 조합이 끝나지 않은 완성 전 글자(예: "사업계획서" 확정
+              // 직후의 "서")가 별도 키워드로 한 번 더 추가돼버린다. isComposing
+              // 동안엔 Enter를 무시해서 막는다.
+              if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
                 e.preventDefault()
                 addInterest()
               }
@@ -107,7 +148,33 @@ export default function Step3Target({ data, onChange }: Props) {
           >
             추가
           </button>
+          <button
+            type="button"
+            onClick={fetchInterestSuggestions}
+            disabled={loadingSuggest || data.interests.length >= 5 || !data.productName}
+            title={!data.productName ? '1단계 서비스명을 먼저 입력해주세요' : undefined}
+            className="flex items-center gap-1.5 h-10 px-4 rounded-xl border border-[#F77019] text-[#F77019] text-[11px] font-black hover:bg-[#F77019]/5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+          >
+            {loadingSuggest ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+            AI 추천
+          </button>
         </div>
+
+        {interestSuggestions.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap mt-2">
+            {interestSuggestions.map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => addInterestValue(tag)}
+                className="inline-flex items-center gap-1 px-3 h-7 rounded-full border border-dashed border-[#F77019]/50 text-[#F77019] text-[10px] font-black hover:bg-[#F77019]/5"
+              >
+                + {tag}
+              </button>
+            ))}
+          </div>
+        )}
+
         {data.interests.length > 0 && (
           <div className="flex items-center gap-2 flex-wrap mt-2">
             {data.interests.map((tag) => (
@@ -133,13 +200,26 @@ export default function Step3Target({ data, onChange }: Props) {
       </Field>
 
       {/* 결정 요인 */}
-      <Field label="구매·사용 결정 요인">
+      <Field label="구매·사용 결정 요인" hint="복수 선택">
         <div className="flex items-center gap-2 flex-wrap">
-          {DECISION_FACTORS.map((d) => (
-            <Chip key={d.value} active={data.decisionFactor === d.value} onClick={() => onChange({ decisionFactor: d.value })}>
-              {d.label}
-            </Chip>
-          ))}
+          {DECISION_FACTORS.map((d) => {
+            const active = data.decisionFactors.includes(d.value)
+            return (
+              <Chip
+                key={d.value}
+                active={active}
+                onClick={() =>
+                  onChange({
+                    decisionFactors: active
+                      ? data.decisionFactors.filter((v) => v !== d.value)
+                      : [...data.decisionFactors, d.value],
+                  })
+                }
+              >
+                {d.label}
+              </Chip>
+            )
+          })}
         </div>
       </Field>
     </div>

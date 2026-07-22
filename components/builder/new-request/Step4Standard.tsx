@@ -132,7 +132,8 @@ export default function Step4Standard({ data, onChange }: Props) {
           <div className="flex flex-col gap-1">
             <h3 className="text-sm font-black">질문 설계</h3>
             <p className="text-[10px] text-[#999] font-bold">
-              평가단이 제품 설명을 읽고 바로 답변할 질문. 핵심 질문 자동 포함 · 작성 가능 최대 {maxWritable}개
+              평가단이 제품 설명을 읽고 바로 답변할 질문. 핵심 질문 자동 포함 · 작성 가능{' '}
+              {Number.isFinite(maxWritable) ? `최대 ${maxWritable}개` : '무제한'}
             </p>
           </div>
           <button
