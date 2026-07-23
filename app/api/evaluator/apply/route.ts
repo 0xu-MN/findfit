@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return jsonError('로그인이 필요합니다', 401)
 
-    const { projectId, applicantEmail, applicantDomain, applicantIntro } = await req.json()
+    const { projectId, applicantEmail, applicantDomain, applicantIntro, ndaAgreed } = await req.json()
     if (!projectId || !applicantEmail) return jsonError('필수 항목이 누락되었습니다', 400)
 
     // 프로젝트 상태 확인
@@ -54,6 +54,7 @@ export async function POST(req: Request) {
       applicant_domain: applicantDomain ?? [],
       applicant_intro: applicantIntro ?? null,
       applied_at: new Date().toISOString(),
+      nda_agreed_at: ndaAgreed ? new Date().toISOString() : null,
     })
 
     if (insertError) {

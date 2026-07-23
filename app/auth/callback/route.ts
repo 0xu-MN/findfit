@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     if (!error && data.user) {
       const { data: userRow } = await supabase
         .from('users')
-        .select('role, status')
+        .select('role, status, nickname')
         .eq('id', data.user.id)
         .single()
 
@@ -23,6 +23,10 @@ export async function GET(request: Request) {
         await supabase.auth.signOut()
         return NextResponse.redirect(`${origin}/auth/login?error=account_blocked`)
       }
+
+      // 소셜 로그인은 이메일/비번 가입 폼(닉네임 등 수집)을 건너뛰기 때문에,
+      // 닉네임이 아직 없으면 role-select보다 먼저 최소 프로필 입력을 강제한다.
+      if (!userRow?.nickname) return NextResponse.redirect(`${origin}/auth/complete-profile`)
 
       if (userRow?.role === 'builder') return NextResponse.redirect(`${origin}/builder/dashboard`)
       if (userRow?.role === 'evaluator') return NextResponse.redirect(`${origin}/evaluator/dashboard`)

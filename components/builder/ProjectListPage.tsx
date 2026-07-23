@@ -1,11 +1,11 @@
 'use client'
 
-import { MoreHorizontal, Plus, Search, FileText, LayoutGrid, List } from 'lucide-react'
+import { MoreHorizontal, Plus, Search, FileText, LayoutGrid, List, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
 import { createClient } from '@/lib/supabase/client'
-import { listDrafts } from './new-request/storage'
+import { deleteDraft, listDrafts } from './new-request/storage'
 import { getDraftTagLabel, type RequestFormData } from './new-request/types'
 
 type ProjectRow = {
@@ -66,6 +66,25 @@ export default function ProjectListPage() {
 
   const openDraft = (id: string) => router.push(`/builder/new-request?draftId=${id}`)
   const newDraft = () => router.push('/builder/new-request')
+
+  const handleDeleteDraft = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation()
+    if (!confirm('작성 중인 임시저장 항목을 삭제하시겠습니까?')) return
+    deleteDraft(id)
+    setDrafts(listDrafts())
+  }
+
+  const handleDeleteProject = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation()
+    if (!confirm('이 프로젝트를 삭제하시겠습니까? 리뷰어 지원 내역, 질문, 답변이 모두 함께 삭제되며 되돌릴 수 없습니다.')) return
+    const supabase = createClient()
+    const { error } = await supabase.from('projects').delete().eq('id', id)
+    if (error) {
+      alert('삭제 중 오류가 발생했습니다.')
+      return
+    }
+    setProjects((prev) => prev.filter((p) => p.id !== id))
+  }
 
   return (
     <div className="w-full flex flex-col gap-6 text-[#1D1C1C]">
@@ -136,6 +155,14 @@ export default function ProjectListPage() {
                   <h3 className="text-xs font-extrabold group-hover:text-[#F77019] transition-colors line-clamp-2 pr-2">
                     {d.productName || '(제목 미작성)'}
                   </h3>
+                  <span
+                    onClick={(e) => handleDeleteDraft(e, d.id)}
+                    role="button"
+                    title="삭제"
+                    className="p-1 rounded-md text-[#CCC] hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </span>
                 </div>
                 <div className="flex items-center justify-between mt-1">
                   <span className="text-[10px] font-bold text-[#F77019] bg-[#F77019]/10 px-2 py-1 rounded-md">
@@ -189,9 +216,19 @@ export default function ProjectListPage() {
                     <h3 className="text-xs font-extrabold group-hover:text-[#F77019] transition-colors line-clamp-1 pr-4">
                       {s.title || '(제목 미작성)'}
                     </h3>
-                    <span className="text-[10px] font-bold text-[#2E7D32] whitespace-nowrap bg-[#2E7D32]/10 px-2 py-0.5 rounded flex-shrink-0">
-                      {s.completed_count === 0 ? '매칭 대기중' : '응답 수집중'}
-                    </span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className="text-[10px] font-bold text-[#2E7D32] whitespace-nowrap bg-[#2E7D32]/10 px-2 py-0.5 rounded">
+                        {s.completed_count === 0 ? '매칭 대기중' : '응답 수집중'}
+                      </span>
+                      <span
+                        onClick={(e) => handleDeleteProject(e, s.id)}
+                        role="button"
+                        title="삭제"
+                        className="p-1 rounded-md text-[#CCC] hover:text-red-500 hover:bg-red-50 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </span>
+                    </div>
                   </div>
 
                   <div className="flex flex-col gap-1.5">
@@ -246,9 +283,19 @@ export default function ProjectListPage() {
                   <h3 className="text-xs font-extrabold group-hover:text-[#F77019] transition-colors line-clamp-1 pr-4">
                     {s.title || '(제목 미작성)'}
                   </h3>
-                  <span className="text-[10px] font-bold text-[#F77019] whitespace-nowrap bg-[#F77019]/10 px-2 py-0.5 rounded flex-shrink-0">
-                    수집 완료
-                  </span>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <span className="text-[10px] font-bold text-[#F77019] whitespace-nowrap bg-[#F77019]/10 px-2 py-0.5 rounded">
+                      수집 완료
+                    </span>
+                    <span
+                      onClick={(e) => handleDeleteProject(e, s.id)}
+                      role="button"
+                      title="삭제"
+                      className="p-1 rounded-md text-[#CCC] hover:text-red-500 hover:bg-red-50 transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </span>
+                  </div>
                 </div>
                 <div className="flex items-center justify-between text-[9px] font-bold text-[#666]">
                   <span>응답 수집률</span>

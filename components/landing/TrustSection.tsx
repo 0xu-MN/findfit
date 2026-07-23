@@ -6,9 +6,9 @@ import { motion, AnimatePresence, useScroll, useMotionValueEvent } from 'framer-
 const features = [
   {
     label: 'FEATURE 01',
-    title: 'NDA 기반 아이디어 보호',
-    desc: '리뷰어가 피드백 참여 전 법적 NDA에 동의합니다. 아이디어 공개 범위도 내가 설정해요. 누구에게 뭘 보여줄지 완전히 제어 가능합니다.',
-    tag: '유일한 NDA 연동 검증 플랫폼',
+    title: '기밀유지 서약 기반 아이디어 보호',
+    desc: '리뷰어가 피드백 참여 전 비밀유지에 동의합니다. 아이디어 공개 범위도 내가 설정해요. 누구에게 뭘 보여줄지 완전히 제어 가능합니다.',
+    tag: '기밀유지 서약을 연동한 검증 플랫폼',
     glow: '#7C9CFF',
     image: '/differentiators/feature-01-nda.png',
   },
@@ -196,7 +196,7 @@ export default function TrustSection({ id = 'trust-section' }: { id?: string }) 
           </div>
 
           <p className="text-center text-white/40 text-[13px] mt-6 absolute bottom-8 left-1/2 -translate-x-1/2">
-            🔒 모든 리뷰는 NDA 보호 하에 진행됩니다
+            🔒 모든 리뷰는 기밀유지 동의 하에 진행됩니다
           </p>
         </div>
       </div>
@@ -237,7 +237,7 @@ export default function TrustSection({ id = 'trust-section' }: { id?: string }) 
         </div>
 
         <p className="text-center text-white/40 text-[13px] mt-10 fade-up-init delay-2">
-          🔒 모든 리뷰는 NDA 보호 하에 진행됩니다
+          🔒 모든 리뷰는 기밀유지 동의 하에 진행됩니다
         </p>
       </div>
     </section>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 import SharedMainPanel from './SharedMainPanel'
 import SharedFeedPanel from './SharedFeedPanel'
 import RightPanelFooter from './RightPanelFooter'
@@ -19,7 +20,9 @@ import {
   Columns2,
   FileText,
   Landmark,
-  UserCog
+  UserCog,
+  Settings,
+  LogOut
 } from 'lucide-react'
 
 interface DashboardLayoutProps {
@@ -38,14 +41,34 @@ export default function DashboardLayout({ role, children, rightPanel }: Dashboar
   const [showConfirm, setShowConfirm] = useState(false)
   const [rightTab, setRightTab] = useState<'main' | 'lounge' | 'feed'>('main')
   const [mounted, setMounted] = useState(false)
+  const [nickname, setNickname] = useState<string | null>(null)
 
-  useEffect(() => { 
-    setMounted(true) 
+  useEffect(() => {
+    setMounted(true)
     const hasSeenConfirm = sessionStorage.getItem(`has_seen_confirm_${role}`)
     if (!hasSeenConfirm) {
       setShowConfirm(true)
     }
   }, [role])
+
+  // 로그아웃 버튼이 아예 없어서 소셜 로그인 테스트 중 계정을 바꿀 방법이
+  // 없던 문제 — 실제 로그인한 사용자 닉네임도 같이 보여준다("jungin0314"
+  // 하드코딩 대신).
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      supabase.from('users').select('nickname').eq('id', user.id).single().then(({ data }) => {
+        setNickname(data?.nickname ?? null)
+      })
+    })
+  }, [])
+
+  const handleLogout = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/')
+  }
 
   useEffect(() => {
     if (mounted && typeof window !== 'undefined') {
@@ -166,8 +189,23 @@ export default function DashboardLayout({ role, children, rightPanel }: Dashboar
                       style={{ background: accentColor }}>
                       {role === 'creator' ? 'C' : 'R'}
                     </div>
-                    <span className="text-[11px] font-bold text-[#666]">jungin0314</span>
+                    <span className="text-[11px] font-bold text-[#666]">{nickname ?? '...'}</span>
                   </div>
+
+                  <button
+                    onClick={() => router.push(role === 'creator' ? '/builder/account' : '/evaluator/account')}
+                    title="계정 설정"
+                    className="w-7 h-7 rounded-full flex items-center justify-center text-[#999] hover:bg-[#1D1C1C]/5 hover:text-[#1D1C1C] transition-colors"
+                  >
+                    <Settings className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    title="로그아웃"
+                    className="w-7 h-7 rounded-full flex items-center justify-center text-[#999] hover:bg-red-50 hover:text-red-500 transition-colors"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
             )}

@@ -15,11 +15,13 @@ export default function LoginPage() {
 
   const routeByRole = async (userId: string): Promise<string | null> => {
     const supabase = createClient()
-    const { data } = await supabase.from('users').select('role, status').eq('id', userId).single()
+    const { data } = await supabase.from('users').select('role, status, nickname').eq('id', userId).single()
 
     // 정지/탈퇴 계정은 로그인 자체를 막는다
     if (data?.status === 'suspended') return '정지된 계정입니다. 고객센터로 문의해주세요.'
     if (data?.status === 'withdrawn') return '탈퇴 처리된 계정입니다.'
+
+    if (!data?.nickname) { router.push('/auth/complete-profile'); return null }
 
     const role = data?.role
     if (role === 'builder') router.push('/builder/dashboard')

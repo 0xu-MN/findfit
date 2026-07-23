@@ -76,6 +76,7 @@ export interface Database {
           nickname: string | null
           real_name: string | null
           phone: string | null
+          birth_date: string | null
           created_at: string
         }
         Insert: {
@@ -86,6 +87,7 @@ export interface Database {
           nickname?: string | null
           real_name?: string | null
           phone?: string | null
+          birth_date?: string | null
           created_at?: string
         }
         Update: {
@@ -98,6 +100,7 @@ export interface Database {
           nickname?: string | null
           real_name?: string | null
           phone?: string | null
+          birth_date?: string | null
         }
 
         Relationships: []

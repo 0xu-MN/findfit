@@ -8,6 +8,7 @@ import {
   FileText,
   ListChecks,
   Package,
+  Trash2,
   Users,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
@@ -101,6 +102,21 @@ export default function ProjectDetailPage({ projectId }: Props) {
     load()
   }, [load])
 
+  const [deleting, setDeleting] = useState(false)
+
+  const handleDelete = async () => {
+    if (!confirm('이 프로젝트를 삭제하시겠습니까? 리뷰어 지원 내역, 질문, 답변이 모두 함께 삭제되며 되돌릴 수 없습니다.')) return
+    setDeleting(true)
+    const supabase = createClient()
+    const { error } = await supabase.from('projects').delete().eq('id', projectId)
+    setDeleting(false)
+    if (error) {
+      alert('삭제 중 오류가 발생했습니다.')
+      return
+    }
+    router.push('/builder/projects')
+  }
+
   const updateShipping = async (matchId: string, status: ShippingStatus) => {
     // 낙관적 업데이트 — 실제 반영은 서버 API에서 소유권 검증 후 서비스 롤로
     // 처리 (project_matches는 RLS상 리뷰어 본인만 직접 UPDATE 가능하므로)
@@ -191,6 +207,14 @@ export default function ProjectDetailPage({ projectId }: Props) {
           {project.one_liner && <p className="text-sm text-[#666] font-medium">{project.one_liner}</p>}
           <p className="text-[10px] text-[#999] font-bold">{stageMeta?.title ?? project.stage}</p>
         </div>
+        <button
+          onClick={handleDelete}
+          disabled={deleting}
+          title="프로젝트 삭제"
+          className="mt-1 p-1.5 rounded-lg hover:bg-red-50 transition-colors text-[#999] hover:text-red-500 disabled:opacity-50"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
       </div>
 
       {/* 리뷰어 진행 현황 */}

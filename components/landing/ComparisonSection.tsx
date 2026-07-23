@@ -56,7 +56,7 @@ const findfitItems = [
   },
   {
     icon: ShieldCheck,
-    title: 'NDA로 유출 방지',
+    title: '기밀유지 서약 기반 진행',
     num: '3',
   },
   {

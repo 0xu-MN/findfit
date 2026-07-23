@@ -111,7 +111,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
   const handleApply = async () => {
     if (!email) { setError('이메일을 입력해 주세요'); return }
     if (domains.length === 0) { setError('직군을 하나 이상 선택해 주세요'); return }
-    if (!ndaChecked) { setError('NDA 동의가 필요합니다'); return }
+    if (!ndaChecked) { setError('기밀유지 서약 동의가 필요합니다'); return }
 
     setSubmitting(true)
     setError(null)
@@ -124,6 +124,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
           applicantEmail: email,
           applicantDomain: domains,
           applicantIntro: intro || null,
+          ndaAgreed: ndaChecked,
         }),
       })
       const data = await res.json()
@@ -373,7 +374,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
               />
             </div>
 
-            {/* NDA 동의 */}
+            {/* 기밀유지 서약 동의 */}
             <label className="flex items-start gap-3 cursor-pointer">
               <input
                 type="checkbox"
@@ -382,7 +383,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
                 className="mt-0.5 w-4 h-4 accent-[#1565C0] shrink-0"
               />
               <span className="text-[11px] font-bold text-[#666] leading-relaxed">
-                리뷰 내용은 외부 공개 금지에 동의합니다. 검증 내용 무단 공유 시 법적 책임이 따를 수 있습니다.
+                리뷰 내용은 외부 공개하지 않기로 하는 기밀유지 서약에 동의합니다.
               </span>
             </label>
 

@@ -19,6 +19,7 @@ export default function SignupPage() {
   const [nicknameStatus, setNicknameStatus] = useState<AvailabilityState>('idle')
   const [realName, setRealName] = useState('')
   const [phone, setPhone] = useState('')
+  const [birthDate, setBirthDate] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -40,8 +41,11 @@ export default function SignupPage() {
   }
 
   const passwordsMatch = password.length > 0 && password === passwordConfirm
+  const age = birthDate ? computeAge(birthDate) : null
+  const underAge = age !== null && age < 19
   const canSubmit =
     email && password.length >= 6 && passwordsMatch && nickname.trim().length >= 2 &&
+    birthDate && !underAge &&
     emailStatus !== 'taken' && nicknameStatus !== 'taken' && !loading
 
   const handleSignup = async () => {
@@ -83,6 +87,7 @@ export default function SignupPage() {
         nickname: nickname.trim(),
         real_name: realName.trim() || null,
         phone: phone.trim() || null,
+        birth_date: birthDate || null,
       })
       .eq('id', data.user.id)
 
@@ -167,6 +172,20 @@ export default function SignupPage() {
             </div>
           </Field>
 
+          {/* 생년월일 — 실제 CI/PASS 인증이 아니라 자진 입력 기준 만 19세 게이트 */}
+          <Field label="생년월일" hint="만 19세 미만은 이용이 제한돼요">
+            <input
+              type="date"
+              value={birthDate}
+              onChange={(e) => setBirthDate(e.target.value)}
+              max={new Date().toISOString().slice(0, 10)}
+              className="w-full px-4 py-3 rounded-xl border border-[#1D1C1C]/12 text-[13px] font-bold text-[#1D1C1C] outline-none focus:border-[#F77019] transition-colors"
+            />
+            {underAge && (
+              <span className="flex items-center gap-1 text-[10px] font-bold text-red-500"><X className="w-3 h-3" />만 19세 미만은 가입이 제한돼요</span>
+            )}
+          </Field>
+
           {/* 비밀번호 + 확인 */}
           <Field label="비밀번호">
             <input
@@ -225,6 +244,17 @@ export default function SignupPage() {
       </div>
     </div>
   )
+}
+
+function computeAge(birthDateStr: string): number {
+  const birth = new Date(birthDateStr)
+  const today = new Date()
+  let age = today.getFullYear() - birth.getFullYear()
+  const hasHadBirthdayThisYear =
+    today.getMonth() > birth.getMonth() ||
+    (today.getMonth() === birth.getMonth() && today.getDate() >= birth.getDate())
+  if (!hasHadBirthdayThisYear) age -= 1
+  return age
 }
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {

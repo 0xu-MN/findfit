@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { createClient } from '@/lib/supabase/client'
 import type { UserRole } from '@/types/database'
@@ -10,6 +10,17 @@ export default function RoleSelectPage() {
   const router = useRouter()
   const [loading, setLoading] = useState<UserRole | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  // 소셜 로그인 콜백에서 이미 걸러주지만, 이 화면으로 직접 진입하는 경우도
+  // 있어(뒤로가기 등) 한 번 더 확인 — 닉네임 없이 역할부터 고르지 않게.
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return
+      const { data } = await supabase.from('users').select('nickname').eq('id', user.id).single()
+      if (!data?.nickname) router.push('/auth/complete-profile')
+    })
+  }, [router])
 
   const selectRole = async (role: 'builder' | 'evaluator') => {
     setLoading(role)
