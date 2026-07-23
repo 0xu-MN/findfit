@@ -27,6 +27,16 @@ export async function POST(
     } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: '로그인이 필요합니다' }, { status: 401 })
 
+    // 다중계정 방지 — 휴대폰 인증 안 된 계정은 리뷰 제출 자체를 막는다
+    const { data: userRow } = await supabase
+      .from('users')
+      .select('phone_verified_at')
+      .eq('id', user.id)
+      .single()
+    if (!userRow?.phone_verified_at) {
+      return NextResponse.json({ error: '휴대폰 인증 후 리뷰를 제출할 수 있어요. 계정 설정에서 인증해주세요.' }, { status: 403 })
+    }
+
     // project_matches RLS(reviewer_id=auth.uid())가 이미 본인 row만 보이도록
     // 걸러주지만, matchId가 애초에 남의 것이면 select 자체가 0건 → 아래에서 404.
     const { data: match } = await supabase

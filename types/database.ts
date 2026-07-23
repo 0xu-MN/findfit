@@ -76,6 +76,7 @@ export interface Database {
           nickname: string | null
           real_name: string | null
           phone: string | null
+          phone_verified_at: string | null
           birth_date: string | null
           created_at: string
         }
@@ -87,6 +88,7 @@ export interface Database {
           nickname?: string | null
           real_name?: string | null
           phone?: string | null
+          phone_verified_at?: string | null
           birth_date?: string | null
           created_at?: string
         }
@@ -100,8 +102,77 @@ export interface Database {
           nickname?: string | null
           real_name?: string | null
           phone?: string | null
+          phone_verified_at?: string | null
           birth_date?: string | null
         }
+
+        Relationships: []
+      }
+
+      /* ── 현행: phone_verifications / account_verifications (migration 025) ── */
+      phone_verifications: {
+        Row: {
+          id: string
+          user_id: string
+          phone: string
+          code: string
+          expires_at: string
+          verified_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          phone: string
+          code: string
+          expires_at: string
+          verified_at?: string | null
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['phone_verifications']['Insert']>
+
+        Relationships: []
+      }
+
+      account_verifications: {
+        Row: {
+          id: string
+          user_id: string
+          bank_name: string
+          account_number: string
+          deposit_code: string
+          expires_at: string
+          verified_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          bank_name: string
+          account_number: string
+          deposit_code: string
+          expires_at: string
+          verified_at?: string | null
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['account_verifications']['Insert']>
+
+        Relationships: []
+      }
+
+      /* ── 현행: report_chat_logs / report_regenerate_logs (migration 025) ── */
+      report_chat_logs: {
+        Row: { project_id: string; date: string; count: number }
+        Insert: { project_id: string; date: string; count?: number }
+        Update: Partial<Database['public']['Tables']['report_chat_logs']['Insert']>
+
+        Relationships: []
+      }
+
+      report_regenerate_logs: {
+        Row: { project_id: string; date: string; count: number }
+        Insert: { project_id: string; date: string; count?: number }
+        Update: Partial<Database['public']['Tables']['report_regenerate_logs']['Insert']>
 
         Relationships: []
       }
@@ -278,6 +349,7 @@ export interface Database {
           account_number: string | null
           account_holder: string | null
           is_account_verified: boolean
+          account_verified_at: string | null
         }
         Insert: {
           id?: string
@@ -289,6 +361,7 @@ export interface Database {
           account_number?: string | null
           account_holder?: string | null
           is_account_verified?: boolean
+          account_verified_at?: string | null
         }
         Update: Partial<Database['public']['Tables']['reviewer_profiles']['Insert']>
       

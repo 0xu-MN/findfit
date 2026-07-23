@@ -19,7 +19,7 @@ const footerLinks = [
     category: '법적 고지',
     links: [
       { label: '이용약관', href: '#' },
-      { label: '개인정보처리방침', href: '#' },
+      { label: '개인정보처리방침', href: '/privacy' },
     ],
   },
 ]

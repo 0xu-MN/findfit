@@ -1,8 +1,13 @@
-﻿export async function callGemini(prompt: string): Promise<Record<string, unknown> | unknown[]> {
+﻿export async function callGemini(
+  prompt: string,
+  options?: { maxOutputTokens?: number }
+): Promise<Record<string, unknown> | unknown[]> {
   if (!process.env.GEMINI_API_KEY) {
     return getMockResponse(prompt)
   }
 
+  // gemini-2.0-flash 유지 — Flash 계열이라 무료 티어 대상. AI 비용 상한(채팅
+  // 라우트) 목적으로 maxOutputTokens만 선택적으로 넘길 수 있게 확장.
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`
 
   const res = await fetch(url, {
@@ -10,7 +15,10 @@
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { responseMimeType: 'application/json' },
+      generationConfig: {
+        responseMimeType: 'application/json',
+        ...(options?.maxOutputTokens ? { maxOutputTokens: options.maxOutputTokens } : {}),
+      },
     }),
   })
 

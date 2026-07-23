@@ -25,7 +25,17 @@ export default function ProfileForm({
   const [nicknameStatus, setNicknameStatus] = useState<AvailabilityState>('idle')
   const [realName, setRealName] = useState('')
   const [phone, setPhone] = useState('')
+  const [originalPhone, setOriginalPhone] = useState('')
+  const [phoneVerifiedAt, setPhoneVerifiedAt] = useState<string | null>(null)
   const [birthDate, setBirthDate] = useState('')
+
+  // 휴대폰 인증 흐름 상태 — 번호를 바꾸면 다시 인증해야 하므로 phone !==
+  // originalPhone이면 phoneVerifiedAt이 있어도 미인증으로 취급한다.
+  const [otpSent, setOtpSent] = useState(false)
+  const [otpCode, setOtpCode] = useState('')
+  const [sendingCode, setSendingCode] = useState(false)
+  const [verifyingCode, setVerifyingCode] = useState(false)
+  const [phoneError, setPhoneError] = useState<string | null>(null)
 
   useEffect(() => {
     const supabase = createClient()
@@ -33,7 +43,7 @@ export default function ProfileForm({
       if (!user) { setLoading(false); return }
       const { data } = await supabase
         .from('users')
-        .select('nickname, real_name, phone, birth_date')
+        .select('nickname, real_name, phone, phone_verified_at, birth_date')
         .eq('id', user.id)
         .single()
       if (data) {
@@ -41,11 +51,54 @@ export default function ProfileForm({
         setNickname(data.nickname ?? '')
         setRealName(data.real_name ?? '')
         setPhone(data.phone ?? '')
+        setOriginalPhone(data.phone ?? '')
+        setPhoneVerifiedAt(data.phone_verified_at ?? null)
         setBirthDate(data.birth_date ?? '')
       }
       setLoading(false)
     })
   }, [])
+
+  const isPhoneVerified = phoneVerifiedAt !== null && phone === originalPhone
+
+  const sendCode = async () => {
+    if (!phone.trim()) { setPhoneError('휴대폰 번호를 입력해주세요'); return }
+    setSendingCode(true)
+    setPhoneError(null)
+    try {
+      const res = await fetch('/api/auth/phone/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone }),
+      })
+      const body = await res.json()
+      if (!res.ok) { setPhoneError(body.error ?? '인증코드 발송에 실패했어요'); return }
+      setOtpSent(true)
+    } finally {
+      setSendingCode(false)
+    }
+  }
+
+  const confirmCode = async () => {
+    if (!otpCode.trim()) { setPhoneError('인증코드를 입력해주세요'); return }
+    setVerifyingCode(true)
+    setPhoneError(null)
+    try {
+      const res = await fetch('/api/auth/phone/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, code: otpCode }),
+      })
+      const body = await res.json()
+      if (!res.ok) { setPhoneError(body.error ?? '인증에 실패했어요'); return }
+      setPhoneVerifiedAt(new Date().toISOString())
+      setOriginalPhone(phone)
+      setOtpSent(false)
+      setOtpCode('')
+    } finally {
+      setVerifyingCode(false)
+    }
+  }
 
   const checkNickname = async () => {
     if (!nickname.trim() || nickname.trim() === originalNickname) { setNicknameStatus('idle'); return }
@@ -71,6 +124,7 @@ export default function ProfileForm({
     nickname.trim().length >= 2 &&
     nicknameStatus !== 'taken' &&
     (!birthDate || !underAge) &&
+    (mode !== 'onboarding' || isPhoneVerified) &&
     !saving
 
   const handleSave = async () => {
@@ -100,6 +154,9 @@ export default function ProfileForm({
     // update는 row가 없으면 0건 매칭으로 조용히 no-op 되어버려서(에러도 안 남),
     // public.users row가 어떤 이유로든 누락된 계정이 계속 온보딩 화면에
     // 갇히는 문제가 있었다 — upsert로 바꿔 row 부재를 방어한다.
+    // phone은 여기서 같이 안 보낸다 — /api/auth/phone/verify가 phone과
+    // phone_verified_at을 원자적으로 같이 세팅하는 유일한 경로여야, 인증
+    // 안 된 번호가 phone 컬럼에 들어가는 불일치가 안 생긴다.
     const { error: updateError } = await supabase
       .from('users')
       .upsert({
@@ -107,7 +164,6 @@ export default function ProfileForm({
         email: user.email ?? '',
         nickname: nickname.trim(),
         real_name: realName.trim() || null,
-        phone: phone.trim() || null,
         birth_date: birthDate || null,
       })
 
@@ -160,20 +216,57 @@ export default function ProfileForm({
         />
       </Field>
 
-      <Field label="전화번호" hint="본인인증 연동 전이라 우선 입력만 받아요">
+      <Field label="전화번호" hint={mode === 'onboarding' ? '다중계정 방지를 위해 인증이 필요해요' : undefined}>
         <div className="flex gap-2">
           <input
             type="tel"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="010-0000-0000 (선택)"
+            onChange={(e) => { setPhone(e.target.value); setOtpSent(false); setPhoneError(null) }}
+            placeholder="01000000000"
             className="flex-1 px-4 py-3 rounded-xl border border-[#1D1C1C]/12 text-[13px] font-bold text-[#1D1C1C] outline-none focus:border-[#F77019] transition-colors"
           />
-          <button type="button" disabled title="본인인증 서비스 연동 준비 중"
-            className="px-4 py-3 rounded-xl bg-[#F5F5F5] text-[#BBB] text-[11px] font-black whitespace-nowrap cursor-not-allowed">
-            인증 (준비중)
-          </button>
+          {isPhoneVerified ? (
+            <span className="px-4 py-3 rounded-xl bg-green-50 text-green-600 text-[11px] font-black whitespace-nowrap flex items-center gap-1">
+              <Check className="w-3.5 h-3.5" />인증 완료
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={sendCode}
+              disabled={sendingCode || !phone.trim()}
+              className="px-4 py-3 rounded-xl bg-[#1D1C1C] text-white text-[11px] font-black whitespace-nowrap hover:opacity-90 disabled:opacity-40 flex items-center justify-center"
+            >
+              {sendingCode ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : otpSent ? '재발송' : '인증코드 발송'}
+            </button>
+          )}
         </div>
+
+        {phoneVerifiedAt !== null && phone !== originalPhone && (
+          <span className="text-[10px] font-bold text-amber-600">번호를 변경했어요 — 다시 인증해주세요</span>
+        )}
+
+        {otpSent && !isPhoneVerified && (
+          <div className="flex gap-2 mt-1">
+            <input
+              type="text"
+              value={otpCode}
+              onChange={(e) => setOtpCode(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && confirmCode()}
+              placeholder="인증코드 6자리"
+              className="flex-1 px-4 py-3 rounded-xl border border-[#1D1C1C]/12 text-[13px] font-bold text-[#1D1C1C] outline-none focus:border-[#F77019] transition-colors"
+            />
+            <button
+              type="button"
+              onClick={confirmCode}
+              disabled={verifyingCode || !otpCode.trim()}
+              className="px-4 py-3 rounded-xl bg-[#F77019] text-white text-[11px] font-black whitespace-nowrap hover:opacity-90 disabled:opacity-40 flex items-center justify-center"
+            >
+              {verifyingCode ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : '확인'}
+            </button>
+          </div>
+        )}
+
+        {phoneError && <span className="flex items-center gap-1 text-[10px] font-bold text-red-500"><X className="w-3 h-3" />{phoneError}</span>}
       </Field>
 
       <Field label="생년월일" hint="만 19세 미만은 이용이 제한돼요 (자진 입력 기준)">

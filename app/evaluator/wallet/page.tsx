@@ -50,6 +50,11 @@ function AccountSettingsCard() {
   const [accountHolder, setAccountHolder] = useState('')
   const [showBankList, setShowBankList] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [awaitingDeposit, setAwaitingDeposit] = useState(false)
+  const [depositCode, setDepositCode] = useState('')
+  const [devCode, setDevCode] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [verifying, setVerifying] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -80,27 +85,47 @@ function AccountSettingsCard() {
 
   const isValid = bankName && accountNumber.length >= 10 && accountHolder.length >= 2
 
+  // 계좌 저장 + 1원 인증 발송 — 저장만으로 바로 verified 처리하지 않는다.
+  // 실제 인증(입금자명 코드 확인)은 confirmDeposit에서 처리.
   const handleSave = async () => {
     if (!isValid || saving) return
     setSaving(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setSaving(false); return }
-
-    const { error } = await supabase
-      .from('reviewer_profiles')
-      .update({
-        bank_name: bankName,
-        account_number: accountNumber, // TODO: pgcrypto 암호화 적용
-        account_holder: accountHolder,
-        is_account_verified: true, // Mock: 실제는 PortOne 계좌 인증 후 true
-        portone_partner_id: `mock-partner-${user.id}`, // Mock: 실제 PortOne 파트너 등록 후 교체
+    setError(null)
+    try {
+      const res = await fetch('/api/reviewer/account/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bankName, accountNumber, accountHolder }),
       })
-      .eq('user_id', user.id)
+      const body = await res.json()
+      if (!res.ok) { setError(body.error ?? '저장 중 오류가 발생했습니다'); return }
+      setAwaitingDeposit(true)
+      setVerified(false)
+      setDevCode(body.devCode ?? null)
+    } finally {
+      setSaving(false)
+    }
+  }
 
-    setSaving(false)
-    if (error) { alert('저장 중 오류가 발생했습니다'); return }
-    setVerified(true)
-    setEditing(false)
+  const confirmDeposit = async () => {
+    if (!depositCode.trim() || verifying) return
+    setVerifying(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/reviewer/account/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: depositCode }),
+      })
+      const body = await res.json()
+      if (!res.ok) { setError(body.error ?? '인증에 실패했습니다'); return }
+      setVerified(true)
+      setAwaitingDeposit(false)
+      setEditing(false)
+      setDepositCode('')
+    } finally {
+      setVerifying(false)
+    }
   }
 
   if (loading) return null
@@ -185,27 +210,59 @@ function AccountSettingsCard() {
             className="w-full h-10 rounded-xl bg-[#F5F5F5] border-none outline-none px-4 text-[11px] font-bold"
           />
 
-          <div className="flex items-center gap-2">
-            <button
-              disabled={!isValid || saving}
-              onClick={handleSave}
-              className={`flex-1 h-10 rounded-xl text-[12px] font-black transition-colors ${
-                isValid && !saving
-                  ? 'bg-[#F77019] text-white hover:bg-[#E05A00]'
-                  : 'bg-[#F5F5F5] text-[#999] cursor-not-allowed'
-              }`}
-            >
-              {saving ? '저장 중...' : '계좌 저장'}
-            </button>
-            {verified && (
+          {error && <p className="text-[10px] font-bold text-red-500">{error}</p>}
+
+          {!awaitingDeposit ? (
+            <div className="flex items-center gap-2">
               <button
-                onClick={() => setEditing(false)}
-                className="h-10 px-4 rounded-xl text-[11px] font-black border border-[#1D1C1C]/10 text-[#666] hover:bg-[#1D1C1C]/5"
+                disabled={!isValid || saving}
+                onClick={handleSave}
+                className={`flex-1 h-10 rounded-xl text-[12px] font-black transition-colors ${
+                  isValid && !saving
+                    ? 'bg-[#F77019] text-white hover:bg-[#E05A00]'
+                    : 'bg-[#F5F5F5] text-[#999] cursor-not-allowed'
+                }`}
               >
-                취소
+                {saving ? '저장 중...' : '계좌 저장 · 1원 인증 받기'}
               </button>
-            )}
-          </div>
+              {verified && (
+                <button
+                  onClick={() => setEditing(false)}
+                  className="h-10 px-4 rounded-xl text-[11px] font-black border border-[#1D1C1C]/10 text-[#666] hover:bg-[#1D1C1C]/5"
+                >
+                  취소
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2 rounded-xl bg-[#1565C0]/5 border border-[#1565C0]/15 p-3">
+              <p className="text-[10px] font-bold text-[#1565C0]">
+                등록하신 계좌로 1원이 입금됐어요. 입금자명에 표시된 4자리 코드를 입력해주세요.
+              </p>
+              {devCode && (
+                <p className="text-[10px] font-bold text-[#999]">(개발 모드) 테스트 코드: {devCode}</p>
+              )}
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={depositCode}
+                  onChange={(e) => setDepositCode(e.target.value.replace(/\D/g, ''))}
+                  onKeyDown={(e) => e.key === 'Enter' && confirmDeposit()}
+                  placeholder="4자리 코드"
+                  maxLength={4}
+                  className="flex-1 h-10 rounded-xl bg-white border border-[#1565C0]/20 outline-none px-4 text-[11px] font-bold"
+                />
+                <button
+                  disabled={!depositCode.trim() || verifying}
+                  onClick={confirmDeposit}
+                  className="h-10 px-4 rounded-xl bg-[#1565C0] text-white text-[11px] font-black hover:opacity-90 disabled:opacity-40"
+                >
+                  {verifying ? '확인 중...' : '확인'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

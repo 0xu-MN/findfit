@@ -5,7 +5,7 @@ import { Globe, Mail, MessageCircle, Send } from 'lucide-react'
 const FOOTER_LINKS = [
   { label: '서비스 소개', href: '/' },
   { label: '이용약관', href: '#' },
-  { label: '개인정보처리방침', href: '#' },
+  { label: '개인정보처리방침', href: '/privacy' },
   { label: 'FAQ', href: '#' },
   { label: '제휴 문의', href: '#' },
 ]
