@@ -6,6 +6,10 @@ import { createClient } from '@/lib/supabase/client'
 // 실제로 동작하려면 Supabase 대시보드(Authentication > Providers)에서 해당
 // provider를 켜고 Google Cloud / Kakao Developers에서 발급한 Client ID·Secret을
 // 등록해야 한다. 코드 쪽은 그 설정만 끝나면 바로 동작한다.
+//
+// 네이버는 Supabase의 기본 제공 provider 목록에 없어서(구글/카카오와 다름)
+// signInWithOAuth를 못 쓰고, 직접 만든 /api/auth/naver 라우트로 이동시켜
+// 거기서부터 OAuth2 플로우를 수동으로 처리한다 (app/api/auth/naver/* 참고).
 export default function SocialLoginButtons() {
   const signInWith = async (provider: 'google' | 'kakao') => {
     const supabase = createClient()
@@ -48,6 +52,17 @@ export default function SocialLoginButtons() {
         </svg>
         카카오로 계속하기
       </button>
+
+      <a
+        href="/api/auth/naver"
+        className="w-full py-3 rounded-xl text-[13px] font-bold transition-colors flex items-center justify-center gap-2.5"
+        style={{ background: '#03C75A', color: '#fff' }}
+      >
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M16.3 12.7L8.9 2H2v20h6.7V11.3L16.1 22H23V2h-6.7v10.7z" />
+        </svg>
+        네이버로 계속하기
+      </a>
     </div>
   )
 }
