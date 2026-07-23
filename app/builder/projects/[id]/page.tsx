@@ -3,13 +3,14 @@ import ProjectDetailPage from '@/components/builder/ProjectDetailPage'
 import SharedLoungeFeed from '@/components/shared/SharedLoungeFeed'
 
 interface Props {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
-export default function BuilderProjectDetailPage({ params }: Props) {
+export default async function BuilderProjectDetailPage({ params }: Props) {
+  const { id } = await params
   return (
     <DashboardLayout role="creator" rightPanel={<SharedLoungeFeed />}>
-      <ProjectDetailPage projectId={params.id} />
+      <ProjectDetailPage projectId={id} />
     </DashboardLayout>
   )
 }

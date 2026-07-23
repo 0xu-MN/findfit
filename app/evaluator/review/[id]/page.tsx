@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/client'
 import { CheckCircle2, ChevronLeft, Loader2, Package } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { use, useEffect, useState } from 'react'
 
 type Question = {
   id: string
@@ -36,7 +36,8 @@ type MatchInfo = {
 
 const LIKERT_LABELS = ['매우 낮음', '낮음', '보통', '높음', '매우 높음']
 
-export default function ReviewPage({ params }: { params: { id: string } }) {
+export default function ReviewPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: projectId } = use(params)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase: any = createClient()
   const router = useRouter()
@@ -61,7 +62,7 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
       const { data: m } = await supabase
         .from('project_matches')
         .select('id, submitted_at, shipping_status, shipping_address, received_confirmed_at')
-        .eq('project_id', params.id)
+        .eq('project_id', projectId)
         .eq('reviewer_id', user.id)
         .single()
 
@@ -74,9 +75,9 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
         supabase
           .from('projects_public')
           .select('id, title, one_liner, project_type, access_method, access_info, target_count, completed_count')
-          .eq('id', params.id)
+          .eq('id', projectId)
           .single(),
-        supabase.from('review_questions').select('*').eq('project_id', params.id).order('order_index'),
+        supabase.from('review_questions').select('*').eq('project_id', projectId).order('order_index'),
       ])
 
       setProject(proj)
@@ -85,7 +86,7 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
       setLoading(false)
     }
     load()
-  }, [params.id])
+  }, [projectId])
 
   // 배송형 프로젝트인데 아직 수령 확인 전이면 리뷰 폼 대신 게이트를 보여준다
   const needsReceiptGate =

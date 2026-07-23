@@ -2,7 +2,7 @@
 
 import { ArrowLeft, BarChart3, RefreshCw } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useCallback, useEffect, useState } from 'react'
+import { use, useCallback, useEffect, useState } from 'react'
 
 import LightReportView from '@/components/report/LightReportView'
 import StandardReportView from '@/components/report/StandardReportView'
@@ -43,7 +43,8 @@ function makePsfPmf(stage: string | null): 'psf' | 'pmf' {
   return stage === 'idea' || stage === 'prototype' ? 'psf' : 'pmf'
 }
 
-export default function ReportDetailPage({ params }: { params: { id: string } }) {
+export default function ReportDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: projectId } = use(params)
   const router = useRouter()
   const [project, setProject] = useState<ProjectMeta | null>(null)
   const [report, setReport] = useState<ReportData | null>(null)
@@ -59,7 +60,7 @@ export default function ReportDetailPage({ params }: { params: { id: string } })
     try {
       // 1) 기존 리포트 조회 (재생성이 아니면)
       if (!regenerate) {
-        const getRes = await fetch(`/api/ai-report/${params.id}`, { method: 'GET' })
+        const getRes = await fetch(`/api/ai-report/${projectId}`, { method: 'GET' })
         if (getRes.ok) {
           const { report: existing } = await getRes.json()
           if (existing) {
@@ -72,7 +73,7 @@ export default function ReportDetailPage({ params }: { params: { id: string } })
         }
       }
       // 2) 없거나 재생성 요청이면 생성
-      const res = await fetch(`/api/ai-report/${params.id}`, { method: 'POST' })
+      const res = await fetch(`/api/ai-report/${projectId}`, { method: 'POST' })
       if (!res.ok) throw new Error(`리포트 생성 실패 (${res.status})`)
       const { report: saved } = await res.json()
       setReport((saved?.report_data ?? {}) as ReportData)
@@ -83,21 +84,21 @@ export default function ReportDetailPage({ params }: { params: { id: string } })
     } finally {
       setLoading(false)
     }
-  }, [params.id])
+  }, [projectId])
 
   useEffect(() => {
     const supabase = createClient()
     supabase
       .from('projects')
       .select('id, title, project_type, stage')
-      .eq('id', params.id)
+      .eq('id', projectId)
       .single()
       .then(({ data }) => {
         setProject((data as ProjectMeta) ?? null)
         if (data) fetchReport(false)
         else setLoading(false)
       })
-  }, [params.id, fetchReport])
+  }, [projectId, fetchReport])
 
   const isLight = project?.project_type === 'light'
   const psfPmf: 'psf' | 'pmf' = makePsfPmf(project?.stage ?? null)

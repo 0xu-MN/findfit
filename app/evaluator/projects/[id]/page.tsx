@@ -13,7 +13,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { use, useEffect, useState } from 'react'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = any
@@ -61,7 +61,8 @@ type MyMatch = {
 
 function fmt(n: number) { return n.toLocaleString('ko-KR') }
 
-export default function ProjectDetailPage({ params }: { params: { id: string } }) {
+export default function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: projectId } = use(params)
   const router = useRouter()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase: AnySupabase = createClient()
@@ -84,7 +85,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
     const load = async () => {
       const [{ data: proj }, { data: { user } }] = await Promise.all([
         // projects_public 뷰 — creator_id 제외 (migration 009)
-        supabase.from('projects_public').select('*').eq('id', params.id).single(),
+        supabase.from('projects_public').select('*').eq('id', projectId).single(),
         supabase.auth.getUser(),
       ])
       setProject(proj ?? null)
@@ -94,7 +95,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
         const { data: match } = await supabase
           .from('project_matches')
           .select('id, status, nickname')
-          .eq('project_id', params.id)
+          .eq('project_id', projectId)
           .eq('reviewer_id', user.id)
           .single()
         setMyMatch(match ?? null)
@@ -103,7 +104,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
     }
     load()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.id])
+  }, [projectId])
 
   const toggleDomain = (d: string) =>
     setDomains((prev) => prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d])
@@ -120,7 +121,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          projectId: params.id,
+          projectId,
           applicantEmail: email,
           applicantDomain: domains,
           applicantIntro: intro || null,
