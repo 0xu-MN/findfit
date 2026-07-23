@@ -40,7 +40,7 @@ export async function POST(
 
   const { data: match } = await admin
     .from('project_matches')
-    .select('id, project_id, applicant_email')
+    .select('id, project_id, reviewer_id, applicant_email')
     .eq('id', matchId)
     .single()
   if (!match) return NextResponse.json({ error: '지원 내역을 찾을 수 없습니다' }, { status: 404 })
@@ -59,6 +59,14 @@ export async function POST(
 
   if (match.applicant_email) {
     sendRejectEmail(match.applicant_email, project.title)
+  }
+
+  if (match.reviewer_id) {
+    await admin.from('notifications').insert({
+      user_id: match.reviewer_id,
+      type: 'match_rejected',
+      message: `"${project.title}" 프로젝트 지원 결과, 이번엔 함께하지 못하게 되었습니다.`,
+    })
   }
 
   return NextResponse.json({ ok: true })

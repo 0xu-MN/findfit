@@ -1,7 +1,6 @@
 'use client'
 
-import DashboardLayout from '@/components/shared/DashboardLayout'
-import SharedLoungeFeed from '@/components/shared/SharedLoungeFeed'
+import ReviewerLayout from '@/components/reviewer/ReviewerLayout'
 import { createClient } from '@/lib/supabase/client'
 import { Check, CheckCircle, ChevronDown, Clock, Landmark, Wallet } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -345,8 +344,8 @@ function WalletContent() {
 
 export default function EvaluatorWalletPage() {
   return (
-    <DashboardLayout role="reviewer" rightPanel={<SharedLoungeFeed />}>
+    <ReviewerLayout>
       <WalletContent />
-    </DashboardLayout>
+    </ReviewerLayout>
   )
 }

@@ -45,7 +45,7 @@ export async function POST(
 
   const { data: match } = await admin
     .from('project_matches')
-    .select('id, project_id, applicant_email, status')
+    .select('id, project_id, reviewer_id, applicant_email, status')
     .eq('id', matchId)
     .single()
   if (!match) return NextResponse.json({ error: '지원 내역을 찾을 수 없습니다' }, { status: 404 })
@@ -73,6 +73,14 @@ export async function POST(
 
   if (match.applicant_email) {
     sendAcceptEmail(match.applicant_email, project.title, match.project_id as string)
+  }
+
+  if (match.reviewer_id) {
+    await admin.from('notifications').insert({
+      user_id: match.reviewer_id,
+      type: 'match_accepted',
+      message: `"${project.title}" 프로젝트 리뷰어로 선정되었습니다. 지금 바로 평가를 시작해보세요.`,
+    })
   }
 
   return NextResponse.json({ ok: true })

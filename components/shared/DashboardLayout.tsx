@@ -6,9 +6,9 @@ import { createClient } from '@/lib/supabase/client'
 import SharedMainPanel from './SharedMainPanel'
 import SharedFeedPanel from './SharedFeedPanel'
 import RightPanelFooter from './RightPanelFooter'
+import NotificationBell from './NotificationBell'
 import { RightPanelProvider, type RightTab } from './RightPanelContext'
 import {
-  Bell,
   ChevronLeft,
   ChevronRight,
   Sparkles,
@@ -348,10 +348,7 @@ export default function DashboardLayout({ role, children, rightPanel }: Dashboar
 
             {/* Right: icons */}
             <div className="flex items-center gap-2">
-              <button className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-[#1D1C1C]/5 transition-colors text-[#666] relative">
-                <Bell className="w-3.5 h-3.5" />
-                <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-[#F77019]" />
-              </button>
+              <NotificationBell />
               <button
                 onClick={() => setIsLeftOpen((prev) => !prev)}
                 title={isLeftOpen ? '오른쪽 패널 확장' : '대시보드 보기'}

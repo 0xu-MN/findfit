@@ -4,8 +4,7 @@
 // reviewer_profiles.domain_tags를 실제로 쓰는데, 이걸 리뷰어가 설정할 화면이
 // 없어서 전원 매칭 점수가 낮게 고정돼 있었다. level은 관리자가 부여하는
 // 값이라 여기서는 읽기 전용으로만 보여준다.
-import DashboardLayout from '@/components/shared/DashboardLayout'
-import SharedLoungeFeed from '@/components/shared/SharedLoungeFeed'
+import ReviewerLayout from '@/components/reviewer/ReviewerLayout'
 import { createClient } from '@/lib/supabase/client'
 import { CATEGORIES } from '@/components/builder/new-request/types'
 import { CheckCircle2, Loader2 } from 'lucide-react'
@@ -124,8 +123,8 @@ function ProfileContent() {
 
 export default function EvaluatorProfilePage() {
   return (
-    <DashboardLayout role="reviewer" rightPanel={<SharedLoungeFeed />}>
+    <ReviewerLayout>
       <ProfileContent />
-    </DashboardLayout>
+    </ReviewerLayout>
   )
 }
