@@ -3,6 +3,7 @@
 import {
   ArrowLeft,
   BarChart3,
+  Check,
   ChevronRight,
   Clock,
   FileText,
@@ -10,6 +11,7 @@ import {
   Package,
   Trash2,
   Users,
+  X,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
@@ -128,6 +130,25 @@ export default function ProjectDetailPage({ projectId }: Props) {
     })
   }
 
+  const [processingId, setProcessingId] = useState<string | null>(null)
+
+  const respondToApplicant = async (matchId: string, action: 'accept' | 'reject') => {
+    setProcessingId(matchId)
+    if (action === 'reject') {
+      setMatches((prev) => prev.map((m) => (m.id === matchId ? { ...m, status: 'dropped' } : m)))
+    } else {
+      setMatches((prev) =>
+        prev.map((m) =>
+          m.id === matchId
+            ? { ...m, status: 'accepted', shipping_status: isShipping ? 'pending' : m.shipping_status }
+            : m
+        )
+      )
+    }
+    await fetch(`/api/builder/matches/${matchId}/${action}`, { method: 'POST' })
+    setProcessingId(null)
+  }
+
   if (!hydrated) {
     return (
       <div className="w-full flex items-center justify-center py-24">
@@ -155,6 +176,8 @@ export default function ProjectDetailPage({ projectId }: Props) {
   const typeColor = project.project_type === 'light' ? '#F77019' : '#1565C0'
   const stageMeta = STAGE_OPTIONS.find((s) => s.value === project.stage)
   const isShipping = project.access_method === 'physical_shipping'
+  const pendingMatches = matches.filter((m) => m.status === 'pending')
+  const activeMatches = matches.filter((m) => m.status !== 'pending' && m.status !== 'dropped')
 
   const completedCount = project.completed_count
   const targetCount = project.target_count
@@ -236,9 +259,41 @@ export default function ProjectDetailPage({ projectId }: Props) {
           />
         </div>
 
-        {matches.length > 0 ? (
+        {pendingMatches.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <span className="text-[10px] font-black text-[#F77019]">
+              지원 승인 대기 ({pendingMatches.length}명)
+            </span>
+            {pendingMatches.map((r) => (
+              <div
+                key={r.id}
+                className="flex items-center gap-2 rounded-xl bg-[#F77019]/5 border border-[#F77019]/20 px-3 py-2"
+              >
+                <span className="text-[10px] font-bold text-[#666]">{r.nickname ?? '익명 리뷰어'}</span>
+                <div className="flex items-center gap-1.5 ml-auto">
+                  <button
+                    onClick={() => respondToApplicant(r.id, 'accept')}
+                    disabled={processingId === r.id}
+                    className="flex items-center gap-1 text-[9px] font-black px-2.5 py-1 rounded-lg bg-[#2E7D32] text-white hover:opacity-90 disabled:opacity-40"
+                  >
+                    <Check className="w-3 h-3" /> 수락
+                  </button>
+                  <button
+                    onClick={() => respondToApplicant(r.id, 'reject')}
+                    disabled={processingId === r.id}
+                    className="flex items-center gap-1 text-[9px] font-black px-2.5 py-1 rounded-lg border border-[#1D1C1C]/15 text-[#666] hover:bg-[#1D1C1C]/5 disabled:opacity-40"
+                  >
+                    <X className="w-3 h-3" /> 거절
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {activeMatches.length > 0 ? (
           <div className="grid grid-cols-1 gap-2">
-            {matches.map((r) => {
+            {activeMatches.map((r) => {
               const done = Boolean(r.submitted_at) || r.status === 'completed'
               return (
                 <div key={r.id} className="flex flex-col gap-1.5 rounded-xl bg-[#F5F5F5] px-3 py-2">
@@ -290,11 +345,11 @@ export default function ProjectDetailPage({ projectId }: Props) {
               )
             })}
           </div>
-        ) : (
+        ) : pendingMatches.length === 0 ? (
           <div className="rounded-xl bg-[#F5F5F5] p-3 text-center">
             <p className="text-[10px] font-bold text-[#999]">아직 매칭된 리뷰어가 없습니다</p>
           </div>
-        )}
+        ) : null}
 
         {allDone ? (
           <button
