@@ -8,7 +8,7 @@ import { use, useEffect, useState } from 'react'
 type Question = {
   id: string
   question_text: string
-  question_type: 'multiple_choice' | 'short_answer' | 'likert_5' | 'sean_ellis'
+  question_type: 'multiple_choice' | 'short_answer' | 'likert' | 'likert_5' | 'sean_ellis'
   options: string[] | null
   order_index: number
 }
@@ -316,7 +316,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                 </div>
               )}
 
-              {q.question_type === 'likert_5' && (
+              {(q.question_type === 'likert_5' || q.question_type === 'likert') && (
                 <div className="flex gap-2">
                   {[1, 2, 3, 4, 5].map((n) => (
                     <button
