@@ -9,7 +9,9 @@ import crypto from 'crypto'
 export async function GET(request: Request) {
   const { origin } = new URL(request.url)
 
-  const clientId = process.env.NAVER_LOGIN_CLIENT_ID
+  // 데이터랩 API와 같은 네이버 앱의 Client ID — 그 앱에 "네이버 로그인" API가
+  // 함께 활성화되어 있으면 키 하나로 둘 다 쓸 수 있다.
+  const clientId = process.env.NAVER_CLIENT_ID
   if (!clientId) {
     return NextResponse.redirect(`${origin}/auth/login?error=naver_not_configured`)
   }

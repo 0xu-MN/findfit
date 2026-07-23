@@ -22,8 +22,10 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/auth/login?error=naver_state_mismatch`)
   }
 
-  const clientId = process.env.NAVER_LOGIN_CLIENT_ID
-  const clientSecret = process.env.NAVER_LOGIN_CLIENT_SECRET
+  // 데이터랩 API와 같은 네이버 앱 키(NAVER_CLIENT_ID/SECRET)를 그대로 재사용 —
+  // 그 앱에 "네이버 로그인" API가 함께 활성화되어 있으면 키 하나로 충분하다.
+  const clientId = process.env.NAVER_CLIENT_ID
+  const clientSecret = process.env.NAVER_CLIENT_SECRET
   if (!clientId || !clientSecret) {
     return NextResponse.redirect(`${origin}/auth/login?error=naver_not_configured`)
   }
