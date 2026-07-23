@@ -147,8 +147,12 @@ export default function DashboardLayout({ role, children, rightPanel }: Dashboar
         >
           {/* ── LEFT HEADER (80px, transparent) ── */}
           <header className="h-20 flex-shrink-0 flex items-center justify-between pr-4">
-            {/* Logo (always visible) */}
-            <div className="flex items-center gap-3 cursor-pointer flex-shrink-0" onClick={() => router.push('/')}>
+            {/* Logo — 로그인 상태에서는 로고를 눌러도 공개 랜딩페이지로 나가지
+                않고 자기 역할 대시보드로 이동한다 */}
+            <div
+              className="flex items-center gap-3 cursor-pointer flex-shrink-0"
+              onClick={() => router.push(role === 'creator' ? '/builder/dashboard' : '/evaluator/dashboard')}
+            >
               <img src="/logo.png" alt="FindFit" className="h-[40px] w-auto object-contain" />
             </div>
 

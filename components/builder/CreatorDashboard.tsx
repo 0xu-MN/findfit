@@ -166,18 +166,11 @@ export default function CreatorDashboard() {
         </div>
       </div>
 
-      {projects.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-[#1D1C1C]/15 bg-[#FAFAFA] p-16 text-center flex flex-col items-center gap-3">
-          <p className="text-sm font-black text-[#999]">아직 등록한 프로젝트가 없습니다</p>
-          <button
-            onClick={() => router.push('/builder/new-request')}
-            className="mt-1 flex items-center gap-1.5 font-black rounded-2xl text-white text-xs px-6 py-3 hover:scale-[1.02] transition-all"
-            style={{ background: 'linear-gradient(135deg,#F77019,#FF8F45)' }}
-          >
-            <PlusCircle className="w-4 h-4" /> 새 프로젝트 등록하기
-          </button>
-        </div>
-      ) : (
+      {/* 프로젝트가 0개여도 위젯 레이아웃 자체는 항상 보여주고, 각 카드
+          내부에서 EmptyRow로 빈 상태를 표시한다 — 전에는 여기서 전체를
+          "등록하기 버튼 하나"로 통째로 바꿔버려서 목업에 있던 다른 위젯들이
+          전부 사라진 것처럼 보였다. */}
+      {(
         <div className="grid gap-4 items-stretch" style={{ gridTemplateColumns: '1fr 320px' }}>
           {/* ─────────── MAIN AREA ─────────── */}
           <div className="flex flex-col gap-4">
