@@ -378,6 +378,9 @@ function ReviewFormPanel({
   const supabase: any = createClient()
   const [questions, setQuestions] = useState<Question[] | null>(null)
   const [answers, setAnswers] = useState<Record<string, string>>({})
+  // 리커트에서 "전혀 아니다"(1점)를 고른 경우, 크리에이터가 별도로 후속
+  // 질문을 만들지 않아도 왜 그렇게 답했는지 이유를 자동으로 물어본다.
+  const [lowScoreReasons, setLowScoreReasons] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -404,10 +407,21 @@ function ReviewFormPanel({
 
     setSubmitting(true)
     setError(null)
+
+    // 1점 답변 + 이유를 하나의 답변 텍스트로 합쳐서 제출 — 이유 질문용
+    // review_questions row가 따로 없으므로, 별도 문항 없이도 리포트에
+    // 그대로 반영되도록 기존 답변에 붙인다.
+    const payloadAnswers: Record<string, string> = { ...answers }
+    for (const [qId, reason] of Object.entries(lowScoreReasons)) {
+      if (answers[qId] === '1' && reason.trim()) {
+        payloadAnswers[qId] = `${answers[qId]} (이유: ${reason.trim()})`
+      }
+    }
+
     const res = await fetch(`/api/reviews/${matchId}/submit`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ answers }),
+      body: JSON.stringify({ answers: payloadAnswers }),
     })
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))
@@ -503,6 +517,18 @@ function ReviewFormPanel({
                 <span>1 · {LIKERT_LABELS[0]}</span>
                 <span>5 · {LIKERT_LABELS[4]}</span>
               </div>
+
+              {/* "전혀 아니다"(1점) 선택 시 이유를 자동으로 물어본다 —
+                  크리에이터가 후속 질문을 따로 만들지 않아도 된다 */}
+              {answers[q.id] === '1' && (
+                <textarea
+                  value={lowScoreReasons[q.id] ?? ''}
+                  onChange={(e) => setLowScoreReasons((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                  placeholder="어떤 점 때문에 '전혀 아니다'라고 느끼셨나요? (선택)"
+                  rows={2}
+                  className="w-full mt-1 rounded-lg border border-[#F77019]/30 bg-[#F77019]/5 px-3 py-2 text-[11px] font-bold text-[#1D1C1C] placeholder-[#B08055] outline-none focus:border-[#F77019] resize-none"
+                />
+              )}
             </div>
           )}
 
