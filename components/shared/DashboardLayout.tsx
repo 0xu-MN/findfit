@@ -22,7 +22,8 @@ import {
   Landmark,
   UserCog,
   Settings,
-  LogOut
+  LogOut,
+  Search
 } from 'lucide-react'
 
 interface DashboardLayoutProps {
@@ -103,6 +104,9 @@ export default function DashboardLayout({ role, children, rightPanel }: Dashboar
       ]
     : [
         { icon: LayoutDashboard, label: '대시보드', path: '/evaluator/dashboard' },
+        // 좌측 네비에 아예 없어서 "참여 리뷰"가 비어있을 때 뜨는 버튼으로만
+        // 우연히 도달 가능했던 문제 — 정식 메뉴로 승격.
+        { icon: Search, label: '의뢰 둘러보기', path: '/evaluator/available' },
         { icon: FolderOpen, label: '참여 리뷰', path: '/evaluator/reviews' },
         { icon: Wallet, label: '포인트 지갑', path: '/evaluator/wallet' },
         // H-4: 매칭 점수에 쓰이는 domain_tags를 리뷰어가 설정할 화면이 없어
