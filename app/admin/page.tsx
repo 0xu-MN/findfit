@@ -111,6 +111,13 @@ export default async function AdminDashboardPage() {
             count={0}
             color="#1D1C1C"
           />
+          <NavCard
+            href="/admin/stats"
+            title="활동 통계"
+            desc="역할별 최근 활동 유저 수"
+            count={0}
+            color="#2E7D32"
+          />
         </div>
       </main>
     </div>

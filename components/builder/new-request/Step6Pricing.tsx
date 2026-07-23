@@ -2,15 +2,93 @@
 
 import { Info, Lock } from 'lucide-react'
 import {
+  ACCESS_METHOD_OPTIONS,
   DISTRIBUTION_OPTIONS,
   LIGHT_CASH_COST,
   PROJECT_TYPE_OPTIONS,
   REVIEWER_COMMISSION_RATE,
   TARGET_REVIEWER_ROLES,
   calculateCost,
+  type AccessMethod,
   type DistributionMethod,
   type RequestFormData,
 } from './types'
+
+function AccessMethodField({
+  data,
+  onChange,
+  required,
+}: {
+  data: RequestFormData
+  onChange: (patch: Partial<RequestFormData>) => void
+  required: boolean
+}) {
+  return (
+    <Field label="제품 접근 방식" hint={required ? '필수 · 리뷰어가 제품을 체험하는 방법' : '선택 · 정하지 않아도 다음 단계로 진행 가능'}>
+      <div className="flex flex-col gap-3">
+        <div className="grid grid-cols-3 gap-3">
+          {ACCESS_METHOD_OPTIONS.map((m) => {
+            const active = data.accessMethod === m.value
+            return (
+              <button
+                key={m.value}
+                type="button"
+                onClick={() => onChange({ accessMethod: m.value as AccessMethod })}
+                className={`flex flex-col p-4 rounded-xl text-left transition-colors ${
+                  active ? 'bg-[#F77019]/10 border border-[#F77019]' : 'bg-[#F5F5F5] border border-transparent hover:border-[#1D1C1C]/10'
+                }`}
+              >
+                <span className={`text-[11px] font-black ${active ? 'text-[#F77019]' : 'text-[#1D1C1C]'}`}>{m.title}</span>
+                <span className={`text-[9px] mt-1 leading-snug ${active ? 'text-[#F77019]/80' : 'text-[#999]'}`}>{m.sub}</span>
+              </button>
+            )
+          })}
+        </div>
+
+        {data.accessMethod === 'web_link' && (
+          <input
+            type="url"
+            value={data.landingUrl}
+            onChange={(e) => onChange({ landingUrl: e.target.value })}
+            placeholder="https:// — 리뷰어가 체험할 웹 링크"
+            className={`w-full h-10 rounded-xl border bg-[#F5F5F5] outline-none px-4 text-[11px] font-bold transition-colors ${
+              required && !data.landingUrl.trim() ? 'border-red-400 bg-red-50' : 'border-transparent focus:border-[#F77019]'
+            }`}
+          />
+        )}
+
+        {data.accessMethod === 'app_download' && (
+          <div className="grid grid-cols-2 gap-3">
+            <input
+              type="url"
+              value={data.appStoreUrl}
+              onChange={(e) => onChange({ appStoreUrl: e.target.value })}
+              placeholder="App Store URL"
+              className={`w-full h-10 rounded-xl border bg-[#F5F5F5] outline-none px-4 text-[11px] font-bold transition-colors ${
+                required && !data.appStoreUrl.trim() && !data.playStoreUrl.trim() ? 'border-red-400 bg-red-50' : 'border-transparent focus:border-[#F77019]'
+              }`}
+            />
+            <input
+              type="url"
+              value={data.playStoreUrl}
+              onChange={(e) => onChange({ playStoreUrl: e.target.value })}
+              placeholder="Google Play URL"
+              className={`w-full h-10 rounded-xl border bg-[#F5F5F5] outline-none px-4 text-[11px] font-bold transition-colors ${
+                required && !data.appStoreUrl.trim() && !data.playStoreUrl.trim() ? 'border-red-400 bg-red-50' : 'border-transparent focus:border-[#F77019]'
+              }`}
+            />
+          </div>
+        )}
+
+        {data.accessMethod === 'physical_shipping' && (
+          <p className="text-[10px] text-[#666] leading-relaxed bg-[#F5F5F5] rounded-xl px-4 py-3">
+            배송지는 리뷰어가 승인된 뒤 직접 입력합니다. 수령 확인 후에 리뷰를 작성할 수 있어요.
+          </p>
+        )}
+      </div>
+    </Field>
+  )
+}
 
 type Props = {
   data: RequestFormData
@@ -33,7 +111,7 @@ export default function Step6Pricing({ data, walletBalance, onChange }: Props) {
   }
 
   if (data.projectType === 'light') {
-    return <LightPricing data={data} walletBalance={walletBalance} />
+    return <LightPricing data={data} walletBalance={walletBalance} onChange={onChange} />
   }
   return <StdDeepPricing data={data} walletBalance={walletBalance} onChange={onChange} />
 }
@@ -42,7 +120,15 @@ export default function Step6Pricing({ data, walletBalance, onChange }: Props) {
 /*  Light — 캐시 차감만                                       */
 /* ─────────────────────────────────────────────────────── */
 
-function LightPricing({ data, walletBalance }: { data: RequestFormData; walletBalance: number }) {
+function LightPricing({
+  data,
+  walletBalance,
+  onChange,
+}: {
+  data: RequestFormData
+  walletBalance: number
+  onChange: (patch: Partial<RequestFormData>) => void
+}) {
   const remaining = walletBalance - LIGHT_CASH_COST
   const insufficient = remaining < 0
 
@@ -55,6 +141,40 @@ function LightPricing({ data, walletBalance }: { data: RequestFormData; walletBa
         </div>
         <p className="text-[10px] text-[#999] font-bold">Light는 캐시 차감만 발생합니다 · 사례금 · 사전 승인 없음</p>
       </div>
+
+      <AccessMethodField data={data} onChange={onChange} required={false} />
+
+      {/* 평가단 수 — 제한 없음, 자유 입력 */}
+      <Field label="평가단 수" hint="제한 없음 · 자유 입력">
+        <div className="flex items-center gap-2">
+          <input
+            type="number"
+            min={1}
+            step={1}
+            value={data.evaluatorCount}
+            onChange={(e) => onChange({ evaluatorCount: Math.max(0, Math.floor(Number(e.target.value) || 0)) })}
+            className="flex-1 h-10 rounded-xl bg-[#F5F5F5] border-none outline-none px-4 text-[11px] font-bold"
+          />
+          <span className="text-[11px] font-bold text-[#666]">명</span>
+        </div>
+        <div className="flex items-center gap-1.5 flex-wrap mt-2">
+          <span className="text-[9px] text-[#999] font-bold">빠른 선택:</span>
+          {[10, 20, 30, 50, 100].map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => onChange({ evaluatorCount: n })}
+              className={`px-2.5 h-6 rounded-full text-[9px] font-black transition-colors ${
+                data.evaluatorCount === n
+                  ? 'bg-[#F77019] text-white'
+                  : 'bg-white border border-[#1D1C1C]/10 text-[#666] hover:border-[#F77019] hover:text-[#F77019]'
+              }`}
+            >
+              {n}명
+            </button>
+          ))}
+        </div>
+      </Field>
 
       {/* 비용 요약 */}
       <div className="rounded-2xl bg-[#FAFAFA] border border-[#1D1C1C]/5 p-5 flex flex-col gap-2 text-[11px] font-bold">
@@ -78,8 +198,9 @@ function LightPricing({ data, walletBalance }: { data: RequestFormData; walletBa
         <div className="flex items-start gap-2">
           <Info className="w-3.5 h-3.5 text-[#1565C0] flex-shrink-0 mt-0.5" />
           <p className="text-[10px] font-bold text-[#1565C0] leading-relaxed">
-            Light는 빠른 방향성 확인용입니다. 평가단은 EXP 적립 + 신제품 선행 접근을 동기로 참여하며,
-            결과 리포트는 무료로 제공됩니다 (Gemini Flash).
+            Light는 빠른 방향성 확인용입니다. 평가단은{' '}
+            <span className="text-[#999]">EXP 적립(정식 출시 후 도입 예정 · 베타 기간엔 미지급)</span>
+            {' '}+ 신제품 선행 접근을 동기로 참여하며, 결과 리포트는 무료로 제공됩니다 (Gemini Flash).
           </p>
         </div>
       </div>
@@ -114,6 +235,8 @@ function StdDeepPricing({
         </div>
         <p className="text-[10px] text-[#999] font-bold">캐시는 즉시 차감 · 사례금은 사전 승인 후 리뷰 완료 시 실제 청구</p>
       </div>
+
+      <AccessMethodField data={data} onChange={onChange} required />
 
       {/* 평가단 수 — 자유 입력 (최소 검증) */}
       <Field label="평가단 수" hint={`최소 ${projectMeta.minReviewers}명 · 자유 입력`}>

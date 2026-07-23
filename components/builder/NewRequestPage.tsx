@@ -149,10 +149,17 @@ export default function NewRequestPage() {
       case 'cost':
         if (!data.projectType) return null
         if (data.projectType === 'light') {
+          if (data.evaluatorCount < 1) return '평가단 수는 1명 이상이어야 합니다'
           if (WALLET_BALANCE < 4900) return '캐시가 부족합니다. 충전이 필요합니다.'
         } else {
-          if (data.evaluatorCount < 10) return '최소 평가단 수는 10명입니다'
+          if (data.evaluatorCount < 1) return '최소 평가단 수는 1명입니다'
           if (data.feePerEvaluator < 1000) return '1인당 사례금은 최소 1,000원 이상'
+          if (data.accessMethod === 'web_link' && !data.landingUrl.trim()) {
+            return '리뷰어가 체험할 웹 링크를 입력하세요'
+          }
+          if (data.accessMethod === 'app_download' && !data.appStoreUrl.trim() && !data.playStoreUrl.trim()) {
+            return 'App Store 또는 Google Play 링크를 하나 이상 입력하세요'
+          }
           const cashNeeded = 1800 * data.evaluatorCount
           if (WALLET_BALANCE < cashNeeded) return '캐시가 부족합니다. 충전이 필요합니다.'
         }

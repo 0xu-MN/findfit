@@ -2,13 +2,11 @@
 
 import { getCompatibility } from '@/lib/constants/compatibilityMatrix'
 import {
-  ACCESS_METHOD_OPTIONS,
   CATEGORIES,
   PROJECT_TYPE_OPTIONS,
   STAGE_OPTIONS,
   getFlow,
   getStepKey,
-  type AccessMethod,
   type ProjectType,
   type RequestFormData,
   type Stage,
@@ -148,69 +146,10 @@ export default function Step1BasicInfo({ data, onChange }: Props) {
         </div>
       </Field>
 
-      {/* 랜딩 URL */}
-      <Field label="랜딩·소개 URL (선택)">
-        <input
-          type="url"
-          value={data.landingUrl}
-          onChange={(e) => onChange({ landingUrl: e.target.value })}
-          placeholder="https://"
-          className="w-full h-10 rounded-xl bg-[#F5F5F5] border-none outline-none px-4 text-[11px]"
-        />
-      </Field>
-
-      {/* 제품 접근 방식 — 리뷰어가 제품을 어떻게 체험하는지 */}
-      <Field label="제품 접근 방식">
-        <div className="grid grid-cols-3 gap-3">
-          {ACCESS_METHOD_OPTIONS.map((m) => {
-            const active = data.accessMethod === m.value
-            return (
-              <button
-                key={m.value}
-                type="button"
-                onClick={() => onChange({ accessMethod: m.value as AccessMethod })}
-                className={`flex flex-col p-4 rounded-xl text-left transition-colors ${
-                  active ? 'bg-[#F77019]/10 border border-[#F77019]' : 'bg-[#F5F5F5] border border-transparent hover:border-[#1D1C1C]/10'
-                }`}
-              >
-                <span className={`text-[11px] font-black ${active ? 'text-[#F77019]' : 'text-[#1D1C1C]'}`}>{m.title}</span>
-                <span className={`text-[9px] mt-1 leading-snug ${active ? 'text-[#F77019]/80' : 'text-[#999]'}`}>{m.sub}</span>
-              </button>
-            )
-          })}
-        </div>
-      </Field>
-
-      {/* 앱 다운로드 링크 (accessMethod === 'app_download') */}
-      {data.accessMethod === 'app_download' && (
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="App Store URL">
-            <input
-              type="url"
-              value={data.appStoreUrl}
-              onChange={(e) => onChange({ appStoreUrl: e.target.value })}
-              placeholder="https://apps.apple.com/..."
-              className="w-full h-10 rounded-xl bg-[#F5F5F5] border-none outline-none px-4 text-[11px]"
-            />
-          </Field>
-          <Field label="Google Play URL">
-            <input
-              type="url"
-              value={data.playStoreUrl}
-              onChange={(e) => onChange({ playStoreUrl: e.target.value })}
-              placeholder="https://play.google.com/..."
-              className="w-full h-10 rounded-xl bg-[#F5F5F5] border-none outline-none px-4 text-[11px]"
-            />
-          </Field>
-        </div>
-      )}
-
-      {/* 실물 배송 안내 (accessMethod === 'physical_shipping') */}
-      {data.accessMethod === 'physical_shipping' && (
-        <p className="text-[10px] text-[#666] leading-relaxed bg-[#F5F5F5] rounded-xl px-4 py-3">
-          배송지는 리뷰어가 승인된 뒤 직접 입력합니다. 수령 확인 후에 리뷰를 작성할 수 있어요.
-        </p>
-      )}
+      {/* 제품 접근 방식(웹 링크/앱 다운로드/실물 배송)은 마지막 "비용 확인"
+          단계에서 평가단 수와 함께 입력한다 — URL류 입력은 뒷단계에 몰아두는
+          게 자연스럽고, 접근 방식별 필수/선택 여부도 프로젝트 타입에 따라
+          달라지기 때문(Step6Pricing.tsx 참고) */}
 
       {/* 프로젝트 타입 — Light / Standard / Deep */}
       <div className="flex flex-col gap-3 mt-2">

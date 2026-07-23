@@ -197,7 +197,7 @@ export const PROJECT_TYPE_OPTIONS: {
     cashCost: '1,800C / 명',
     honorariumNote: '사례금 자율 설정',
     maxDays: 10,
-    minReviewers: 10,
+    minReviewers: 1,
   },
 ]
 
