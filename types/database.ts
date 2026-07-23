@@ -181,6 +181,7 @@ export interface Database {
           question_key: string | null
           options: string[] | null
           is_required: boolean
+          allow_multiple: boolean
           source: ReviewQuestionSource
           order_index: number
           created_at: string
@@ -193,6 +194,7 @@ export interface Database {
           question_key?: string | null
           options?: string[] | null
           is_required?: boolean
+          allow_multiple?: boolean
           source?: ReviewQuestionSource
           order_index?: number
           created_at?: string

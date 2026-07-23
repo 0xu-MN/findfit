@@ -49,6 +49,7 @@ function buildQuestionRows(data: RequestFormData, psfPmfType: PsfPmfType): {
   question_key: string | null
   options: string[] | null
   is_required: boolean
+  allow_multiple: boolean
   source: ReviewQuestionSource
   order_index: number
 }[] {
@@ -78,6 +79,7 @@ function buildQuestionRows(data: RequestFormData, psfPmfType: PsfPmfType): {
     question_key: q.isFixed ? q.id : null,
     options: q.options ?? null,
     is_required: Boolean(q.isFixed),
+    allow_multiple: Boolean(q.allowMultiple),
     source: 'manual',
     order_index: idx,
   }))

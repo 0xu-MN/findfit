@@ -30,6 +30,8 @@ export type Question = {
   text: string
   options?: string[]
   isFixed?: boolean
+  // 객관식(multiple_choice)만 의미 있음 — 리뷰어가 답변 시 복수 선택 허용
+  allowMultiple?: boolean
 }
 
 // Creator 레벨 (AI 리포트 무료/유료 결정)

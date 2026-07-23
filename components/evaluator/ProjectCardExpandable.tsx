@@ -46,7 +46,11 @@ type Question = {
   question_text: string
   question_type: 'multiple_choice' | 'short_answer' | 'likert' | 'likert_5' | 'sean_ellis'
   options: string[] | null
+  allow_multiple: boolean | null
 }
+
+const CARELESS_ANSWER_PATTERN = /^[.,!?~…\s]*$/
+const MIN_SHORT_ANSWER_LENGTH = 5
 
 const TYPE_META: Record<string, { label: string; color: string }> = {
   light: { label: 'Light', color: '#1CAE66' },
@@ -388,7 +392,7 @@ function ReviewFormPanel({
   useEffect(() => {
     supabase
       .from('review_questions')
-      .select('id, question_text, question_type, options')
+      .select('id, question_text, question_type, options, allow_multiple')
       .eq('project_id', projectId)
       .order('order_index')
       .then(({ data }: { data: Question[] | null }) => {
@@ -400,10 +404,45 @@ function ReviewFormPanel({
 
   const setAnswer = (qId: string, value: string) => setAnswers((prev) => ({ ...prev, [qId]: value }))
 
+  // 복수 선택 허용 문항 — answers[qId]에 "옵션1, 옵션2"처럼 콤마로 이어붙여
+  // 저장한다(review_answers.answer_text는 단일 문자열 컬럼이라 별도 스키마
+  // 변경 없이 바로 재사용 가능).
+  const toggleMultiAnswer = (qId: string, opt: string) => {
+    setAnswers((prev) => {
+      const current = prev[qId] ? prev[qId].split(', ') : []
+      const next = current.includes(opt) ? current.filter((o) => o !== opt) : [...current, opt]
+      return { ...prev, [qId]: next.join(', ') }
+    })
+  }
+
+  const scrollToQuestion = (qId: string) => {
+    const el = document.getElementById(`q-${qId}`)
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    el?.classList.add('ring-2', 'ring-red-400')
+    setTimeout(() => el?.classList.remove('ring-2', 'ring-red-400'), 2000)
+  }
+
   const handleSubmit = async () => {
     if (!questions) return
-    const unanswered = questions.filter((q) => !answers[q.id])
-    if (unanswered.length > 0) { setError('모든 질문에 답변해주세요'); return }
+
+    const unanswered = questions.find((q) => !answers[q.id]?.trim())
+    if (unanswered) {
+      setError('모든 질문에 답변해주세요')
+      scrollToQuestion(unanswered.id)
+      return
+    }
+
+    // 주관식인데 "...", "네" 같이 성의 없는 답변이면 다시 작성하도록 막는다.
+    const careless = questions.find((q) => {
+      if (q.question_type !== 'short_answer') return false
+      const text = (answers[q.id] ?? '').trim()
+      return text.length < MIN_SHORT_ANSWER_LENGTH || CARELESS_ANSWER_PATTERN.test(text)
+    })
+    if (careless) {
+      setError('답변을 조금 더 구체적으로 작성해주세요 (최소 5자, "..." 같은 답변은 안 돼요)')
+      scrollToQuestion(careless.id)
+      return
+    }
 
     setSubmitting(true)
     setError(null)
@@ -471,13 +510,44 @@ function ReviewFormPanel({
       )}
 
       {(questions ?? []).map((q, i) => (
-        <div key={q.id} className="rounded-xl border border-[#1D1C1C]/8 bg-white p-4 flex flex-col gap-2.5">
+        <div key={q.id} id={`q-${q.id}`} className="rounded-xl border border-[#1D1C1C]/8 bg-white p-4 flex flex-col gap-2.5 transition-shadow">
           <p className="text-[11px] font-black text-[#1D1C1C]">
             <span className="text-[#1565C0] mr-1">{i + 1}.</span>
             {q.question_text}
+            {q.question_type === 'multiple_choice' && q.allow_multiple && (
+              <span className="ml-1.5 text-[9px] font-bold text-[#999]">(복수 선택 가능)</span>
+            )}
           </p>
 
-          {(q.question_type === 'multiple_choice' || q.question_type === 'sean_ellis') && q.options && (
+          {q.question_type === 'multiple_choice' && q.allow_multiple && q.options && (
+            <div className="flex flex-col gap-2">
+              {q.options.map((opt) => {
+                const selected = (answers[q.id]?.split(', ') ?? []).includes(opt)
+                return (
+                  <button
+                    key={opt}
+                    onClick={() => toggleMultiAnswer(q.id, opt)}
+                    className={`w-full text-left px-3 py-2 rounded-lg border text-[11px] font-bold transition-colors flex items-center gap-2 ${
+                      selected
+                        ? 'border-[#1565C0] bg-[#1565C0]/10 text-[#1565C0] font-black'
+                        : 'border-[#1D1C1C]/10 hover:border-[#1D1C1C]/20 text-[#666]'
+                    }`}
+                  >
+                    <span
+                      className={`w-3.5 h-3.5 rounded flex-shrink-0 border flex items-center justify-center ${
+                        selected ? 'bg-[#1565C0] border-[#1565C0]' : 'border-[#1D1C1C]/20'
+                      }`}
+                    >
+                      {selected && <CheckCircle2 className="w-3 h-3 text-white" />}
+                    </span>
+                    {opt}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
+          {((q.question_type === 'multiple_choice' && !q.allow_multiple) || q.question_type === 'sean_ellis') && q.options && (
             <div className="flex flex-col gap-2">
               {q.options.map((opt) => (
                 <button

@@ -165,6 +165,21 @@ export default function QuestionBuilder({ questions, onChange, max, allowedTypes
                     + {q.type === 'keyword' ? '키워드' : '선택지'} 추가
                   </button>
                 )}
+
+                {/* 객관식만 — 복수 선택 허용 여부 */}
+                {q.type === 'multiple_choice' && (
+                  <label className="flex items-center gap-2 mt-1 ml-6 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(q.allowMultiple)}
+                      onChange={(e) => updateQuestion(q.id, { allowMultiple: e.target.checked })}
+                      className="w-3.5 h-3.5 accent-[#F77019]"
+                    />
+                    <span className="text-[10px] font-bold text-[#666]">
+                      복수 선택 허용 (체크박스로 여러 개 고를 수 있게)
+                    </span>
+                  </label>
+                )}
               </div>
             )}
 
