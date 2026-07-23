@@ -314,7 +314,46 @@ export interface Database {
           created_at?: string
         }
         Update: Partial<Database['public']['Tables']['credit_transactions']['Insert']>
-      
+
+        Relationships: []
+      }
+
+      /* ── 현행: report_shares / report_share_events (migration 023) ── */
+      report_shares: {
+        Row: {
+          id: string
+          project_id: string
+          slug: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          slug: string
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['report_shares']['Insert']>
+
+        Relationships: []
+      }
+
+      report_share_events: {
+        Row: {
+          id: string
+          share_id: string
+          event_type: 'view' | 'email_capture'
+          email: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          share_id: string
+          event_type: 'view' | 'email_capture'
+          email?: string | null
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['report_share_events']['Insert']>
+
         Relationships: []
       }
 
@@ -335,8 +374,6 @@ export interface Database {
           solution_acceptance_pct: number | null
           purchase_intent_pct: number | null
           verdict: Verdict | null
-          deep_analysis_data: Record<string, unknown> | null
-          deep_analysis_generated_at: string | null
           created_at: string
         }
         Insert: {
@@ -354,8 +391,6 @@ export interface Database {
           solution_acceptance_pct?: number | null
           purchase_intent_pct?: number | null
           verdict?: Verdict | null
-          deep_analysis_data?: Record<string, unknown> | null
-          deep_analysis_generated_at?: string | null
           created_at?: string
         }
         Update: Partial<Database['public']['Tables']['ai_reports']['Insert']>

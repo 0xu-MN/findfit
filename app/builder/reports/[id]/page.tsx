@@ -5,8 +5,10 @@ import { useRouter } from 'next/navigation'
 import { use, useCallback, useEffect, useState } from 'react'
 
 import LightReportView from '@/components/report/LightReportView'
-import StandardReportView from '@/components/report/StandardReportView'
-import DeepAnalysisView, { type DeepAnalysisData } from '@/components/report/DeepAnalysisView'
+import StandardReportView, { type QuestionSummaryItem } from '@/components/report/StandardReportView'
+import ReportPaidSections, { type ReportPaidData } from '@/components/report/ReportPaidSections'
+import ExternalInterestCard from '@/components/report/ExternalInterestCard'
+import ReportGrowthTools from '@/components/report/ReportGrowthTools'
 import { createClient } from '@/lib/supabase/client'
 
 type ReportData = {
@@ -22,6 +24,13 @@ type ReportData = {
   benchmark_comment?: string
   action_plan?: string[]
   pivot_scenarios?: string[]
+  question_summary?: QuestionSummaryItem[]
+  competitor_references?: ReportPaidData['competitor_references']
+  market_size?: ReportPaidData['market_size']
+  positioning_map?: ReportPaidData['positioning_map']
+  unit_economics?: ReportPaidData['unit_economics']
+  gtm_strategies?: ReportPaidData['gtm_strategies']
+  scaleup_roadmap?: ReportPaidData['scaleup_roadmap']
 }
 
 // ai_reports 테이블의 최상위 컬럼(PSF 서브스코어 + verdict) — report_data
@@ -53,10 +62,7 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
   const [engine, setEngine] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-
-  const [deepAnalysis, setDeepAnalysis] = useState<DeepAnalysisData | null>(null)
-  const [deepLoading, setDeepLoading] = useState(false)
-  const [deepError, setDeepError] = useState<string | null>(null)
+  const [unlocked, setUnlocked] = useState(false)
 
   // 저장된 ai_reports를 조회하고, 없으면 서버에서 생성(POST)한다.
   const fetchReport = useCallback(async (regenerate = false) => {
@@ -84,39 +90,11 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
       setReport((saved?.report_data ?? {}) as ReportData)
       setMeta((saved ?? null) as ReportMeta | null)
       setEngine(saved?.ai_engine_used ?? null)
+      setUnlocked(false)
     } catch (e) {
       setError(e instanceof Error ? e.message : '리포트 생성 실패')
     } finally {
       setLoading(false)
-    }
-  }, [projectId])
-
-  // 고급 분석(Deep Analysis) — 저장된 게 있으면 GET으로만 가져오고, 없을 때만
-  // POST로 새로 생성(Claude 호출 비용 절감을 위해 재생성 버튼은 따로 안 둠).
-  const fetchDeepAnalysis = useCallback(async () => {
-    setDeepLoading(true)
-    setDeepError(null)
-    try {
-      const getRes = await fetch(`/api/ai-report/${projectId}/deep`, { method: 'GET' })
-      if (getRes.ok) {
-        const { deepAnalysis: existing } = await getRes.json()
-        if (existing) {
-          setDeepAnalysis(existing as DeepAnalysisData)
-          setDeepLoading(false)
-          return
-        }
-      }
-      const res = await fetch(`/api/ai-report/${projectId}/deep`, { method: 'POST' })
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        throw new Error(body.error ?? `고급 분석 생성 실패 (${res.status})`)
-      }
-      const { deepAnalysis: saved } = await res.json()
-      setDeepAnalysis(saved as DeepAnalysisData)
-    } catch (e) {
-      setDeepError(e instanceof Error ? e.message : '고급 분석 생성 실패')
-    } finally {
-      setDeepLoading(false)
     }
   }, [projectId])
 
@@ -138,7 +116,7 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
   const psfPmf: 'psf' | 'pmf' = makePsfPmf(project?.stage ?? null)
 
   return (
-    <div className="min-h-screen bg-[#F7F7F5]">
+    <div className="min-h-screen bg-[#F7F7F5] pb-16">
       {/* 상단 바 */}
       <div className="sticky top-0 z-10 bg-white border-b border-[#1D1C1C]/8 px-6 py-4 flex items-center gap-3">
         <button
@@ -265,48 +243,60 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
                     psf_score: report.psf_score ?? 0,
                     sean_ellis_pct: report.sean_ellis_pct ?? 0,
                     recommendation: report.recommendation ?? 'pivot',
-                    key_insights: report.key_insights ?? [],
-                    pattern_analysis: report.pattern_analysis ?? '',
                     benchmark_comment: report.benchmark_comment ?? '',
-                    action_plan: report.action_plan ?? [],
-                    pivot_scenarios: report.pivot_scenarios ?? [],
+                    key_insights: report.key_insights ?? [],
+                    question_summary: report.question_summary ?? [],
                   }}
                   mode={psfPmf}
                 />
 
-                {/* Standard 고급 분석 —
+                {/* 외부 관심 현황 — 무료 티어, 공유 링크 생성/조회 포함 */}
+                <div className="mt-4">
+                  <ExternalInterestCard projectId={projectId} />
+                </div>
+
+                {/* 유료(고급) 콘텐츠 — 인사이트 2번 이후 전부.
                     베타 기간엔 무료로 열람 가능. 정식 출시 후 PortOne 결제
                     연동이 붙으면 이 버튼 문구("베타 기간 무료로 열람")와
-                    잠금 게이트를 유료 잠금 방식으로 되돌릴 것. */}
+                    잠금 게이트를 유료 결제 방식으로 되돌릴 것. */}
                 <div className="mt-4">
-                  {!deepAnalysis && (
+                  {!unlocked ? (
                     <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 flex flex-col items-center gap-3 text-center">
                       <span className="text-[10px] font-black text-[#F77019] bg-[#F77019]/10 px-2 py-0.5 rounded">
                         고급 분석
                       </span>
-                      <p className="text-sm font-black text-[#1D1C1C]">세그먼트 · 감성 · 의사결정 장벽 분석</p>
-                      <p className="text-[11px] font-bold text-[#999]">
-                        {deepLoading ? '분석 생성 중이에요...' : '베타 기간엔 무료로 열람할 수 있어요'}
-                      </p>
-                      {deepError && (
-                        <p className="text-[11px] font-bold text-red-500 bg-red-50 px-3 py-2 rounded-xl">{deepError}</p>
-                      )}
+                      <p className="text-sm font-black text-[#1D1C1C]">추가 인사이트 · 시장 규모 · 포지셔닝 · 액션 플랜</p>
+                      <p className="text-[11px] font-bold text-[#999]">베타 기간엔 무료로 열람할 수 있어요</p>
                       <button
-                        onClick={fetchDeepAnalysis}
-                        disabled={deepLoading}
-                        className="mt-1 px-5 py-2.5 rounded-xl bg-[#F77019] text-white text-[11px] font-black hover:bg-[#e0621a] transition-colors disabled:opacity-60"
+                        onClick={() => setUnlocked(true)}
+                        className="mt-1 px-5 py-2.5 rounded-xl bg-[#F77019] text-white text-[11px] font-black hover:bg-[#e0621a] transition-colors"
                       >
-                        {deepLoading ? '생성 중...' : '베타 기간 무료로 열람'}
+                        베타 기간 무료로 열람
                       </button>
                     </div>
-                  )}
-                  {deepAnalysis && (
-                    <>
-                      <h3 className="text-sm font-black mb-3 mt-2">고급 분석</h3>
-                      <DeepAnalysisView data={deepAnalysis} />
-                    </>
+                  ) : (
+                    <ReportPaidSections
+                      data={{
+                        key_insights: report.key_insights ?? [],
+                        action_plan: report.action_plan ?? [],
+                        pivot_scenarios: report.pivot_scenarios ?? [],
+                        competitor_references: report.competitor_references ?? [],
+                        market_size: report.market_size as ReportPaidData['market_size'],
+                        positioning_map: report.positioning_map as ReportPaidData['positioning_map'],
+                        unit_economics: report.unit_economics ?? null,
+                        gtm_strategies: report.gtm_strategies ?? null,
+                        scaleup_roadmap: report.scaleup_roadmap ?? null,
+                      }}
+                      recommendation={report.recommendation ?? 'pivot'}
+                    />
                   )}
                 </div>
+
+                {unlocked && (
+                  <div className="mt-4">
+                    <ReportGrowthTools projectId={projectId} />
+                  </div>
+                )}
               </>
             )}
 
@@ -331,6 +321,11 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
           </>
         )}
       </div>
+
+      {/* AI 생성 리포트 안내 — 상태와 무관하게 항상 고정 노출 */}
+      <p className="max-w-2xl mx-auto px-6 text-[10px] font-medium text-[#BBB] text-center leading-relaxed">
+        이 리포트는 AI가 리뷰어 응답 데이터를 바탕으로 자동 생성한 분석입니다. 실제 의사결정 전 참고용으로 활용해주세요.
+      </p>
     </div>
   )
 }

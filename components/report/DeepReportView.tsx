@@ -77,10 +77,8 @@ export default function DeepReportView({
             sean_ellis_pct: data.sean_ellis_pct ?? 0,
             recommendation: data.recommendation ?? 'continue',
             key_insights: [],
-            pattern_analysis: '',
             benchmark_comment: '',
-            action_plan: [],
-            pivot_scenarios: [],
+            question_summary: [],
           }}
           mode="pmf"
         />

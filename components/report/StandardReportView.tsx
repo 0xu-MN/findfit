@@ -1,14 +1,20 @@
 'use client'
 
+export type QuestionSummaryItem = {
+  question_text: string
+  options: { label: string; pct: number }[]
+}
+
+// 무료 티어에 항상 노출되는 부분만 담당 — PSF 스코어 게이지 +
+// 문항별 응답 요약(review_answers 직접 집계) + 인사이트 1번.
+// 인사이트 2~5번 이후 전부는 ReportPaidSections.tsx(유료/베타 무료 열람)가 담당.
 type StandardReportData = {
   psf_score: number
   sean_ellis_pct: number
   recommendation: 'continue' | 'pivot' | 'stop'
-  key_insights: string[]
-  pattern_analysis: string
   benchmark_comment: string
-  action_plan: string[]
-  pivot_scenarios: string[]
+  key_insights: string[]
+  question_summary: QuestionSummaryItem[]
 }
 
 const RECOMMENDATION_LABELS: Record<string, { label: string; color: string; bg: string }> = {
@@ -19,6 +25,7 @@ const RECOMMENDATION_LABELS: Record<string, { label: string; color: string; bg: 
 
 export default function StandardReportView({ data, mode }: { data: StandardReportData; mode: 'psf' | 'pmf' }) {
   const rec = RECOMMENDATION_LABELS[data.recommendation] ?? RECOMMENDATION_LABELS.continue
+  const firstInsight = data.key_insights?.[0]
 
   return (
     <div className="flex flex-col gap-4">
@@ -43,54 +50,41 @@ export default function StandardReportView({ data, mode }: { data: StandardRepor
         </div>
       </div>
 
-      {/* 핵심 인사이트 */}
-      <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
-        <h3 className="text-sm font-black mb-4">핵심 인사이트</h3>
-        <div className="flex flex-col gap-2">
-          {data.key_insights?.map((ins, i) => (
-            <div key={i} className="flex items-start gap-3 rounded-xl bg-[#F5F5F5] px-4 py-3">
-              <span className="text-[10px] font-black text-[#F77019] bg-[#F77019]/10 px-1.5 py-0.5 rounded mt-0.5">
-                {i + 1}
-              </span>
-              <p className="text-[11px] font-bold text-[#1D1C1C]">{ins}</p>
-            </div>
-          ))}
-        </div>
-        {data.pattern_analysis && (
-          <div className="mt-4 rounded-xl bg-[#F5F5F5] px-4 py-3">
-            <p className="text-[10px] font-black text-[#666] mb-1">패턴 분석</p>
-            <p className="text-[11px] font-bold text-[#1D1C1C]">{data.pattern_analysis}</p>
-          </div>
-        )}
-      </div>
-
-      {/* 액션 플랜 */}
-      {data.action_plan?.length > 0 && (
+      {/* 문항별 응답 요약 — AI가 아니라 실제 답변 집계 */}
+      {data.question_summary?.length > 0 && (
         <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
-          <h3 className="text-sm font-black mb-4">액션 플랜</h3>
-          <div className="flex flex-col gap-2">
-            {data.action_plan.map((a, i) => (
-              <div key={i} className="flex items-center gap-3 rounded-xl bg-[#F77019]/5 border border-[#F77019]/10 px-4 py-3">
-                <span className="w-5 h-5 rounded-full bg-[#F77019] text-white text-[10px] font-black flex items-center justify-center shrink-0">
-                  {i + 1}
-                </span>
-                <p className="text-[11px] font-bold text-[#1D1C1C]">{a}</p>
+          <h3 className="text-sm font-black mb-4">문항별 응답 요약</h3>
+          <div className="flex flex-col gap-5">
+            {data.question_summary.map((q, i) => (
+              <div key={i}>
+                <p className="text-[11px] font-bold text-[#666] mb-2.5">{q.question_text}</p>
+                <div className="flex flex-col gap-1.5">
+                  {q.options.map((o, oi) => (
+                    <div key={oi} className="flex items-center gap-2.5">
+                      <span className="text-[11px] text-[#1D1C1C] w-28 shrink-0 truncate">{o.label}</span>
+                      <div className="flex-1 h-1.5 rounded-full bg-[#F5F5F5] overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${oi === 0 ? 'bg-[#F77019]' : 'bg-[#F77019]/40'}`}
+                          style={{ width: `${o.pct}%` }}
+                        />
+                      </div>
+                      <span className="text-[11px] font-bold text-[#1D1C1C] w-9 text-right shrink-0">{o.pct}%</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* 피봇 시나리오 */}
-      {data.pivot_scenarios?.length > 0 && (
+      {/* 핵심 인사이트 — 1번만 무료 공개, 2~5번은 ReportPaidSections에서 */}
+      {firstInsight && (
         <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
-          <h3 className="text-sm font-black mb-4">피봇 시나리오</h3>
-          <div className="flex flex-col gap-2">
-            {data.pivot_scenarios.map((s, i) => (
-              <div key={i} className="rounded-xl bg-[#F5F5F5] px-4 py-3">
-                <p className="text-[11px] font-bold text-[#666]">{s}</p>
-              </div>
-            ))}
+          <h3 className="text-sm font-black mb-4">핵심 인사이트</h3>
+          <div className="flex items-start gap-3 rounded-xl bg-[#F5F5F5] px-4 py-3">
+            <span className="text-[10px] font-black text-[#F77019] bg-[#F77019]/10 px-1.5 py-0.5 rounded mt-0.5">1</span>
+            <p className="text-[11px] font-bold text-[#1D1C1C]">{firstInsight}</p>
           </div>
         </div>
       )}

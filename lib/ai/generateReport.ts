@@ -47,7 +47,7 @@ export async function generateAndSaveReport(projectId: string, supabase: any) {
   const [{ data: project }, { data: questionsRaw }, { data: answersRaw }] = await Promise.all([
     supabase
       .from('projects')
-      .select('id, title, project_type, psf_pmf_type, problem, solution, target_count, completed_count')
+      .select('id, title, project_type, psf_pmf_type, stage, problem, solution, target_count, completed_count')
       .eq('id', projectId)
       .single(),
     supabase
@@ -108,6 +108,7 @@ export async function generateAndSaveReport(projectId: string, supabase: any) {
     title: project.title,
     project_type: (project.project_type ?? 'standard') as ProjectForReport['project_type'],
     psf_pmf_type: (project.psf_pmf_type ?? 'psf') as ProjectForReport['psf_pmf_type'],
+    stage: (project.stage ?? 'beta') as ProjectForReport['stage'],
     problem: project.problem ?? undefined,
     solution: project.solution ?? undefined,
     questions: questions.map((q) => ({ question_text: q.question_text })),
@@ -117,6 +118,11 @@ export async function generateAndSaveReport(projectId: string, supabase: any) {
   // report prompts always ask for an object shape (never the question-suggest
   // array shape), so this narrowing is safe.
   const aiResult = (await callGemini(prompt)) as Record<string, unknown>
+
+  // 무료 티어에 노출되는 문항별 응답 요약 — AI가 아니라 review_answers를
+  // 직접 집계한 값(객관식/리커트류만 대상. 서술형은 막대그래프로 요약할 수
+  // 없어 제외)
+  const question_summary = buildQuestionSummary(questions, answers)
 
   // 5) recommendation / verdict / psf_score 결정
   const recommendation = (aiResult.recommendation as Recommendation | undefined) ?? null
@@ -136,7 +142,7 @@ export async function generateAndSaveReport(projectId: string, supabase: any) {
     psf_score,
     sean_ellis_pct: sean_ellis_pct ?? aiSeanEllis,
     recommendation,
-    report_data: aiResult,
+    report_data: { ...aiResult, question_summary },
     is_unlocked: true, // 이번 라운드는 전체 공개 (유료 잠금은 다음 라운드)
     problem_exists_pct,
     solution_acceptance_pct,
@@ -152,6 +158,32 @@ export async function generateAndSaveReport(projectId: string, supabase: any) {
 
   if (error) throw new Error(error.message ?? '리포트 저장에 실패했습니다.')
   return saved
+}
+
+const BAR_CHART_TYPES = new Set(['multiple_choice', 'likert_5', 'likert', 'sean_ellis'])
+
+// 리커트 1점 답변에 "(이유: ...)" 자유서술이 덧붙는 경우가 있어(제출 로직 참고:
+// components/evaluator/ProjectCardExpandable.tsx) 집계 전에 떼어낸다. 복수선택
+// 답변은 ", "로 join되어 있으므로 각 옵션을 개별 응답으로 분리해 센다.
+function buildQuestionSummary(questions: QuestionRow[], answers: AnswerRow[]) {
+  return questions
+    .filter((q) => BAR_CHART_TYPES.has(q.question_type))
+    .map((q) => {
+      const relevant = answers.filter((a) => a.question_id === q.id)
+      const optionCounts = new Map<string, number>()
+      for (const a of relevant) {
+        const cleaned = a.answer_text.replace(/\s*\(이유:[^)]*\)\s*$/, '').trim()
+        for (const option of cleaned.split(',').map((s) => s.trim()).filter(Boolean)) {
+          optionCounts.set(option, (optionCounts.get(option) ?? 0) + 1)
+        }
+      }
+      const total = relevant.length
+      const options = Array.from(optionCounts.entries())
+        .map(([label, count]) => ({ label, pct: total > 0 ? Math.round((count / total) * 100) : 0 }))
+        .sort((a, b) => b.pct - a.pct)
+      return { question_text: q.question_text, options }
+    })
+    .filter((q) => q.options.length > 0)
 }
 
 function avg(nums: (number | null)[]): number | null {

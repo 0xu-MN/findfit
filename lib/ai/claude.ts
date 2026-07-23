@@ -23,26 +23,6 @@
 }
 
 function getMockResponse(prompt: string): Record<string, unknown> {
-  if (prompt.includes('segment_analysis')) {
-    return {
-      segment_analysis: [
-        { segment: 'PM', summary: 'PM 세그먼트는 온보딩 속도에 민감하게 반응함', notable_diff: '타 세그먼트 대비 진입장벽 언급 비율 높음' },
-      ],
-      segment_analysis_note: null,
-      sentiment_mapping: {
-        positive: [
-          { keyword: '직관적', count: 4, example_quote: '설명 없이도 바로 이해가 됐어요' },
-          { keyword: '시간 절약', count: 3, example_quote: '반복 작업이 확 줄었어요' },
-        ],
-        negative: [
-          { keyword: '복잡한 설정', count: 2, example_quote: '처음 설정할 때 뭘 눌러야 할지 헷갈렸어요' },
-        ],
-      },
-      decision_barriers: [
-        { theme: '초기 설정 난이도', count: 2, example_quotes: ['설정 화면이 너무 많아서 중간에 포기할 뻔했어요'] },
-      ],
-    }
-  }
   if (prompt.includes('winner')) {
     return {
       winner: 'A',
