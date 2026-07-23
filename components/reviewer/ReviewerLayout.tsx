@@ -61,14 +61,49 @@ export default function ReviewerLayout({ children }: Props) {
       <div className="absolute top-[-10%] left-[-5%] w-[45%] h-[55%] rounded-full opacity-[0.12] blur-[130px] pointer-events-none"
         style={{ background: `radial-gradient(circle, ${accentColor}30 0%, transparent 70%)` }} />
 
-      <div className="max-w-[1200px] w-full mx-auto px-4 sm:px-6 lg:px-10 relative">
-        {/* ── HEADER ── */}
+      <div className="max-w-[1500px] w-full mx-auto px-4 sm:px-6 lg:px-10 relative">
+        {/* ── HEADER — DashboardLayout 우측 패널 헤더와 같은 스타일
+            (텍스트 탭 + "|" 구분선 + 활성탭 밑줄, 우측은 아이콘 클러스터).
+            리뷰어는 좌측 패널이 따로 없어 로고/역할스위처/프로필은 그대로
+            유지한다. ── */}
         <header className="h-20 flex items-center justify-between">
-          <div
-            className="flex items-center gap-3 cursor-pointer flex-shrink-0"
-            onClick={() => router.push('/evaluator/dashboard')}
-          >
-            <img src="/logo.png" alt="FindFit" className="h-[36px] w-auto object-contain" />
+          <div className="flex items-center gap-0 flex-1 min-w-0">
+            <div
+              className="flex items-center gap-3 cursor-pointer flex-shrink-0 mr-[35px]"
+              onClick={() => router.push('/evaluator/dashboard')}
+            >
+              <img src="/logo.png" alt="FindFit" className="h-[36px] w-auto object-contain" />
+            </div>
+
+            <nav className="flex items-center overflow-x-auto">
+              {[
+                { label: '홈', path: '/evaluator/dashboard' },
+                { label: '라운지', path: '/evaluator/lounge' },
+                { label: '피드', path: '/evaluator/feed' },
+                { label: '포인트 지갑', path: '/evaluator/wallet' },
+                { label: '프로필', path: '/evaluator/profile' },
+              ].map((item, index, arr) => {
+                const isActive = pathname === item.path
+                return (
+                  <div key={item.path} className="flex items-center">
+                    <button
+                      onClick={() => router.push(item.path)}
+                      className={`py-1.5 whitespace-nowrap transition-all relative ${
+                        isActive ? 'text-[14px] font-black text-[#1565C0]' : 'text-[12px] font-bold text-[#999999] hover:text-[#1D1C1C]'
+                      }`}
+                    >
+                      {item.label}
+                      {isActive && (
+                        <span className="absolute -bottom-0.5 left-0 right-0 h-[2px] rounded-full bg-[#1565C0]" />
+                      )}
+                    </button>
+                    {index < arr.length - 1 && (
+                      <span className="text-[#D4D4D4] mx-[20px] text-[12px] font-light">|</span>
+                    )}
+                  </div>
+                )
+              })}
+            </nav>
           </div>
 
           <div className="flex items-center gap-4 flex-shrink-0">
@@ -113,34 +148,6 @@ export default function ReviewerLayout({ children }: Props) {
             </button>
           </div>
         </header>
-
-        {/* ── SUB NAV — 예전엔 좌측(현재 페이지)/우측(메인·라운지·피드) 듀얼
-            패널로 나뉘어 있던 걸 단일화면으로 합치면서, 우측 패널에 있던
-            탭들도 여기 라우트로 승격시켰다 — 삭제된 게 아니라 페이지 전환
-            방식으로 바뀐 것. ── */}
-        <nav className="flex items-center gap-1 pb-4 -mt-1 flex-wrap">
-          {[
-            { label: '홈', path: '/evaluator/dashboard' },
-            { label: '메인', path: '/evaluator/main' },
-            { label: '라운지', path: '/evaluator/lounge' },
-            { label: '피드', path: '/evaluator/feed' },
-            { label: '포인트 지갑', path: '/evaluator/wallet' },
-            { label: '프로필', path: '/evaluator/profile' },
-          ].map((item) => {
-            const isActive = pathname === item.path
-            return (
-              <button
-                key={item.path}
-                onClick={() => router.push(item.path)}
-                className={`px-3 h-8 rounded-full text-[11px] font-bold transition-colors ${
-                  isActive ? 'bg-[#1565C0] text-white' : 'text-[#666] hover:bg-[#1D1C1C]/5'
-                }`}
-              >
-                {item.label}
-              </button>
-            )
-          })}
-        </nav>
 
         {/* ── CONTENT — 단일 스크롤 ── */}
         <main className="pb-16">{children}</main>
