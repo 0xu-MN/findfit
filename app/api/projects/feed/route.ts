@@ -60,7 +60,7 @@ export async function GET() {
         .from('reviewer_profiles')
         .select('domain_tags, level')
         .eq('user_id', user.id)
-        .single()
+        .maybeSingle()
       reviewer = profile
     }
 

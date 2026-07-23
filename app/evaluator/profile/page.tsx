@@ -30,15 +30,20 @@ function ProfileContent() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { setLoading(false); return }
 
+      // role-select에서 reviewer_profiles row를 upsert하지만, 그 로직이
+      // 생기기 전에 만들어진 계정은 row가 없을 수 있다 — .single()은 0건일
+      // 때 406을 던지므로 .maybeSingle()로 안전하게 처리.
       const { data } = await supabase
         .from('reviewer_profiles')
         .select('domain_tags, level')
         .eq('user_id', user.id)
-        .single()
+        .maybeSingle()
 
       if (data) {
         setDomainTags(data.domain_tags ?? [])
         setLevel(data.level ?? 'general')
+      } else {
+        await supabase.from('reviewer_profiles').upsert({ user_id: user.id }, { onConflict: 'user_id' })
       }
       setLoading(false)
     }
