@@ -6,6 +6,7 @@ import { use, useCallback, useEffect, useState } from 'react'
 
 import LightReportView from '@/components/report/LightReportView'
 import StandardReportView from '@/components/report/StandardReportView'
+import DeepAnalysisView, { type DeepAnalysisData } from '@/components/report/DeepAnalysisView'
 import { createClient } from '@/lib/supabase/client'
 
 type ReportData = {
@@ -53,6 +54,10 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  const [deepAnalysis, setDeepAnalysis] = useState<DeepAnalysisData | null>(null)
+  const [deepLoading, setDeepLoading] = useState(false)
+  const [deepError, setDeepError] = useState<string | null>(null)
+
   // 저장된 ai_reports를 조회하고, 없으면 서버에서 생성(POST)한다.
   const fetchReport = useCallback(async (regenerate = false) => {
     setLoading(true)
@@ -83,6 +88,35 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
       setError(e instanceof Error ? e.message : '리포트 생성 실패')
     } finally {
       setLoading(false)
+    }
+  }, [projectId])
+
+  // 고급 분석(Deep Analysis) — 저장된 게 있으면 GET으로만 가져오고, 없을 때만
+  // POST로 새로 생성(Claude 호출 비용 절감을 위해 재생성 버튼은 따로 안 둠).
+  const fetchDeepAnalysis = useCallback(async () => {
+    setDeepLoading(true)
+    setDeepError(null)
+    try {
+      const getRes = await fetch(`/api/ai-report/${projectId}/deep`, { method: 'GET' })
+      if (getRes.ok) {
+        const { deepAnalysis: existing } = await getRes.json()
+        if (existing) {
+          setDeepAnalysis(existing as DeepAnalysisData)
+          setDeepLoading(false)
+          return
+        }
+      }
+      const res = await fetch(`/api/ai-report/${projectId}/deep`, { method: 'POST' })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error ?? `고급 분석 생성 실패 (${res.status})`)
+      }
+      const { deepAnalysis: saved } = await res.json()
+      setDeepAnalysis(saved as DeepAnalysisData)
+    } catch (e) {
+      setDeepError(e instanceof Error ? e.message : '고급 분석 생성 실패')
+    } finally {
+      setDeepLoading(false)
     }
   }, [projectId])
 
@@ -240,31 +274,38 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
                   mode={psfPmf}
                 />
 
-                {/* Standard 잠금 섹션 (딥 인사이트 업그레이드 유도) */}
-                <div className="mt-4 relative">
-                  <div className="absolute inset-0 bg-gradient-to-b from-transparent to-white z-10 rounded-3xl" />
-                  <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 blur-sm select-none">
-                    <h3 className="text-sm font-black mb-4">고급 분석 (미리보기)</h3>
-                    <div className="flex flex-col gap-3">
-                      {['세그먼트별 반응 차이 분석', '감성 키워드 매핑', '의사결정 장벽 클러스터링'].map((t) => (
-                        <div key={t} className="rounded-xl bg-[#F5F5F5] px-4 py-3">
-                          <p className="text-[11px] font-bold text-[#666]">{t}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3">
-                    <div className="bg-white rounded-2xl shadow-lg px-6 py-5 flex flex-col items-center gap-2 text-center">
+                {/* Standard 고급 분석 —
+                    베타 기간엔 무료로 열람 가능. 정식 출시 후 PortOne 결제
+                    연동이 붙으면 이 버튼 문구("베타 기간 무료로 열람")와
+                    잠금 게이트를 유료 잠금 방식으로 되돌릴 것. */}
+                <div className="mt-4">
+                  {!deepAnalysis && (
+                    <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 flex flex-col items-center gap-3 text-center">
                       <span className="text-[10px] font-black text-[#F77019] bg-[#F77019]/10 px-2 py-0.5 rounded">
-                        Deep 분석 잠금
+                        고급 분석
                       </span>
-                      <p className="text-sm font-black text-[#1D1C1C]">고급 분석 잠금 해제</p>
-                      <p className="text-[11px] font-bold text-[#999]">세그먼트 · 감성 · 장벽 분석 포함</p>
-                      <button className="mt-1 px-5 py-2.5 rounded-xl bg-[#F77019] text-white text-[11px] font-black hover:bg-[#e0621a] transition-colors">
-                        9,900원으로 잠금 해제
+                      <p className="text-sm font-black text-[#1D1C1C]">세그먼트 · 감성 · 의사결정 장벽 분석</p>
+                      <p className="text-[11px] font-bold text-[#999]">
+                        {deepLoading ? '분석 생성 중이에요...' : '베타 기간엔 무료로 열람할 수 있어요'}
+                      </p>
+                      {deepError && (
+                        <p className="text-[11px] font-bold text-red-500 bg-red-50 px-3 py-2 rounded-xl">{deepError}</p>
+                      )}
+                      <button
+                        onClick={fetchDeepAnalysis}
+                        disabled={deepLoading}
+                        className="mt-1 px-5 py-2.5 rounded-xl bg-[#F77019] text-white text-[11px] font-black hover:bg-[#e0621a] transition-colors disabled:opacity-60"
+                      >
+                        {deepLoading ? '생성 중...' : '베타 기간 무료로 열람'}
                       </button>
                     </div>
-                  </div>
+                  )}
+                  {deepAnalysis && (
+                    <>
+                      <h3 className="text-sm font-black mb-3 mt-2">고급 분석</h3>
+                      <DeepAnalysisView data={deepAnalysis} />
+                    </>
+                  )}
                 </div>
               </>
             )}

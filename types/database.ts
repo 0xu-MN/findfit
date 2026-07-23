@@ -335,6 +335,8 @@ export interface Database {
           solution_acceptance_pct: number | null
           purchase_intent_pct: number | null
           verdict: Verdict | null
+          deep_analysis_data: Record<string, unknown> | null
+          deep_analysis_generated_at: string | null
           created_at: string
         }
         Insert: {
@@ -352,6 +354,8 @@ export interface Database {
           solution_acceptance_pct?: number | null
           purchase_intent_pct?: number | null
           verdict?: Verdict | null
+          deep_analysis_data?: Record<string, unknown> | null
+          deep_analysis_generated_at?: string | null
           created_at?: string
         }
         Update: Partial<Database['public']['Tables']['ai_reports']['Insert']>
