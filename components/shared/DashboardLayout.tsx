@@ -19,7 +19,6 @@ import {
   Wallet,
   Columns2,
   FileText,
-  Landmark,
   UserCog,
   Settings,
   LogOut,
@@ -33,7 +32,10 @@ interface DashboardLayoutProps {
 }
 
 const COLLAPSED_W = 100   // px – just enough for logo
-const EXPANDED_W  = 1300  // px
+// 예전엔 1300px 고정값이라 화면 폭이 좁은 모니터(1920px 미만)에서는
+// 오른쪽 패널이 밀려나거나 콘텐츠가 그냥 잘려 보였다. 뷰포트 폭에 맞춰
+// 줄어들되 너무 좁아지진 않게 clamp로 하한선(680px)만 두고 나머진 유동적으로.
+const EXPANDED_W = 'clamp(680px, calc(100vw - 520px), 1300px)'
 
 export default function DashboardLayout({ role, children, rightPanel }: DashboardLayoutProps) {
   const router = useRouter()
@@ -112,10 +114,8 @@ export default function DashboardLayout({ role, children, rightPanel }: Dashboar
         // H-4: 매칭 점수에 쓰이는 domain_tags를 리뷰어가 설정할 화면이 없어
         // 전원 매칭 점수가 낮게 고정돼 있던 문제.
         { icon: UserCog, label: '프로필', path: '/evaluator/profile' },
-        // H-1: 계좌 등록 화면(app/reviewer/account-setup) 자체는 이미 완성돼
-        // 있었는데 어디서도 링크가 없어 도달 불가능했다 — 정산 로직을 고쳐도
-        // 계좌 등록한 리뷰어가 없으면 무용지물이라 내비게이션에 추가.
-        { icon: Landmark, label: '계좌 등록', path: '/reviewer/account-setup' },
+        // 계좌 등록은 어차피 정산(포인트 지갑)이랑 한 세트라 별도 메뉴로
+        // 분리해뒀던 걸 "포인트 지갑" 화면 안 카드로 합쳤다 — 메뉴 제거.
       ]
 
   const rightTabs = [
@@ -133,14 +133,17 @@ export default function DashboardLayout({ role, children, rightPanel }: Dashboar
         style={{ background: `radial-gradient(circle, ${accentColor}28 0%, transparent 70%)` }} />
 
       {/* ── Workspace Container ── */}
-      <div className="max-w-[1920px] w-full mx-auto px-[104px] pt-0 pb-0 h-full flex overflow-hidden relative">
+      <div
+        className="max-w-[1920px] w-full mx-auto pt-0 pb-0 h-full flex overflow-x-auto overflow-y-hidden relative"
+        style={{ paddingLeft: 'clamp(16px, 5vw, 104px)', paddingRight: 'clamp(16px, 5vw, 104px)' }}
+      >
 
         {/* ═══════════════════════════════════════════ */}
         {/* ── LEFT PANEL ── (logo always visible)      */}
         {/* ═══════════════════════════════════════════ */}
         <div
           className="h-full flex flex-col flex-shrink-0 transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden"
-          style={{ width: isLeftOpen ? `${EXPANDED_W}px` : `${COLLAPSED_W}px` }}
+          style={{ width: isLeftOpen ? EXPANDED_W : `${COLLAPSED_W}px` }}
         >
           {/* ── LEFT HEADER (80px, transparent) ── */}
           <header className="h-20 flex-shrink-0 flex items-center justify-between pr-4">

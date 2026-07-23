@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -28,6 +29,18 @@ export async function POST(req: Request) {
     if (!project) return jsonError('프로젝트를 찾을 수 없습니다', 404)
     if (project.status !== 'active') return jsonError('현재 지원할 수 없는 프로젝트입니다', 400)
     if (project.completed_count >= project.target_count) return jsonError('모집이 마감된 프로젝트입니다', 400)
+
+    // projects_public 뷰는 creator_id를 노출하지 않으므로(privacy) 서비스 롤로
+    // 별도 확인 — 크리에이터가 자기 프로젝트에 리뷰어로 지원하는 것을 방지.
+    const admin = createAdminClient()
+    const { data: ownerCheck } = await admin
+      .from('projects')
+      .select('creator_id')
+      .eq('id', projectId)
+      .single()
+    if (ownerCheck?.creator_id === user.id) {
+      return jsonError('본인이 등록한 프로젝트에는 리뷰어로 지원할 수 없습니다', 400)
+    }
 
     // 중복 지원 확인
     const { data: existing } = await supabase
