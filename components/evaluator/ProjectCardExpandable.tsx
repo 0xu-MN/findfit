@@ -62,7 +62,9 @@ const STATUS_BADGE: Record<string, { label: string; color: string; icon: typeof 
 }
 
 const DOMAINS = ['PM', 'PD', '마케터', '개발자', '디자이너', '기획자', '창업자', '직장인', '기타']
-const LIKERT_LABELS = ['매우 낮음', '낮음', '보통', '높음', '매우 높음']
+// "1이 왜 1이고 5가 왜 5인지 기준이 안 보인다"는 피드백 반영 — 낮음/높음
+// 대신 대부분의 리커트 문항(만족도·동의도)에 두루 맞는 동의 정도 라벨로 교체.
+const LIKERT_LABELS = ['전혀 아니다', '아니다', '보통이다', '그렇다', '매우 그렇다']
 
 function fmt(n: number) {
   return n.toLocaleString('ko-KR')
@@ -480,19 +482,27 @@ function ReviewFormPanel({
           )}
 
           {(q.question_type === 'likert_5' || q.question_type === 'likert') && (
-            <div className="flex gap-2">
-              {[1, 2, 3, 4, 5].map((n) => (
-                <button
-                  key={n}
-                  onClick={() => setAnswer(q.id, String(n))}
-                  title={LIKERT_LABELS[n - 1]}
-                  className={`flex-1 h-8 rounded-lg border text-[11px] font-black transition-colors ${
-                    answers[q.id] === String(n) ? 'border-[#1565C0] bg-[#1565C0] text-white' : 'border-[#1D1C1C]/10 text-[#999]'
-                  }`}
-                >
-                  {n}
-                </button>
-              ))}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex gap-2">
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => setAnswer(q.id, String(n))}
+                    title={LIKERT_LABELS[n - 1]}
+                    className={`flex-1 h-8 rounded-lg border text-[11px] font-black transition-colors ${
+                      answers[q.id] === String(n) ? 'border-[#1565C0] bg-[#1565C0] text-white' : 'border-[#1D1C1C]/10 text-[#999]'
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+              {/* 숫자만 보면 1이 좋은건지 5가 좋은건지 알 수 없다는 피드백 —
+                  양 끝 기준을 항상 보이게 표시(호버 없이도) */}
+              <div className="flex items-center justify-between text-[9px] font-bold text-[#999] px-0.5">
+                <span>1 · {LIKERT_LABELS[0]}</span>
+                <span>5 · {LIKERT_LABELS[4]}</span>
+              </div>
             </div>
           )}
 
