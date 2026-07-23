@@ -114,11 +114,16 @@ export default function ReviewerLayout({ children }: Props) {
           </div>
         </header>
 
-        {/* ── SUB NAV — 프로필/지갑 등 서브 페이지로 이동 (단일화면이라 좌측
-            네비 대신 헤더 아래 얇은 탭 형태) ── */}
-        <nav className="flex items-center gap-1 pb-4 -mt-1">
+        {/* ── SUB NAV — 예전엔 좌측(현재 페이지)/우측(메인·라운지·피드) 듀얼
+            패널로 나뉘어 있던 걸 단일화면으로 합치면서, 우측 패널에 있던
+            탭들도 여기 라우트로 승격시켰다 — 삭제된 게 아니라 페이지 전환
+            방식으로 바뀐 것. ── */}
+        <nav className="flex items-center gap-1 pb-4 -mt-1 flex-wrap">
           {[
             { label: '홈', path: '/evaluator/dashboard' },
+            { label: '메인', path: '/evaluator/main' },
+            { label: '라운지', path: '/evaluator/lounge' },
+            { label: '피드', path: '/evaluator/feed' },
             { label: '포인트 지갑', path: '/evaluator/wallet' },
             { label: '프로필', path: '/evaluator/profile' },
           ].map((item) => {
