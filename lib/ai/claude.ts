@@ -57,6 +57,14 @@ function extractJson(text: string): string {
 }
 
 function getMockResponse(prompt: string): Record<string, unknown> | unknown[] {
+  if (prompt.includes('창업 아이디어 상담 에이전트')) {
+    return {
+      reply: '흥미로운 아이디어네요! 지금은 아이디어 단계인가요, 만들고 계신가요, 아니면 이미 출시하셨나요?',
+      category: null,
+      stage: null,
+      item_summary: null,
+    }
+  }
   if (prompt.includes('[사용자 질문]')) {
     return { answer: '리포트 기준으로는 문제 공감도와 솔루션 수용도가 높게 나타났어요. 실제 키가 연결되면 더 정확한 답변을 드릴 수 있어요.' }
   }

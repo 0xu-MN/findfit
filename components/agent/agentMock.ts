@@ -284,3 +284,87 @@ export function generatePhaseResponse(
 export function createEmptyContext(): AgentContext {
   return { phase: 0 }
 }
+
+// ─── FindFit Agent Phase 1(자유 텍스트 이해) — Claude 연동 ─────────────
+//
+// AgentPanel이 자유 텍스트(토스트 버튼 클릭이 아닌 입력)를 phase 0/1에서
+// 받았을 때만 쓰는 경로. /api/agent/understand가 반환한 구조화 결과를
+// 기존 엔진과 동일한 AgentMessage/AgentContext 형태로 변환한다.
+// Phase 2~4, 토스트 버튼 흐름은 전혀 건드리지 않는다.
+
+export const GENERIC_FALLBACK_REPLY = '궁금한 내용이시군요, 조금 더 말씀해주시겠어요?'
+
+export type UnderstandingResult = {
+  reply: string
+  category: string | null
+  stage: string | null
+  item_summary: string | null
+}
+
+const VALID_STAGES = ['idea', 'building', 'launched']
+
+export function applyUnderstanding(
+  context: AgentContext,
+  result: UnderstandingResult,
+): { message: AgentMessage; updatedContext: AgentContext } {
+  const category = result.category ?? context.category
+  const ideaSummary = result.item_summary ?? context.ideaSummary
+
+  // 이번 발화에서 단계가 확인됐으면 phase 2로 전이 — 이후 AgentPanel의
+  // 기존 phase===2 트렌드 조회/타겟 질문 흐름을 그대로 태운다(건드리지 않음).
+  if (result.stage && VALID_STAGES.includes(result.stage)) {
+    return {
+      message: {
+        id: genId(),
+        role: 'assistant',
+        content: result.reply,
+        timestamp: new Date().toISOString(),
+        toastOptions: TARGET_SKIP_OPTION,
+        toastType: 'single',
+      },
+      updatedContext: {
+        ...context,
+        phase: 2,
+        stage: result.stage,
+        psf: result.stage !== 'launched',
+        ideaSummary,
+        category,
+      },
+    }
+  }
+
+  // 단계가 아직 파악 안 됐으면 phase 1 유지 + STAGE_OPTIONS 재노출
+  return {
+    message: {
+      id: genId(),
+      role: 'assistant',
+      content: result.reply,
+      timestamp: new Date().toISOString(),
+      toastOptions: STAGE_OPTIONS,
+      toastType: 'single',
+    },
+    updatedContext: {
+      ...context,
+      phase: Math.max(context.phase, 1) as AgentContext['phase'],
+      ideaSummary,
+      category,
+      psf: context.psf ?? true,
+    },
+  }
+}
+
+// Claude 실패/캡 초과 시 조용한 폴백 — 화면이 절대 깨지면 안 되는 첫 진입
+// 화면이라, 기존 규칙기반 수준의 제네릭 응답으로 대체한다.
+export function fallbackUnderstanding(context: AgentContext): { message: AgentMessage; updatedContext: AgentContext } {
+  return {
+    message: {
+      id: genId(),
+      role: 'assistant',
+      content: GENERIC_FALLBACK_REPLY,
+      timestamp: new Date().toISOString(),
+      toastOptions: STAGE_OPTIONS,
+      toastType: 'single',
+    },
+    updatedContext: { ...context, phase: Math.max(context.phase, 1) as AgentContext['phase'] },
+  }
+}

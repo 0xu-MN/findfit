@@ -8,6 +8,8 @@ import {
   getGreeting,
   generatePhaseResponse,
   createEmptyContext,
+  applyUnderstanding,
+  fallbackUnderstanding,
   type AgentMessage,
   type AgentContext,
 } from './agentMock'
@@ -32,6 +34,13 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
   const [isTyping, setIsTyping] = useState(false)
   const [context, setContext] = useState<AgentContext>(createEmptyContext())
   const [initialized, setInitialized] = useState(false)
+
+  // 자유 텍스트 이해(Claude) 비용 상한을 비로그인 방문자에게도 걸기 위한
+  // 탭 단위 세션 id — 로그인돼 있으면 서버에서 user.id를 우선 쓴다.
+  const sessionIdRef = useRef<string>('')
+  if (!sessionIdRef.current) {
+    sessionIdRef.current = `agent-sess-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  }
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -65,6 +74,59 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
 
     const delay = 700 + Math.random() * 600
     setTimeout(async () => {
+      // FindFit Agent Phase 1(자유 텍스트 이해) — 토스트 버튼 클릭이 아니라
+      // 자유 텍스트를 입력했고, 아직 단계(phase 0/1)가 안 끝난 경우에만
+      // Claude로 라우팅한다. 토스트 버튼 흐름과 Phase 2~4는 기존 규칙기반
+      // (generatePhaseResponse) 그대로 — 여기서 건드리지 않는다.
+      if (!isToastSelection && (context.phase === 0 || context.phase === 1)) {
+        try {
+          const recentMessages = messages.slice(-6).map(m => ({
+            role: m.role,
+            content: m.content,
+          }))
+          const res = await fetch('/api/agent/understand', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userInput: value,
+              context: {
+                ideaSummary: context.ideaSummary,
+                category: context.category,
+                stage: context.stage,
+                recentMessages,
+              },
+              sessionId: sessionIdRef.current,
+            }),
+          })
+          const body = await res.json()
+
+          if (!res.ok || body.fallback) {
+            const { message, updatedContext } = fallbackUnderstanding(context)
+            setMessages(prev => [...prev, message])
+            setContext(updatedContext)
+          } else if (body.capped) {
+            setMessages(prev => [...prev, {
+              id: `msg-cap-${Date.now()}`,
+              role: 'assistant',
+              content: body.reply,
+              timestamp: new Date().toISOString(),
+              showCTA: true,
+            }])
+          } else {
+            const { message, updatedContext } = applyUnderstanding(context, body)
+            setMessages(prev => [...prev, message])
+            setContext(updatedContext)
+          }
+        } catch {
+          const { message, updatedContext } = fallbackUnderstanding(context)
+          setMessages(prev => [...prev, message])
+          setContext(updatedContext)
+        } finally {
+          setIsTyping(false)
+        }
+        return
+      }
+
       // Phase 2 → 3 전환에서만 실제 트렌드 데이터가 필요하다 (기획서 5.3
       // Phase 2 "실시간 데이터 수집"). 이 요청 하나만 fetch로 보내고 나머지
       // phase는 그대로 동기 로직.
@@ -87,7 +149,7 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
       setContext(updatedContext)
       setIsTyping(false)
     }, delay)
-  }, [isTyping, context])
+  }, [isTyping, context, messages])
 
   const handleSend = useCallback(() => {
     const trimmed = input.trim()

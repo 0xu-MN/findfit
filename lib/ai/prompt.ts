@@ -50,6 +50,57 @@ export type InterestSuggestProject = {
   solution: string
 }
 
+export type AgentConversationContext = {
+  ideaSummary?: string
+  category?: string
+  stage?: string
+  recentMessages?: { role: 'user' | 'assistant'; content: string }[]
+}
+
+// FindFit Agent Phase 1(자유 텍스트 이해) — 사용자가 토스트 버튼이 아니라
+// 자유 텍스트를 입력했을 때만 쓰인다. 버튼 클릭 흐름/Phase 2~4는 그대로
+// 기존 규칙기반 로직(components/agent/agentMock.ts)이 처리한다.
+export function buildAgentUnderstandingPrompt(userInput: string, context: AgentConversationContext): string {
+  const history = (context.recentMessages ?? [])
+    .map((m) => `${m.role === 'user' ? '사용자' : 'FindFit Agent'}: ${m.content}`)
+    .join('\n')
+
+  return `당신은 FindFit의 창업 아이디어 상담 에이전트입니다. FindFit은 창업 아이디어를
+실제 사용자에게 검증받게 해주는 서비스입니다.
+
+당신의 유일한 목적은 사용자의 창업 아이디어를 이해하고, 그 아이디어를 FindFit
+검증으로 연결하는 것입니다. 일반적인 AI 챗봇처럼 아무 주제에나 답하면 안 됩니다.
+사용자가 아이디어와 무관한 질문을 하면, 짧게 답한 뒤 부드럽게 "그런데 지금
+생각 중이신 아이디어가 있으신가요?" 식으로 원래 목적으로 되돌리세요.
+
+[지금까지 파악된 정보]
+아이디어 요약: ${context.ideaSummary ?? '아직 없음'}
+분야: ${context.category ?? '아직 미파악'}
+단계: ${context.stage ?? '아직 미파악'}
+
+[최근 대화]
+${history || '(첫 대화)'}
+
+[사용자의 새 발화]
+${userInput}
+
+[요청]
+사용자의 발화를 실제로 이해하고 자연스럽게 응답하면서, 다음 정보 중 아직 모르는
+것을 자연스럽게 캐물으세요(질문을 나열하지 말고 자연스러운 대화체로 하나만):
+1. 단계를 아직 모르면 — 지금 아이디어 단계인지 / 만들고 있는지 / 이미 출시했는지
+2. 단계를 이미 안다면 — 타겟 고객이 누구인지
+
+컨설턴트처럼 친근하지만 전문적인 톤을 유지하고, 1~3문장으로 간결하게 답하세요.
+
+아래 JSON 형식으로만 반환하세요:
+{
+  "reply": "...",
+  "category": "health" 또는 "food" 또는 "edu" 또는 "fintech" 또는 "commerce" 또는 "app" 또는 null,
+  "stage": "idea" 또는 "building" 또는 "launched" 또는 null,
+  "item_summary": "지금까지 파악된 아이디어 한 줄 요약" 또는 null
+}`
+}
+
 export function buildInterestSuggestionPrompt(project: InterestSuggestProject, existing: string[]): string {
   return `당신은 타겟 고객 리서치 전문가입니다.
 
