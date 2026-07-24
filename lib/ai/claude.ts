@@ -33,8 +33,27 @@ export async function callClaude(
   })
 
   const data = await res.json()
+  if (data.type === 'error') {
+    throw new Error(`Claude API error: ${data.error?.message ?? 'unknown'}`)
+  }
   const text: string = data.content?.[0]?.text ?? ''
-  return JSON.parse(text)
+  return JSON.parse(extractJson(text))
+}
+
+// Gemini와 달리 Claude Messages API는 강제 JSON 모드가 없어서, 프롬프트에서
+// "JSON만 반환하라"고 지시해도 ```json ... ``` 코드펜스로 감싸서 응답할 때가
+// 있다 — 그대로 JSON.parse하면 깨지므로 펜스와 앞뒤 잡텍스트를 제거한다.
+function extractJson(text: string): string {
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/)
+  if (fenced) return fenced[1].trim()
+
+  const trimmed = text.trim()
+  const firstBrace = Math.min(
+    ...['{', '['].map((c) => { const i = trimmed.indexOf(c); return i === -1 ? Infinity : i })
+  )
+  if (firstBrace === Infinity) return trimmed
+  const lastBrace = Math.max(trimmed.lastIndexOf('}'), trimmed.lastIndexOf(']'))
+  return lastBrace === -1 ? trimmed : trimmed.slice(firstBrace, lastBrace + 1)
 }
 
 function getMockResponse(prompt: string): Record<string, unknown> | unknown[] {
