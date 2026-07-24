@@ -1,21 +1,7 @@
 import { callClaude } from './claude'
-import { callGemini } from './gemini'
-import { buildPrompt, buildQuestionRecommendationPrompt, type ProjectForReport, type ProjectForSuggest, type QuestionSuggestion, type QuestionTemplate, type Review, type ReviewQuestion } from './prompt'
+import { buildQuestionRecommendationPrompt, type ProjectForSuggest, type QuestionSuggestion, type QuestionTemplate, type ReviewQuestion } from './prompt'
 
 export type CreatorLevel = 'seed' | 'sprout' | 'builder' | 'launcher'
-
-export async function generateReport(
-  reviews: Review[],
-  project: ProjectForReport,
-  creatorLevel: CreatorLevel
-): Promise<Record<string, unknown>> {
-  const engine: 'claude' | 'gemini' = ['builder', 'launcher'].includes(creatorLevel)
-    ? 'claude'
-    : 'gemini'
-  const prompt = buildPrompt(reviews, project)
-  const result = engine === 'claude' ? await callClaude(prompt) : await callGemini(prompt)
-  return { ...result, ai_engine_used: engine }
-}
 
 export async function generateQuestionSuggestions(
   project: ProjectForSuggest,
@@ -26,7 +12,8 @@ export async function generateQuestionSuggestions(
 ): Promise<QuestionSuggestion[]> {
   const prompt = buildQuestionRecommendationPrompt(project, requiredQuestions, alreadyAdded, remainingSlots)
   try {
-    const raw = await callGemini(prompt)
+    // haiku 등급 — 자동추천처럼 빠른 응답이 중요한 가벼운 작업
+    const raw = await callClaude(prompt, 'haiku')
     if (Array.isArray(raw)) return raw as QuestionSuggestion[]
     const arr = Object.values(raw).find(Array.isArray)
     return (arr ?? []) as QuestionSuggestion[]

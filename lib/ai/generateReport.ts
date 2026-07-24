@@ -1,5 +1,5 @@
 import { buildPrompt, type ProjectForReport, type Review } from './prompt'
-import { callGemini } from './gemini'
+import { callClaude } from './claude'
 import {
   PSF_STANDARD_QUESTIONS,
   SEAN_ELLIS_QUESTION,
@@ -116,8 +116,9 @@ export async function generateAndSaveReport(projectId: string, supabase: any) {
 
   const prompt = buildPrompt(reviews, projectForReport)
   // report prompts always ask for an object shape (never the question-suggest
-  // array shape), so this narrowing is safe.
-  const aiResult = (await callGemini(prompt)) as Record<string, unknown>
+  // array shape), so this narrowing is safe. sonnet 등급 — 리포트 품질이
+  // 중요한 무거운 작업.
+  const aiResult = (await callClaude(prompt, 'sonnet')) as Record<string, unknown>
 
   // 무료 티어에 노출되는 문항별 응답 요약 — AI가 아니라 review_answers를
   // 직접 집계한 값(객관식/리커트류만 대상. 서술형은 막대그래프로 요약할 수
@@ -138,7 +139,7 @@ export async function generateAndSaveReport(projectId: string, supabase: any) {
   const row = {
     project_id: projectId,
     report_type: project.project_type ?? 'standard',
-    ai_engine_used: 'gemini' as const,
+    ai_engine_used: 'claude' as const,
     psf_score,
     sean_ellis_pct: sean_ellis_pct ?? aiSeanEllis,
     recommendation,

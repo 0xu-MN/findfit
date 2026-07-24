@@ -1,6 +1,9 @@
 import { generateQuestionSuggestions, type CreatorLevel } from '@/lib/ai/index'
+import { checkAndIncrementSuggestionCap } from '@/lib/ai/suggestionCap'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+
+const PROJECT_SUGGESTION_CAP = 10
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = any
@@ -50,6 +53,11 @@ export async function POST(
 
     if (remainingSlots === 0) {
       return NextResponse.json({ suggestions: [], remainingSlots: 0 })
+    }
+
+    const allowed = await checkAndIncrementSuggestionCap(`question_suggest:project:${id}`, PROJECT_SUGGESTION_CAP)
+    if (!allowed) {
+      return NextResponse.json({ error: '이 프로젝트의 AI 추천 요청 횟수를 다 쓰셨어요' }, { status: 429 })
     }
 
     const projectForSuggest = {

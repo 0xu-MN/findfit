@@ -5,7 +5,7 @@ export default function PrivacyPage() {
         <div>
           <span className="text-xl font-black text-[#1D1C1C]">FindFit</span>
           <h1 className="text-2xl font-black text-[#1D1C1C] mt-4">개인정보처리방침</h1>
-          <p className="text-[11px] font-bold text-[#999] mt-2">최종 수정일: 2026년 7월 24일</p>
+          <p className="text-[11px] font-bold text-[#999] mt-2">최종 수정일: 2026년 7월 25일</p>
         </div>
 
         <Section title="1. 수집하는 개인정보 항목">
@@ -24,19 +24,15 @@ export default function PrivacyPage() {
           </p>
           <ul className="list-disc pl-5 flex flex-col gap-1.5 mt-2">
             <li>
-              <strong>Google LLC (Gemini API)</strong> — 이전 국가: 미국 등 Google 데이터센터 소재국.
-              이전 항목: 리뷰 응답 텍스트, 프로젝트 설명 등 리포트 생성에 필요한 텍스트 데이터(계정 식별
-              정보는 포함하지 않음). 이전 목적: PSF/PMF 검증 리포트 자동 생성.
-            </li>
-            <li>
-              <strong>Anthropic, PBC (Claude API)</strong> — 이전 국가: 미국. 이전 항목: 리포트 데이터
-              기반 AI 분석 대화(챗봇) 질의응답에 필요한 텍스트 데이터. 이전 목적: 리포트 심화 분석 및
-              사용자 질의응답 처리.
+              <strong>Anthropic, PBC (Claude API)</strong> — 이전 국가: 미국. 이전 항목: 리뷰 응답 텍스트,
+              프로젝트 설명 등 검증 리포트 생성 및 AI 분석 대화(챗봇) 질의응답에 필요한 텍스트 데이터(계정
+              식별 정보는 포함하지 않음). 이전 목적: PSF/PMF 검증 리포트 자동 생성, 질문/관심사 자동추천,
+              리포트 심화 분석 및 사용자 질의응답 처리.
             </li>
           </ul>
           <p className="mt-2">
-            위 서비스들은 계약상 데이터를 자체 모델 학습에 사용하지 않도록 API 이용약관에 명시되어 있는
-            사업자를 우선 사용하며, 전송 항목은 서비스 제공에 필요한 최소한으로 제한합니다.
+            Anthropic은 계약상 API로 전송된 데이터를 자체 모델 학습에 사용하지 않으며, 전송 항목은
+            서비스 제공에 필요한 최소한으로 제한합니다.
           </p>
         </Section>
 

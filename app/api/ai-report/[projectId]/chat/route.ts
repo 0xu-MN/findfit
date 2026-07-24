@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { callGemini } from '@/lib/ai/gemini'
+import { callClaude } from '@/lib/ai/claude'
 
 const DAILY_CHAT_CAP = 15
 const MAX_QUESTION_LENGTH = 200
-const MAX_OUTPUT_TOKENS = 300
+const MAX_OUTPUT_TOKENS = 500
 
 function today(): string {
   return new Date().toISOString().slice(0, 10)
@@ -70,7 +70,8 @@ ${question}
 아래 JSON 형식으로만 반환하세요:
 { "answer": "..." }`
 
-    const result = (await callGemini(prompt, { maxOutputTokens: MAX_OUTPUT_TOKENS })) as { answer?: string }
+    // haiku 등급 — 챗봇처럼 빠른 응답이 중요한 가벼운 작업
+    const result = (await callClaude(prompt, 'haiku', { maxTokens: MAX_OUTPUT_TOKENS })) as { answer?: string }
 
     await admin
       .from('report_chat_logs')

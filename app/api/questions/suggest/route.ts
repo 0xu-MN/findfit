@@ -1,12 +1,32 @@
 import { generateQuestionSuggestions } from '@/lib/ai/index'
+import { checkAndIncrementSuggestionCap } from '@/lib/ai/suggestionCap'
+import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+
+// 등록 마법사 초안(draft) 단계라 아직 project_id가 없다 — 유저+날짜 단위로
+// 캡을 건다(프로젝트 단위 총 횟수 캡은 project_id가 생긴 뒤인
+// /api/projects/[id]/questions/suggest 쪽에서 처리).
+const DRAFT_SUGGESTION_DAILY_CAP = 10
 
 export async function POST(req: Request) {
   try {
-    const { project, psf_pmf_type, existing_count, remaining_slots } = await req.json()
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: '로그인이 필요합니다' }, { status: 401 })
+
+    const { project, psf_pmf_type, remaining_slots } = await req.json()
 
     if (!project || remaining_slots <= 0) {
       return NextResponse.json({ suggestions: [], remainingSlots: 0 })
+    }
+
+    const date = new Date().toISOString().slice(0, 10)
+    const allowed = await checkAndIncrementSuggestionCap(
+      `question_suggest:draft:${user.id}:${date}`,
+      DRAFT_SUGGESTION_DAILY_CAP
+    )
+    if (!allowed) {
+      return NextResponse.json({ error: '오늘 AI 추천 요청 횟수를 다 쓰셨어요' }, { status: 429 })
     }
 
     const requiredQuestions =
@@ -21,7 +41,7 @@ export async function POST(req: Request) {
             { question_text: '이 제품/서비스를 더 이상 사용할 수 없게 된다면 어떤 기분이 들겠습니까?' },
           ]
 
-    // draft 단계엔 크리에이터 레벨 정보가 없으므로 'seed' 기본값 (Gemini 사용)
+    // draft 단계엔 크리에이터 레벨 정보가 없으므로 'seed' 기본값 (Claude haiku 사용)
     const suggestions = await generateQuestionSuggestions(
       project,
       requiredQuestions,

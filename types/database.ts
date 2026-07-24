@@ -177,6 +177,15 @@ export interface Database {
         Relationships: []
       }
 
+      /* ── 현행: ai_suggestion_logs (migration 026) ─────────── */
+      ai_suggestion_logs: {
+        Row: { key: string; count: number; updated_at: string }
+        Insert: { key: string; count?: number; updated_at?: string }
+        Update: Partial<Database['public']['Tables']['ai_suggestion_logs']['Insert']>
+
+        Relationships: []
+      }
+
       /* ── 현행: projects (migration 007 + 008) ─────────────── */
       projects: {
         Row: {
