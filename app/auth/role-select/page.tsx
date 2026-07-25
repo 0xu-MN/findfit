@@ -65,7 +65,7 @@ export default function RoleSelectPage() {
     <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center px-4">
       <div className="w-full max-w-md flex flex-col gap-8">
         <div className="text-center flex flex-col gap-2">
-          <span className="text-2xl font-black text-[#1D1C1C]">FindFit</span>
+          <img src="/logo.png" alt="FindFit" className="h-9 w-auto object-contain mx-auto" />
           <p className="text-[12px] font-bold text-[#666]">어떤 역할로 시작하시겠어요?</p>
         </div>
 

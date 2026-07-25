@@ -34,6 +34,11 @@ export async function POST(
 
     const report = await generateAndSaveReport(projectId, admin)
 
+    // reviews/submit의 자동 트리거 경로만 status='completed'를 챙기고 이
+    // 수동 재생성 경로는 안 챙겨서, 리포트가 실제로 있는데도 프로젝트 상태가
+    // 'active'로 남아 리포트 목록(ReportListPage)에 안 보이던 불일치를 수정.
+    await admin.from('projects').update({ status: 'completed' }).eq('id', projectId)
+
     await admin
       .from('report_regenerate_logs')
       .upsert({ project_id: projectId, date, count: (log?.count ?? 0) + 1 }, { onConflict: 'project_id,date' })

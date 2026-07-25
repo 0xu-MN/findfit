@@ -13,6 +13,7 @@ import {
   Wallet,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { listDrafts } from './new-request/storage'
 
 type ProjectRow = {
   id: string
@@ -62,6 +63,7 @@ export default function CreatorDashboard() {
   const [loading, setLoading] = useState(true)
   const [nickname, setNickname] = useState<string | null>(null)
   const [projects, setProjects] = useState<ProjectRow[]>([])
+  const [drafts, setDrafts] = useState<{ id: string; title: string }[]>([])
   const [feedbacks, setFeedbacks] = useState<FeedbackRow[]>([])
   const [activity, setActivity] = useState<ActivityRow[]>([])
   const [creditBalance, setCreditBalance] = useState(0)
@@ -69,6 +71,11 @@ export default function CreatorDashboard() {
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const supabase: any = createClient()
+
+    // 임시저장 draft는 DB projects가 아니라 localStorage에만 있다(제출 전까지
+    // status='active'로 DB에 승격되지 않음) — projects.status==='draft'로
+    // 필터링하면 항상 0건이라 "작성 중"이 절대 안 보이던 버그였다.
+    setDrafts(listDrafts().map((d) => ({ id: d.id, title: d.productName })))
 
     const load = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -126,7 +133,6 @@ export default function CreatorDashboard() {
   const projectTitle = (id: string) => projects.find((p) => p.id === id)?.title ?? '프로젝트'
 
   const activeProjects = projects.filter((p) => p.status === 'active')
-  const draftProjects = projects.filter((p) => p.status === 'draft')
   const completedProjects = projects.filter((p) => p.status === 'completed')
 
   const topProjects = [...activeProjects]
@@ -143,10 +149,10 @@ export default function CreatorDashboard() {
 
   const donutSegments = [
     { label: '진행 중', count: activeProjects.length, color: '#F77019' },
-    { label: '작성 중', count: draftProjects.length, color: '#189DF7' },
+    { label: '작성 중', count: drafts.length, color: '#189DF7' },
     { label: '완료', count: completedProjects.length, color: '#1CAE66' },
   ]
-  const donutTotal = projects.length || 1
+  const donutTotal = projects.length + drafts.length || 1
   const avgCompletionRate = projects.length
     ? Math.round(
         (projects.reduce((s, p) => s + (p.target_count > 0 ? p.completed_count / p.target_count : 0), 0) /
@@ -178,7 +184,7 @@ export default function CreatorDashboard() {
               <OverviewCard
                 donutSegments={donutSegments}
                 donutTotal={donutTotal}
-                totalProjects={projects.length}
+                totalProjects={projects.length + drafts.length}
                 avgCompletionRate={avgCompletionRate}
                 totalReviewers={totalReviewers}
               />
@@ -192,9 +198,9 @@ export default function CreatorDashboard() {
             <div className="grid grid-cols-3 gap-4">
               <RecentFeedbackCard feedbacks={feedbacks} projectTitle={projectTitle} />
               <DraftsCard
-                projects={draftProjects}
+                projects={drafts}
                 onAll={() => router.push('/builder/projects')}
-                onOpen={(id) => router.push(`/builder/projects/${id}`)}
+                onOpen={(id) => router.push(`/builder/new-request?draftId=${id}`)}
               />
               <CompletedReportsCard
                 projects={completedProjects}
@@ -458,7 +464,7 @@ function DraftsCard({
   onAll,
   onOpen,
 }: {
-  projects: ProjectRow[]
+  projects: { id: string; title: string }[]
   onAll: () => void
   onOpen: (id: string) => void
 }) {

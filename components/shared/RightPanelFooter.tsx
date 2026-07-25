@@ -24,10 +24,7 @@ export default function RightPanelFooter() {
         {/* Brand */}
         <div className="flex flex-col gap-3 max-w-[280px]">
           <div className="flex items-center gap-2">
-            <span className="text-base font-black tracking-tight">
-              <span className="text-[#F77019]">Find</span>
-              <span className="text-[#1D1C1C]">Fit</span>
-            </span>
+            <img src="/logo.png" alt="FindFit" className="h-6 w-auto object-contain" />
           </div>
           <p className="text-[10px] text-[#999] font-medium leading-relaxed">
             만들기 전에, 팔릴지 먼저 확인하세요. 모든 아이디어가 시장의 신호로 시작하는 세상.

@@ -30,11 +30,16 @@ export default function ReportListPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { setLoading(false); return }
 
+      // status='completed'로만 필터링하면, 자동 트리거(리뷰 제출 시점)가
+      // 아니라 리포트 페이지의 수동 재생성 경로로 처음 리포트가 만들어진
+      // 프로젝트(그 경로는 projects.status를 안 건드림)는 실제로 ai_reports가
+      // 있는데도 이 목록에 안 나오는 문제가 있었다 — status가 아니라
+      // ai_reports 존재 여부(!inner) 기준으로 바꿔서 "리포트가 실제로
+      // 있는가"를 직접 반영한다.
       const { data } = await supabase
         .from('projects')
-        .select('id, title, completed_count, created_at, ai_reports(psf_score, verdict)')
+        .select('id, title, completed_count, created_at, ai_reports!inner(psf_score, verdict)')
         .eq('creator_id', user.id)
-        .eq('status', 'completed')
         .order('created_at', { ascending: false })
 
       setReports((data ?? []) as ReportRow[])

@@ -13,7 +13,7 @@ export default function CompleteProfilePage() {
     <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm flex flex-col gap-8">
         <div className="text-center">
-          <span className="text-2xl font-black text-[#1D1C1C]">FindFit</span>
+          <img src="/logo.png" alt="FindFit" className="h-9 w-auto object-contain mx-auto" />
         </div>
         <div className="bg-white rounded-3xl border border-[#1D1C1C]/8 p-8 flex flex-col gap-4 shadow-[0_4px_24px_rgba(0,0,0,0.04)]">
           <h1 className="text-[15px] font-black text-[#1D1C1C] text-center">프로필 마저 설정하기</h1>

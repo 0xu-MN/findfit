@@ -148,20 +148,22 @@ export async function submitProject(data: RequestFormData): Promise<SubmitProjec
   const projectId = inserted.id as string
 
   // 1.5) 등록 이용료 결제 — ENABLE_PAYMENT_GATE=false(기본값)면 서버가
-  // PortOne 없이 즉시 통과시키고 payments row만 waived_test로 남긴다.
-  // 실패해도 등록 자체를 막지 않는다(결제 인프라는 테스트 중이라 게이트가
-  // 잠겨있어 사실상 항상 통과하며, 여기서 프로젝트 등록을 막으면 안 됨).
+  // PortOne 없이 즉시 waived_test로 성공 응답을 준다. 게이트를 켰을 때
+  // 결제가 실제로 실패(카드 거절 등)하면 방금 만든 projects row를 그대로
+  // 두지 않고 롤백한다 — "결제는 실패했는데 프로젝트는 남아있는" 반쪽
+  // 상태를 막기 위함. review_questions insert보다 반드시 앞에 있어야 한다.
   const skuType = data.projectType === 'light' ? 'registration_light' : 'registration_standard'
   const amount = data.projectType === 'light' ? 4900 : 1800 * data.evaluatorCount
-  try {
-    await fetch('/api/payments/process', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ skuType, amount, projectId }),
-    })
-  } catch {
-    // 결제 기록 실패는 등록을 막지 않음 — 콘솔에만 남기고 넘어간다
-    console.error('[submitProject] payment record failed')
+  const paymentRes = await fetch('/api/payments/process', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ skuType, amount, projectId }),
+  })
+
+  if (!paymentRes.ok) {
+    await supabase.from('projects').delete().eq('id', projectId)
+    const body = await paymentRes.json().catch(() => ({}))
+    throw new Error(body.error ?? '결제에 실패해 등록이 취소되었습니다.')
   }
 
   // 2) review_questions insert (고정 + 커스텀)

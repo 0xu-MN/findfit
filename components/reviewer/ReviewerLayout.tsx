@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { RefreshCw, Settings, LogOut, Sparkles } from 'lucide-react'
+import { RefreshCw, Settings, LogOut, Sparkles, ChevronDown, User, Wallet } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import NotificationBell from '../shared/NotificationBell'
+import Footer from '../landing/Footer'
 
 const DISMISS_KEY = 'findfit_reviewer_confirm_dismissed'
 
@@ -23,6 +24,7 @@ export default function ReviewerLayout({ children }: Props) {
   const [nickname, setNickname] = useState<string | null>(null)
   const [showConfirm, setShowConfirm] = useState(false)
   const [dontAskAgain, setDontAskAgain] = useState(false)
+  const [showUserMenu, setShowUserMenu] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -61,7 +63,7 @@ export default function ReviewerLayout({ children }: Props) {
       <div className="absolute top-[-10%] left-[-5%] w-[45%] h-[55%] rounded-full opacity-[0.12] blur-[130px] pointer-events-none"
         style={{ background: `radial-gradient(circle, ${accentColor}30 0%, transparent 70%)` }} />
 
-      <div className="max-w-[1500px] w-full mx-auto px-4 sm:px-6 lg:px-10 relative">
+      <div className="max-w-[1700px] w-full mx-auto px-4 sm:px-6 lg:px-10 relative">
         {/* ── HEADER — DashboardLayout 우측 패널 헤더와 같은 스타일
             (텍스트 탭 + "|" 구분선 + 활성탭 밑줄, 우측은 아이콘 클러스터).
             리뷰어는 좌측 패널이 따로 없어 로고/역할스위처/프로필은 그대로
@@ -80,8 +82,6 @@ export default function ReviewerLayout({ children }: Props) {
                 { label: '홈', path: '/evaluator/dashboard' },
                 { label: '라운지', path: '/evaluator/lounge' },
                 { label: '피드', path: '/evaluator/feed' },
-                { label: '포인트 지갑', path: '/evaluator/wallet' },
-                { label: '프로필', path: '/evaluator/profile' },
               ].map((item, index, arr) => {
                 const isActive = pathname === item.path
                 return (
@@ -120,38 +120,74 @@ export default function ReviewerLayout({ children }: Props) {
               </button>
             </div>
 
-            <div className="flex items-center gap-2">
-              <div
-                className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-black"
-                style={{ background: accentColor }}
+            {/* Profile Dropdown Menu */}
+            <div className="relative">
+              <button
+                onClick={() => setShowUserMenu((p) => !p)}
+                className="flex items-center gap-2 px-2 py-1 rounded-full hover:bg-[#1D1C1C]/5 transition-colors cursor-pointer"
               >
-                R
-              </div>
-              <span className="text-[11px] font-bold text-[#666]">{nickname ?? '...'}</span>
+                <div
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-black"
+                  style={{ background: accentColor }}
+                >
+                  R
+                </div>
+                <span className="text-[11px] font-bold text-[#666]">{nickname ?? '...'}</span>
+                <ChevronDown className="w-3 h-3 text-[#999]" />
+              </button>
+
+              {showUserMenu && (
+                <div
+                  className="absolute right-0 top-full mt-2 w-52 bg-white rounded-2xl border border-[#1D1C1C]/10 shadow-[0_12px_32px_rgba(0,0,0,0.12)] p-2 z-50 flex flex-col gap-1"
+                  onMouseLeave={() => setShowUserMenu(false)}
+                >
+                  <div className="px-3 py-2 border-b border-[#1D1C1C]/5">
+                    <p className="text-[12px] font-black text-[#1D1C1C]">{nickname ?? '리뷰어'}</p>
+                    <p className="text-[10px] text-[#999] font-medium">FindFit Reviewer</p>
+                  </div>
+                  <button
+                    onClick={() => { setShowUserMenu(false); router.push('/evaluator/profile') }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] font-bold text-[#333] hover:bg-[#F5F5F5] rounded-xl transition-colors text-left"
+                  >
+                    <User className="w-3.5 h-3.5 text-[#1565C0]" />
+                    <span>프로필 설정</span>
+                  </button>
+                  <button
+                    onClick={() => { setShowUserMenu(false); router.push('/evaluator/wallet') }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] font-bold text-[#333] hover:bg-[#F5F5F5] rounded-xl transition-colors text-left"
+                  >
+                    <Wallet className="w-3.5 h-3.5 text-[#F77019]" />
+                    <span>포인트 지갑</span>
+                  </button>
+                  <button
+                    onClick={() => { setShowUserMenu(false); router.push('/evaluator/account') }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] font-bold text-[#333] hover:bg-[#F5F5F5] rounded-xl transition-colors text-left"
+                  >
+                    <Settings className="w-3.5 h-3.5 text-[#666]" />
+                    <span>계정 설정</span>
+                  </button>
+                  <div className="my-1 border-t border-[#1D1C1C]/5" />
+                  <button
+                    onClick={() => { setShowUserMenu(false); handleLogout() }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] font-bold text-red-500 hover:bg-red-50 rounded-xl transition-colors text-left"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>로그아웃</span>
+                  </button>
+                </div>
+              )}
             </div>
 
             <NotificationBell />
-
-            <button
-              onClick={() => router.push('/evaluator/account')}
-              title="계정 설정"
-              className="w-7 h-7 rounded-full flex items-center justify-center text-[#999] hover:bg-[#1D1C1C]/5 hover:text-[#1D1C1C] transition-colors"
-            >
-              <Settings className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={handleLogout}
-              title="로그아웃"
-              className="w-7 h-7 rounded-full flex items-center justify-center text-[#999] hover:bg-red-50 hover:text-red-500 transition-colors"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-            </button>
           </div>
         </header>
 
         {/* ── CONTENT — 단일 스크롤 ── */}
         <main className="pb-16">{children}</main>
       </div>
+
+      {/* ── FOOTER — 랜딩페이지와 동일한 스타일/디자인 재사용 ── */}
+      <Footer />
 
       {/* ── Role Confirmation Overlay — "다시 보지 않기" 옵션 추가 ── */}
       {showConfirm && (
