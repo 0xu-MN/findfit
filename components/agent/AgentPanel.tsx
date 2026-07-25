@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowRight, Sparkles, Bot } from 'lucide-react'
+import { ArrowRight, Sparkles, Bot, FileText } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { AgentMessageBubble, TypingIndicator } from './AgentComponents'
 import { createClient } from '@/lib/supabase/client'
@@ -264,7 +264,11 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
               <span className="text-[13px] font-black text-[#1D1C1C]">FindFit Agent</span>
-              <span className="text-[8px] font-black text-[#F77019] bg-[#F77019]/10 px-1.5 py-0.5 rounded-full uppercase tracking-wide">Beta</span>
+              {reportProjectId ? (
+                <span className="text-[8px] font-black text-[#1565C0] bg-[#1565C0]/10 px-1.5 py-0.5 rounded-full uppercase tracking-wide">리포트 모드</span>
+              ) : (
+                <span className="text-[8px] font-black text-[#F77019] bg-[#F77019]/10 px-1.5 py-0.5 rounded-full uppercase tracking-wide">Beta</span>
+              )}
             </div>
             <div className="flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E] animate-pulse" />
@@ -273,8 +277,15 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
           </div>
         </div>
 
-        {/* 탐색 현황 (축소 모드 인라인) */}
+        {/* 탐색 현황 (축소 모드 인라인) — 리포트 모드에선 phase/카테고리
+            추적이 의미 없으므로 대신 "리포트 모드" 안내만 보여준다 */}
         <div className="flex-shrink-0 px-4 pb-2">
+          {reportProjectId ? (
+            <div className="rounded-2xl border border-[#1565C0]/15 bg-[#1565C0]/5 px-3 py-2.5 flex items-center gap-2">
+              <FileText className="w-3.5 h-3.5 text-[#1565C0] shrink-0" />
+              <span className="text-[10px] font-bold text-[#1565C0]">이 프로젝트의 리포트 데이터를 바탕으로 답하고 있어요</span>
+            </div>
+          ) : (
           <div className="rounded-2xl border border-[#F77019]/15 bg-[#F77019]/5 px-3 py-2.5 flex flex-col gap-2">
             <div className="flex items-center justify-between">
               <span className="text-[9px] font-black text-[#F77019] uppercase tracking-wide">탐색 현황</span>
@@ -325,6 +336,7 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
               </div>
             )}
           </div>
+          )}
         </div>
 
         {/* 메시지 영역 */}
@@ -354,7 +366,7 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSend()}
-              placeholder="아이디어를 자유롭게 말씀해주세요"
+              placeholder={reportProjectId ? '이 리포트에 대해 궁금한 점을 물어보세요' : '아이디어를 자유롭게 말씀해주세요'}
               className="flex-1 bg-transparent text-[12px] font-medium text-[#1D1C1C] placeholder-[#BBB] outline-none min-w-0"
             />
             <button
@@ -384,9 +396,15 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
           <div>
             <div className="flex items-center gap-1.5">
               <h2 className="text-[18px] font-black text-[#1D1C1C]">FindFit Agent</h2>
-              <span className="text-[9px] font-black text-[#F77019] bg-[#F77019]/10 px-2 py-0.5 rounded-full uppercase tracking-wide">Beta</span>
+              {reportProjectId ? (
+                <span className="text-[9px] font-black text-[#1565C0] bg-[#1565C0]/10 px-2 py-0.5 rounded-full uppercase tracking-wide">리포트 모드</span>
+              ) : (
+                <span className="text-[9px] font-black text-[#F77019] bg-[#F77019]/10 px-2 py-0.5 rounded-full uppercase tracking-wide">Beta</span>
+              )}
             </div>
-            <p className="text-[11px] font-bold text-[#999]">아이디어 이해 · 시장 맥락 파악 · 검증 등록 안내</p>
+            <p className="text-[11px] font-bold text-[#999]">
+              {reportProjectId ? '리포트 결과를 바탕으로 다음 프로젝트를 함께 정해봐요' : '아이디어 이해 · 시장 맥락 파악 · 검증 등록 안내'}
+            </p>
           </div>
           <div className="ml-auto flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-[#22C55E] animate-pulse" />
@@ -425,7 +443,7 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSend()}
-                placeholder="예) 20대 여성을 위한 단백질 쉐이크 구독 서비스를 만들려고 해요"
+                placeholder={reportProjectId ? '이 리포트에 대해 궁금한 점을 물어보세요' : '예) 20대 여성을 위한 단백질 쉐이크 구독 서비스를 만들려고 해요'}
                 className="flex-1 bg-transparent text-[13px] font-medium text-[#1D1C1C] placeholder-[#C0C0C0] outline-none min-w-0"
               />
               <button
@@ -440,8 +458,21 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
           </div>
         </div>
 
-        {/* 우측: 탐색 현황 패널 */}
+        {/* 우측: 탐색 현황 패널 — 리포트 모드에선 phase 추적이 의미 없으므로
+            안내 카드로 대체 */}
         <div className="w-[240px] flex-shrink-0 overflow-y-auto px-4 pb-4 border-l border-[#1D1C1C]/5 flex flex-col gap-3 custom-scrollbar">
+          {reportProjectId ? (
+            <div className="pt-2 flex flex-col gap-3">
+              <span className="text-[11px] font-black text-[#1D1C1C]">리포트 모드</span>
+              <div className="rounded-xl border border-[#1565C0]/20 bg-[#1565C0]/5 p-3 flex flex-col gap-1.5">
+                <FileText className="w-4 h-4 text-[#1565C0]" />
+                <p className="text-[10px] font-bold text-[#1565C0] leading-relaxed">
+                  이 프로젝트의 AI 리포트 데이터를 참고해 답하고 있어요. 검증 결과를 바탕으로 다음 프로젝트도 함께 준비해봐요.
+                </p>
+              </div>
+            </div>
+          ) : (
+          <>
           <div className="pt-2">
             <span className="text-[11px] font-black text-[#1D1C1C]">탐색 현황</span>
           </div>
@@ -502,6 +533,8 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
               <span className="text-[9px] font-bold text-[#999]">타겟 고객</span>
               <span className="text-[11px] font-bold text-[#1D1C1C] leading-relaxed">{context.targetCustomer}</span>
             </div>
+          )}
+          </>
           )}
         </div>
       </div>
