@@ -31,6 +31,7 @@ type ReportData = {
   unit_economics?: ReportPaidData['unit_economics']
   gtm_strategies?: ReportPaidData['gtm_strategies']
   scaleup_roadmap?: ReportPaidData['scaleup_roadmap']
+  confidence_tiers?: ReportPaidData['confidence_tiers']
 }
 
 // ai_reports 테이블의 최상위 컬럼(PSF 서브스코어 + verdict) — report_data
@@ -63,6 +64,8 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [unlocked, setUnlocked] = useState(false)
+  const [unlocking, setUnlocking] = useState(false)
+  const [unlockError, setUnlockError] = useState<string | null>(null)
 
   // 저장된 ai_reports를 조회하고, 없으면 서버에서 생성(POST)한다.
   const fetchReport = useCallback(async (regenerate = false) => {
@@ -110,7 +113,38 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
         if (data) fetchReport(false)
         else setLoading(false)
       })
+
+    // 이미 구매(또는 테스트 기간 waived_test)한 적 있으면 버튼 없이 바로 열람
+    supabase
+      .from('payments')
+      .select('status')
+      .eq('project_id', projectId)
+      .eq('sku_type', 'deep_report')
+      .in('status', ['captured', 'waived_test'])
+      .limit(1)
+      .then(({ data }) => {
+        if (data && data.length > 0) setUnlocked(true)
+      })
   }, [projectId, fetchReport])
+
+  // 심층 리포트 언락 — ENABLE_PAYMENT_GATE=false(기본값)면 서버가 결제 없이
+  // 즉시 통과시키고 payments row만 waived_test로 남긴다.
+  const handleUnlock = async () => {
+    setUnlocking(true)
+    setUnlockError(null)
+    try {
+      const res = await fetch('/api/payments/process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ skuType: 'deep_report', amount: 9900, projectId }),
+      })
+      const body = await res.json()
+      if (!res.ok) { setUnlockError(body.error ?? '결제 처리에 실패했습니다'); return }
+      setUnlocked(true)
+    } finally {
+      setUnlocking(false)
+    }
+  }
 
   const isLight = project?.project_type === 'light'
   const psfPmf: 'psf' | 'pmf' = makePsfPmf(project?.stage ?? null)
@@ -246,6 +280,7 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
                     benchmark_comment: report.benchmark_comment ?? '',
                     key_insights: report.key_insights ?? [],
                     question_summary: report.question_summary ?? [],
+                    confidence_tiers: report.confidence_tiers,
                   }}
                   mode={psfPmf}
                 />
@@ -255,10 +290,10 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
                   <ExternalInterestCard projectId={projectId} />
                 </div>
 
-                {/* 유료(고급) 콘텐츠 — 인사이트 2번 이후 전부.
-                    베타 기간엔 무료로 열람 가능. 정식 출시 후 PortOne 결제
-                    연동이 붙으면 이 버튼 문구("베타 기간 무료로 열람")와
-                    잠금 게이트를 유료 결제 방식으로 되돌릴 것. */}
+                {/* 유료(고급) 콘텐츠 — 인사이트 2번 이후 전부. 심층 리포트
+                    9,900원 SKU. ENABLE_PAYMENT_GATE=false(기본값)면 서버가
+                    결제 없이 즉시 통과(payments row는 waived_test로 기록) —
+                    게이트를 켜면 실제 PortOne 결제 경로를 탄다. */}
                 <div className="mt-4">
                   {!unlocked ? (
                     <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 flex flex-col items-center gap-3 text-center">
@@ -267,11 +302,15 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
                       </span>
                       <p className="text-sm font-black text-[#1D1C1C]">추가 인사이트 · 시장 규모 · 포지셔닝 · 액션 플랜</p>
                       <p className="text-[11px] font-bold text-[#999]">베타 기간엔 무료로 열람할 수 있어요</p>
+                      {unlockError && (
+                        <p className="text-[11px] font-bold text-red-500 bg-red-50 px-3 py-2 rounded-xl">{unlockError}</p>
+                      )}
                       <button
-                        onClick={() => setUnlocked(true)}
-                        className="mt-1 px-5 py-2.5 rounded-xl bg-[#F77019] text-white text-[11px] font-black hover:bg-[#e0621a] transition-colors"
+                        onClick={handleUnlock}
+                        disabled={unlocking}
+                        className="mt-1 px-5 py-2.5 rounded-xl bg-[#F77019] text-white text-[11px] font-black hover:bg-[#e0621a] transition-colors disabled:opacity-60"
                       >
-                        베타 기간 무료로 열람
+                        {unlocking ? '확인 중...' : '베타 기간 무료로 열람'}
                       </button>
                     </div>
                   ) : (
@@ -286,6 +325,7 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
                         unit_economics: report.unit_economics ?? null,
                         gtm_strategies: report.gtm_strategies ?? null,
                         scaleup_roadmap: report.scaleup_roadmap ?? null,
+                        confidence_tiers: report.confidence_tiers,
                       }}
                       recommendation={report.recommendation ?? 'pivot'}
                     />

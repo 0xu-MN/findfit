@@ -1,5 +1,7 @@
 'use client'
 
+import ConfidenceBadge, { type ConfidenceTier } from './ConfidenceBadge'
+
 type CompetitorRef = { name: string; description: string }
 type MarketBucket = { label: string; value: string; basis: string }
 type MarketSize = { tam: MarketBucket; sam: MarketBucket; som: MarketBucket; note: string }
@@ -14,6 +16,14 @@ type UnitEconomics = { cac: string; ltv: string; ratio: string; basis_note: stri
 type GtmStrategy = { title: string; phase: string; description: string }
 type ScaleupPhase = { phase: string; title: string; description: string; kpis: string[] }
 
+export type ConfidenceTiers = {
+  sean_ellis: ConfidenceTier
+  competitor_references: ConfidenceTier
+  market_size: ConfidenceTier
+  score_baseline: ConfidenceTier
+  usage_frequency_note: ConfidenceTier
+}
+
 export type ReportPaidData = {
   key_insights: string[] // 전체 배열 — 2번부터만 렌더링
   action_plan: string[]
@@ -24,6 +34,7 @@ export type ReportPaidData = {
   unit_economics: UnitEconomics | null
   gtm_strategies: GtmStrategy[] | null
   scaleup_roadmap: ScaleupPhase[] | null
+  confidence_tiers?: ConfidenceTiers
 }
 
 export default function ReportPaidSections({
@@ -35,6 +46,15 @@ export default function ReportPaidSections({
 }) {
   const remainingInsights = (data.key_insights ?? []).slice(1)
   const pivotTitle = recommendation === 'continue' ? '추가 성장 시나리오' : '피봇 시나리오'
+  // 옛 리포트(이 필드 생기기 전 생성분)는 confidence_tiers가 없을 수 있어
+  // 전부 3단계(ai_estimate)로 안전하게 기본값 처리
+  const tiers: ConfidenceTiers = data.confidence_tiers ?? {
+    sean_ellis: 'ai_estimate',
+    competitor_references: 'ai_estimate',
+    market_size: 'ai_estimate',
+    score_baseline: 'ai_estimate',
+    usage_frequency_note: 'ai_estimate',
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -85,7 +105,7 @@ export default function ReportPaidSections({
 
       {/* 시장 규모 TAM/SAM/SOM */}
       {data.market_size && (
-        <Card title="시장 규모 분석 · TAM / SAM / SOM">
+        <Card title="시장 규모 분석 · TAM / SAM / SOM" badgeTier={tiers.market_size}>
           <div className="flex flex-col gap-3">
             {(['tam', 'sam', 'som'] as const).map((key) => {
               const bucket = data.market_size[key]
@@ -206,7 +226,7 @@ export default function ReportPaidSections({
 
       {/* 타사 레퍼런스 */}
       {data.competitor_references?.length > 0 && (
-        <Card title="참고 레퍼런스">
+        <Card title="참고 레퍼런스" badgeTier={tiers.competitor_references}>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {data.competitor_references.map((c, i) => (
               <div key={i} className="rounded-xl border border-[#1D1C1C]/8 p-4 flex flex-col gap-1.5">
@@ -221,10 +241,13 @@ export default function ReportPaidSections({
   )
 }
 
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
+function Card({ title, badgeTier, children }: { title: string; badgeTier?: ConfidenceTier; children: React.ReactNode }) {
   return (
     <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
-      <h3 className="text-sm font-black mb-4">{title}</h3>
+      <div className="flex items-center gap-2 mb-4">
+        <h3 className="text-sm font-black">{title}</h3>
+        {badgeTier && <ConfidenceBadge tier={badgeTier} />}
+      </div>
       {children}
     </div>
   )

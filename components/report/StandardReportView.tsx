@@ -1,5 +1,7 @@
 'use client'
 
+import ConfidenceBadge, { type ConfidenceTier } from './ConfidenceBadge'
+
 export type QuestionSummaryItem = {
   question_text: string
   options: { label: string; pct: number }[]
@@ -15,6 +17,11 @@ type StandardReportData = {
   benchmark_comment: string
   key_insights: string[]
   question_summary: QuestionSummaryItem[]
+  confidence_tiers?: {
+    sean_ellis: ConfidenceTier
+    score_baseline: ConfidenceTier
+    usage_frequency_note: ConfidenceTier
+  }
 }
 
 const RECOMMENDATION_LABELS: Record<string, { label: string; color: string; bg: string }> = {
@@ -26,6 +33,11 @@ const RECOMMENDATION_LABELS: Record<string, { label: string; color: string; bg: 
 export default function StandardReportView({ data, mode }: { data: StandardReportData; mode: 'psf' | 'pmf' }) {
   const rec = RECOMMENDATION_LABELS[data.recommendation] ?? RECOMMENDATION_LABELS.continue
   const firstInsight = data.key_insights?.[0]
+  const tiers = data.confidence_tiers ?? {
+    sean_ellis: 'verified' as const,
+    score_baseline: 'ai_estimate' as const,
+    usage_frequency_note: 'ai_estimate' as const,
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -38,11 +50,29 @@ export default function StandardReportView({ data, mode }: { data: StandardRepor
 
         <div className="grid grid-cols-2 gap-4 mb-6">
           <ScoreGauge label={mode === 'psf' ? '아이디어 검증 점수' : '실사용 만족도 점수'} value={data.psf_score} />
-          <ScoreGauge label="핵심 만족도 지수" value={data.sean_ellis_pct} unit="%" note="'매우 아쉽다' 비율" />
+          <ScoreGauge
+            label="핵심 만족도 지수"
+            value={data.sean_ellis_pct}
+            unit="%"
+            note="'매우 아쉽다' 비율"
+            badgeTier={tiers.sean_ellis}
+          />
         </div>
 
+        {mode === 'pmf' && (
+          <div className="flex items-start gap-2 mb-4 rounded-xl bg-[#F5F5F5] px-4 py-2.5">
+            <ConfidenceBadge tier={tiers.usage_frequency_note} />
+            <p className="text-[10px] font-bold text-[#999] leading-relaxed">
+              설문 기반 예상 재방문 의향이에요(실제 반복사용을 측정한 수치는 아니에요).
+            </p>
+          </div>
+        )}
+
         <div className={`rounded-2xl border p-4 ${rec.bg}`}>
-          <p className="text-[10px] font-bold text-[#666] mb-1">AI 판정</p>
+          <div className="flex items-center gap-2 mb-1">
+            <p className="text-[10px] font-bold text-[#666]">AI 판정</p>
+            <ConfidenceBadge tier={tiers.score_baseline} />
+          </div>
           <p className={`text-lg font-black ${rec.color}`}>{rec.label}</p>
           {data.benchmark_comment && (
             <p className="text-[11px] text-[#666] mt-2">{data.benchmark_comment}</p>
@@ -92,13 +122,28 @@ export default function StandardReportView({ data, mode }: { data: StandardRepor
   )
 }
 
-function ScoreGauge({ label, value, unit = '', note }: { label: string; value: number; unit?: string; note?: string }) {
+function ScoreGauge({
+  label,
+  value,
+  unit = '',
+  note,
+  badgeTier,
+}: {
+  label: string
+  value: number
+  unit?: string
+  note?: string
+  badgeTier?: ConfidenceTier
+}) {
   const pct = Math.max(0, Math.min(100, value ?? 0))
   const color = pct >= 70 ? '#22c55e' : pct >= 40 ? '#f59e0b' : '#ef4444'
 
   return (
     <div className="rounded-2xl bg-[#F5F5F5] p-5 flex flex-col gap-3">
-      <p className="text-[10px] font-bold text-[#666]">{label}</p>
+      <div className="flex items-center gap-1.5">
+        <p className="text-[10px] font-bold text-[#666]">{label}</p>
+        {badgeTier && <ConfidenceBadge tier={badgeTier} />}
+      </div>
       <div className="h-2 rounded-full bg-[#E0E0E0] overflow-hidden">
         <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: color }} />
       </div>

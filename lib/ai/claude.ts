@@ -65,6 +65,9 @@ function getMockResponse(prompt: string): Record<string, unknown> | unknown[] {
       item_summary: null,
     }
   }
+  if (prompt.includes('[검증 판정]')) {
+    return { summary: '이전에 유사한 문제를 검증했던 프로젝트가 있어요. 참고하면 좋을 거예요.' }
+  }
   if (prompt.includes('[사용자 질문]')) {
     return { answer: '리포트 기준으로는 문제 공감도와 솔루션 수용도가 높게 나타났어요. 실제 키가 연결되면 더 정확한 답변을 드릴 수 있어요.' }
   }

@@ -147,6 +147,23 @@ export async function submitProject(data: RequestFormData): Promise<SubmitProjec
 
   const projectId = inserted.id as string
 
+  // 1.5) 등록 이용료 결제 — ENABLE_PAYMENT_GATE=false(기본값)면 서버가
+  // PortOne 없이 즉시 통과시키고 payments row만 waived_test로 남긴다.
+  // 실패해도 등록 자체를 막지 않는다(결제 인프라는 테스트 중이라 게이트가
+  // 잠겨있어 사실상 항상 통과하며, 여기서 프로젝트 등록을 막으면 안 됨).
+  const skuType = data.projectType === 'light' ? 'registration_light' : 'registration_standard'
+  const amount = data.projectType === 'light' ? 4900 : 1800 * data.evaluatorCount
+  try {
+    await fetch('/api/payments/process', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ skuType, amount, projectId }),
+    })
+  } catch {
+    // 결제 기록 실패는 등록을 막지 않음 — 콘솔에만 남기고 넘어간다
+    console.error('[submitProject] payment record failed')
+  }
+
   // 2) review_questions insert (고정 + 커스텀)
   const questionRows = buildQuestionRows(data, psfPmfType).map((row) => ({
     ...row,

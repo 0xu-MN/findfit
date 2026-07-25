@@ -1,3 +1,5 @@
+import { getReportModulesForStage } from './reportModules'
+
 export type Review = {
   id: string
   answers: Record<string, unknown>
@@ -55,6 +57,9 @@ export type AgentConversationContext = {
   category?: string
   stage?: string
   recentMessages?: { role: 'user' | 'assistant'; content: string }[]
+  // 이 크리에이터의 지난 프로젝트 종료 시점 경량 요약(최근 2건) — 원본 대화
+  // 로그는 저장하지 않고 이 요약만 참고자료로 이관한다(§21.2/§21.4).
+  pastSummaries?: string[]
 }
 
 // FindFit Agent Phase 1(자유 텍스트 이해) — 사용자가 토스트 버튼이 아니라
@@ -78,6 +83,9 @@ export function buildAgentUnderstandingPrompt(userInput: string, context: AgentC
 분야: ${context.category ?? '아직 미파악'}
 단계: ${context.stage ?? '아직 미파악'}
 
+[이 크리에이터의 지난 프로젝트 요약(참고용, 언급은 자연스러울 때만)]
+${context.pastSummaries?.length ? context.pastSummaries.map((s, i) => `${i + 1}. ${s}`).join('\n') : '없음'}
+
 [최근 대화]
 ${history || '(첫 대화)'}
 
@@ -99,6 +107,23 @@ ${userInput}
   "stage": "idea" 또는 "building" 또는 "launched" 또는 null,
   "item_summary": "지금까지 파악된 아이디어 한 줄 요약" 또는 null
 }`
+}
+
+// 프로젝트 종료(리포트 생성 성공) 시점에 1회 생성하는 경량 요약 — 원본 대화
+// 로그는 저장하지 않고, 이 요약 1건만 다음 Agent 대화의 참고자료로 이관한다
+// (기획서 §21.2 "경량 이관" 결정 반영).
+export function buildProjectSummaryPrompt(project: { title: string; problem?: string; solution?: string }, verdict: string | null): string {
+  return `아래 검증이 끝난 프로젝트를 다음에 이 크리에이터가 새 아이디어를
+상담할 때 참고할 수 있도록 2~3문장으로 요약하세요. 프로젝트명, 핵심 문제,
+검증 결과(판정)를 포함하되 개인정보는 넣지 마세요.
+
+[프로젝트명] ${project.title}
+[문제] ${project.problem ?? ''}
+[솔루션] ${project.solution ?? ''}
+[검증 판정] ${verdict ?? '알 수 없음'}
+
+아래 JSON 형식으로만 반환하세요:
+{ "summary": "..." }`
 }
 
 export function buildInterestSuggestionPrompt(project: InterestSuggestProject, existing: string[]): string {
@@ -185,17 +210,14 @@ const STAGE_TONE: Record<ProjectStage, string> = {
   launched: '정식 운영 중인 단계 — 액션 플랜은 "리텐션 지표 측정", "성장 채널 검증" 같은 스케일업 톤으로 제안',
 }
 
-// stage가 'beta' 또는 'launched'일 때만 유의미한 필드 (아직 안 만들었거나
-// 프로토타입만 있는 단계에서는 실사용 비용 구조를 물을 수 없다)
-function unitEconomicsEligible(stage: ProjectStage): boolean {
-  return stage === 'beta' || stage === 'launched'
-}
-
 function buildStandardPrompt(reviews: Review[], project: ProjectForReport): string {
   const stage = project.stage ?? 'beta'
   const stageTone = STAGE_TONE[stage]
-  const ueEligible = unitEconomicsEligible(stage)
-  const gtmScaleupEligible = stage === 'beta' || stage === 'launched'
+  // 기획서 §21.5 매트릭스 — 산발적 boolean 체크 대신 이 함수 하나로 이번
+  // 리포트에 어떤 모듈이 포함 가능한지 정한다.
+  const modules = getReportModulesForStage(stage, project.psf_pmf_type)
+  const ueEligible = modules.includes('unit_economics')
+  const gtmScaleupEligible = modules.includes('gtm_strategies')
 
   return `당신은 PSF/PMF 검증 전문가 겸 그로스 컨설턴트입니다.
 
@@ -223,6 +245,11 @@ ${JSON.stringify(reviews.map((r) => r.answers))}
 5. unit_economics는 ${ueEligible ? '이 프로젝트가 베타/출시 단계이므로 반드시 생성' : '이 프로젝트가 아직 베타 이전 단계라 실사용 비용 구조를 추정할 근거가 없으니 null로 반환'}하세요.
    생성한다면 basis_note에 이것도 AI 추정치임을 명시하세요.
 6. gtm_strategies(4개)와 scaleup_roadmap(4단계)는 ${gtmScaleupEligible ? '이 프로젝트가 베타/출시 단계이니, 위에서 스스로 판단한 recommendation이 "continue"일 때만 생성하고, 그 외에는 둘 다 null로 반환' : '이 프로젝트가 아직 베타 이전 단계이니 둘 다 null로 반환'}하세요.
+7. FindFit은 리뷰를 1회 제출로 마감하는 원샷 구조라 실제 반복사용(리텐션)을
+   추적하지 않습니다. benchmark_comment나 key_insights에서 "재방문율", "사용
+   빈도가 높다", "리텐션이 좋다" 같이 실측인 것처럼 들리는 표현을 쓰지 마세요.
+   대신 "설문 기반 예상 재방문 의향(실제 반복사용 측정 아님)" 같은 정확한
+   표현만 사용하세요.
 
 아래 JSON 형식으로만 반환하세요:
 {

@@ -186,6 +186,81 @@ export interface Database {
         Relationships: []
       }
 
+      /* ── 현행: payments (migration 027) ───────────────────── */
+      payments: {
+        Row: {
+          id: string
+          user_id: string
+          sku_type: string
+          project_id: string | null
+          portone_tx_id: string | null
+          amount: number
+          status: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          sku_type: string
+          project_id?: string | null
+          portone_tx_id?: string | null
+          amount: number
+          status?: string
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['payments']['Insert']>
+
+        Relationships: []
+      }
+
+      /* ── 현행: report_benchmark_logs (migration 028) ──────── */
+      report_benchmark_logs: {
+        Row: {
+          id: string
+          project_id: string
+          category: string
+          stage: string
+          psf_score: number | null
+          sean_ellis_pct: number | null
+          verdict: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          category: string
+          stage: string
+          psf_score?: number | null
+          sean_ellis_pct?: number | null
+          verdict?: string | null
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['report_benchmark_logs']['Insert']>
+
+        Relationships: []
+      }
+
+      /* ── 현행: project_summaries (migration 029) ──────────── */
+      project_summaries: {
+        Row: {
+          id: string
+          project_id: string
+          creator_id: string
+          summary_text: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          creator_id: string
+          summary_text: string
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['project_summaries']['Insert']>
+
+        Relationships: []
+      }
+
       /* ── 현행: projects (migration 007 + 008) ─────────────── */
       projects: {
         Row: {

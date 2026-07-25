@@ -38,7 +38,20 @@ export async function POST(req: Request) {
     }
 
     try {
-      const prompt = buildAgentUnderstandingPrompt(userInput, context ?? {})
+      // 지난 프로젝트 종료 요약(최근 2건) — 로그인된 크리에이터에게만 해당,
+      // 원본 대화 로그는 저장하지 않으므로 이 요약이 유일한 참고자료다.
+      let pastSummaries: string[] | undefined
+      if (user) {
+        const { data: summaries } = await supabase
+          .from('project_summaries')
+          .select('summary_text')
+          .eq('creator_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(2)
+        pastSummaries = (summaries ?? []).map((s) => s.summary_text)
+      }
+
+      const prompt = buildAgentUnderstandingPrompt(userInput, { ...context, pastSummaries })
       const result = (await callClaude(prompt, 'haiku')) as {
         reply?: string
         category?: string | null

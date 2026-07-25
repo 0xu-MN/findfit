@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { ArrowRight, Sparkles, Bot } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { AgentMessageBubble, TypingIndicator } from './AgentComponents'
+import { createClient } from '@/lib/supabase/client'
 import {
   getGreeting,
   generatePhaseResponse,
@@ -28,12 +29,18 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
   const searchParams = useSearchParams()
   const isExploreMode = searchParams.get('agent') === 'explore'
   const fromNewProject = searchParams.get('from') === 'new_project'
+  // 리포트 챗봇 → Agent 흡수(§21.3) — 리포트 페이지의 "Agent에게 물어보기"
+  // 버튼으로 진입하면 이 프로젝트에 한해 대화 전체가 리포트 Q&A 모드로 전환된다.
+  const reportProjectId = searchParams.get('reportProjectId')
 
   const [messages, setMessages] = useState<AgentMessage[]>([])
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const [context, setContext] = useState<AgentContext>(createEmptyContext())
   const [initialized, setInitialized] = useState(false)
+  const [reportModeStatus, setReportModeStatus] = useState<'checking' | 'denied' | 'ready' | null>(
+    reportProjectId ? 'checking' : null
+  )
 
   // 자유 텍스트 이해(Claude) 비용 상한을 비로그인 방문자에게도 걸기 위한
   // 탭 단위 세션 id — 로그인돼 있으면 서버에서 user.id를 우선 쓴다.
@@ -48,9 +55,45 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
   useEffect(() => {
     if (initialized) return
     setInitialized(true)
+
+    if (reportProjectId) {
+      // 결제 게이트 유지 — 심층 리포트 구매자(captured 또는 테스트 기간
+      // waived_test)만 리포트 모드 진입 가능. ENABLE_PAYMENT_GATE=false인
+      // 지금은 등록 시 자동으로 waived_test가 기록되므로 사실상 전원 통과.
+      const supabase = createClient()
+      supabase.auth.getUser().then(async ({ data: { user } }) => {
+        if (!user) { setReportModeStatus('denied'); return }
+        const { data } = await supabase
+          .from('payments')
+          .select('status')
+          .eq('project_id', reportProjectId)
+          .eq('sku_type', 'deep_report')
+          .in('status', ['captured', 'waived_test'])
+          .limit(1)
+        if (data && data.length > 0) {
+          setReportModeStatus('ready')
+          setTimeout(() => setMessages([{
+            id: 'report-mode-greeting',
+            role: 'assistant',
+            content: '이 프로젝트 리포트에 대해 궁금한 점을 물어보세요. 검증 결과를 바탕으로 다음 프로젝트도 함께 정해볼 수 있어요 📊',
+            timestamp: new Date().toISOString(),
+          }]), 400)
+        } else {
+          setReportModeStatus('denied')
+          setMessages([{
+            id: 'report-mode-denied',
+            role: 'assistant',
+            content: '이 리포트의 심층 분석을 먼저 열람해야 Agent에게 물어볼 수 있어요. 리포트 페이지에서 먼저 열람해주세요.',
+            timestamp: new Date().toISOString(),
+          }])
+        }
+      })
+      return
+    }
+
     const greeting = getGreeting(isExploreMode && fromNewProject)
     setTimeout(() => setMessages([greeting]), 500)
-  }, [initialized, isExploreMode, fromNewProject])
+  }, [initialized, isExploreMode, fromNewProject, reportProjectId])
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -74,6 +117,35 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
 
     const delay = 700 + Math.random() * 600
     setTimeout(async () => {
+      // 리포트 모드 — 기존 /api/ai-report/[projectId]/chat(stateless, haiku,
+      // 일일 캡)을 그대로 재사용. 다른 phase 로직은 전혀 타지 않는다.
+      if (reportProjectId) {
+        try {
+          const res = await fetch(`/api/ai-report/${reportProjectId}/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question: value }),
+          })
+          const body = await res.json()
+          setMessages(prev => [...prev, {
+            id: `msg-${Date.now()}`,
+            role: 'assistant',
+            content: body.answer ?? body.error ?? '답변을 가져오지 못했어요.',
+            timestamp: new Date().toISOString(),
+          }])
+        } catch {
+          setMessages(prev => [...prev, {
+            id: `msg-${Date.now()}`,
+            role: 'assistant',
+            content: '답변을 가져오지 못했어요.',
+            timestamp: new Date().toISOString(),
+          }])
+        } finally {
+          setIsTyping(false)
+        }
+        return
+      }
+
       // FindFit Agent Phase 1(자유 텍스트 이해) — 토스트 버튼 클릭이 아니라
       // 자유 텍스트를 입력했고, 아직 단계(phase 0/1)가 안 끝난 경우에만
       // Claude로 라우팅한다. 토스트 버튼 흐름과 Phase 2~4는 기존 규칙기반
@@ -149,7 +221,7 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
       setContext(updatedContext)
       setIsTyping(false)
     }, delay)
-  }, [isTyping, context, messages])
+  }, [isTyping, context, messages, reportProjectId])
 
   const handleSend = useCallback(() => {
     const trimmed = input.trim()
@@ -287,7 +359,7 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
             />
             <button
               onClick={handleSend}
-              disabled={!input.trim() || isTyping}
+              disabled={!input.trim() || isTyping || reportModeStatus === 'denied' || reportModeStatus === 'checking'}
               className="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:hover:scale-100"
               style={{ background: input.trim() ? '#F77019' : '#DDD' }}
             >
@@ -358,7 +430,7 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
               />
               <button
                 onClick={handleSend}
-                disabled={!input.trim() || isTyping}
+                disabled={!input.trim() || isTyping || reportModeStatus === 'denied' || reportModeStatus === 'checking'}
                 className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:hover:scale-100"
                 style={{ background: input.trim() ? '#F77019' : '#1D1C1C' }}
               >

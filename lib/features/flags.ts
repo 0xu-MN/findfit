@@ -16,6 +16,10 @@ export const FEATURES = {
   roleSwitch:     process.env.ENABLE_ROLE_SWITCH === 'true',
   fcmPush:        process.env.ENABLE_FCM_PUSH === 'true',
   claudeReport:   process.env.ENABLE_CLAUDE_REPORT === 'true',
+
+  // 결제 — 코드는 완성해두되 테스트 기간엔 잠가서 무료로 통과시킨다.
+  // true로 켜면 lib/payment/portone.ts의 실제 PortOne 즉시결제 경로를 탄다.
+  paymentGate:    process.env.ENABLE_PAYMENT_GATE === 'true',
 } as const
 
 export type FeatureKey = keyof typeof FEATURES

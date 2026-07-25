@@ -1,5 +1,7 @@
 import { buildPrompt, type ProjectForReport, type Review } from './prompt'
 import { callClaude } from './claude'
+import { computeConfidenceTiers } from './confidenceTiers'
+import { MIN_BENCHMARK_SAMPLE_SIZE } from './constants'
 import {
   PSF_STANDARD_QUESTIONS,
   SEAN_ELLIS_QUESTION,
@@ -47,7 +49,7 @@ export async function generateAndSaveReport(projectId: string, supabase: any) {
   const [{ data: project }, { data: questionsRaw }, { data: answersRaw }] = await Promise.all([
     supabase
       .from('projects')
-      .select('id, title, project_type, psf_pmf_type, stage, problem, solution, target_count, completed_count')
+      .select('id, title, project_type, psf_pmf_type, stage, problem, solution, target_count, completed_count, categories')
       .eq('id', projectId)
       .single(),
     supabase
@@ -125,6 +127,18 @@ export async function generateAndSaveReport(projectId: string, supabase: any) {
   // 없어 제외)
   const question_summary = buildQuestionSummary(questions, answers)
 
+  // 리포트 콘텐츠 신뢰도 3단계(§21.4) — 이 category+stage로 이미 쌓인
+  // report_benchmark_logs 표본이 최소치를 넘었으면 경쟁사 레퍼런스/시장규모/
+  // 점수 기준선을 2단계(FindFit 자체 벤치마크)로 승격한다. 지금 막 넣는
+  // 이번 리포트 자신의 로그는 집계에서 제외(직전까지 쌓인 데이터 기준).
+  const category = project.categories?.[0] ?? 'default'
+  const { count: benchmarkCount } = await supabase
+    .from('report_benchmark_logs')
+    .select('id', { count: 'exact', head: true })
+    .eq('category', category)
+    .eq('stage', projectForReport.stage)
+  const confidence_tiers = computeConfidenceTiers((benchmarkCount ?? 0) >= MIN_BENCHMARK_SAMPLE_SIZE)
+
   // 5) recommendation / verdict / psf_score 결정
   const recommendation = (aiResult.recommendation as Recommendation | undefined) ?? null
   const verdict = recommendationToVerdict(recommendation)
@@ -143,7 +157,7 @@ export async function generateAndSaveReport(projectId: string, supabase: any) {
     psf_score,
     sean_ellis_pct: sean_ellis_pct ?? aiSeanEllis,
     recommendation,
-    report_data: { ...aiResult, question_summary },
+    report_data: { ...aiResult, question_summary, confidence_tiers },
     is_unlocked: true, // 이번 라운드는 전체 공개 (유료 잠금은 다음 라운드)
     problem_exists_pct,
     solution_acceptance_pct,
@@ -158,6 +172,18 @@ export async function generateAndSaveReport(projectId: string, supabase: any) {
     .single()
 
   if (error) throw new Error(error.message ?? '리포트 저장에 실패했습니다.')
+
+  // 2단계 벤치마크를 만들 데이터가 지금부터 쌓여야 몇 달 뒤 카테고리별
+  // 소급 적용이 가능하다 — mock/실제 구분 없이 리포트가 생성될 때마다 무조건 적재.
+  await supabase.from('report_benchmark_logs').insert({
+    project_id: projectId,
+    category,
+    stage: projectForReport.stage,
+    psf_score,
+    sean_ellis_pct: sean_ellis_pct ?? aiSeanEllis,
+    verdict,
+  })
+
   return saved
 }
 

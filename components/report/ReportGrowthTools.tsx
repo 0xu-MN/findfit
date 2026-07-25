@@ -2,10 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2, Send, Download } from 'lucide-react'
+import { Loader2, Bot, Download } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-
-type ChatMsg = { role: 'user' | 'ai'; text: string }
 
 export default function ReportGrowthTools({ projectId }: { projectId: string }) {
   const router = useRouter()
@@ -13,7 +11,24 @@ export default function ReportGrowthTools({ projectId }: { projectId: string }) 
   return (
     <div className="flex flex-col gap-4">
       <EmailListCard projectId={projectId} />
-      <AiChatCard projectId={projectId} />
+
+      {/* 리포트 챗봇 → Agent 흡수(§21.3) — 독립 채팅 UI 대신 FindFit Agent의
+          "리포트 모드"로 진입. 백엔드(stateless, haiku, 일일 캡)는 그대로
+          /api/ai-report/[projectId]/chat을 재사용한다. */}
+      <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 flex flex-col items-center gap-3 text-center shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
+        <div className="w-10 h-10 rounded-2xl flex items-center justify-center"
+          style={{ background: 'linear-gradient(135deg, #F77019, #FF8F45)' }}>
+          <Bot className="w-5 h-5 text-white" />
+        </div>
+        <p className="text-sm font-black text-[#1D1C1C]">이 리포트에 대해 더 물어보고 싶으신가요?</p>
+        <p className="text-[11px] font-bold text-[#999]">FindFit Agent가 데이터를 바탕으로 답하고, 다음 프로젝트도 함께 준비해드려요.</p>
+        <button
+          onClick={() => router.push(`/builder/dashboard?agent=explore&reportProjectId=${projectId}`)}
+          className="mt-1 px-5 py-2.5 rounded-xl bg-[#F77019] text-white text-[11px] font-black hover:bg-[#e0621a] transition-colors"
+        >
+          Agent에게 물어보기
+        </button>
+      </div>
 
       {/* 재의뢰 CTA */}
       <div className="rounded-3xl bg-gradient-to-br from-[#F77019] to-[#ff9240] text-white p-6 flex flex-col gap-3">
@@ -107,68 +122,3 @@ function maskEmail(email: string): string {
   return `${visible}***@${domain}`
 }
 
-function AiChatCard({ projectId }: { projectId: string }) {
-  const [messages, setMessages] = useState<ChatMsg[]>([
-    { role: 'ai', text: '이 리포트에 대해 궁금한 점을 물어보세요. 데이터에 근거해서 답해드릴게요.' },
-  ])
-  const [input, setInput] = useState('')
-  const [sending, setSending] = useState(false)
-
-  const send = async () => {
-    if (!input.trim() || sending) return
-    const question = input.trim()
-    setMessages((prev) => [...prev, { role: 'user', text: question }])
-    setInput('')
-    setSending(true)
-    try {
-      const res = await fetch(`/api/ai-report/${projectId}/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question }),
-      })
-      const body = await res.json()
-      setMessages((prev) => [...prev, { role: 'ai', text: body.answer ?? body.error ?? '답변을 가져오지 못했어요.' }])
-    } catch {
-      setMessages((prev) => [...prev, { role: 'ai', text: '답변을 가져오지 못했어요.' }])
-    } finally {
-      setSending(false)
-    }
-  }
-
-  return (
-    <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
-      <h3 className="text-sm font-black mb-4">AI 분석 대화</h3>
-      <div className="rounded-2xl bg-[#F5F5F5] p-4 flex flex-col gap-2 max-h-72 overflow-y-auto mb-3">
-        {messages.map((m, i) => (
-          <div
-            key={i}
-            className={`text-[12px] leading-relaxed rounded-2xl px-4 py-2.5 max-w-[85%] ${
-              m.role === 'user'
-                ? 'bg-[#F77019] text-white self-end rounded-br-sm ml-auto'
-                : 'bg-white text-[#1D1C1C] font-bold rounded-bl-sm shadow-[0_1px_4px_rgba(0,0,0,0.06)]'
-            }`}
-          >
-            {m.text}
-          </div>
-        ))}
-        {sending && <Loader2 className="w-4 h-4 animate-spin text-[#999]" />}
-      </div>
-      <div className="flex gap-2">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && send()}
-          placeholder="데이터에 대해 무엇이든 물어보세요..."
-          className="flex-1 px-4 py-2.5 rounded-full border border-[#1D1C1C]/12 text-[12px] font-bold text-[#1D1C1C] outline-none focus:border-[#F77019] transition-colors"
-        />
-        <button
-          onClick={send}
-          disabled={sending}
-          className="w-9 h-9 rounded-full bg-[#F77019] text-white flex items-center justify-center hover:opacity-90 disabled:opacity-60 transition-colors shrink-0"
-        >
-          <Send className="w-3.5 h-3.5" />
-        </button>
-      </div>
-    </div>
-  )
-}

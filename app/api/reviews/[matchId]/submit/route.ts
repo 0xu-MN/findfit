@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { generateAndSaveReport } from '@/lib/ai/generateReport'
+import { callClaude } from '@/lib/ai/claude'
+import { buildProjectSummaryPrompt } from '@/lib/ai/prompt'
 
 // 리뷰 제출 전체 파이프라인을 서버 트랜잭션 성격으로 하나의 라우트에 묶는다
 // (C-1): 이전엔 브라우저가 review_answers insert → project_matches 갱신 →
@@ -99,11 +101,38 @@ export async function POST(
 
       if (proj && newCompletedCount >= proj.target_count) {
         try {
-          await generateAndSaveReport(projectId, admin)
+          const savedReport = await generateAndSaveReport(projectId, admin)
           // M-3: 리포트 생성 완료 후 프로젝트 상태 정리 — 어드민 대시보드의
           // "진행중 프로젝트" 카운트가 끝난 프로젝트까지 세던 문제.
           await admin.from('projects').update({ status: 'completed' }).eq('id', projectId)
           reportGenerated = true
+
+          // 프로젝트 종료 시점 경량 요약 1건 — 원본 대화는 저장하지 않고
+          // 이 요약만 다음 Agent 대화의 참고자료로 이관한다(§21.2/§21.4).
+          try {
+            const { data: projectRow } = await admin
+              .from('projects')
+              .select('title, problem, solution, creator_id')
+              .eq('id', projectId)
+              .single()
+            if (projectRow?.creator_id) {
+              const summaryPrompt = buildProjectSummaryPrompt(
+                { title: projectRow.title, problem: projectRow.problem ?? undefined, solution: projectRow.solution ?? undefined },
+                savedReport?.verdict ?? null
+              )
+              const summaryResult = (await callClaude(summaryPrompt, 'haiku')) as { summary?: string }
+              if (summaryResult.summary) {
+                await admin.from('project_summaries').insert({
+                  project_id: projectId,
+                  creator_id: projectRow.creator_id,
+                  summary_text: summaryResult.summary,
+                })
+              }
+            }
+          } catch (summaryErr) {
+            console.error('[reviews/submit] project summary generation failed', summaryErr)
+            // 요약 실패해도 제출/리포트 생성 자체는 이미 성공 처리된 상태 유지
+          }
         } catch (err) {
           console.error('[reviews/submit] report generation failed', err)
           // 리포트 생성 실패해도 제출 자체는 성공 처리 — Builder 리포트
