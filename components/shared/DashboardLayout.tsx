@@ -8,6 +8,7 @@ import SharedFeedPanel from './SharedFeedPanel'
 import RightPanelFooter from './RightPanelFooter'
 import NotificationBell from './NotificationBell'
 import { RightPanelProvider, type RightTab } from './RightPanelContext'
+import RoleSwitchToggle from './RoleSwitchToggle'
 import {
   ChevronLeft,
   ChevronRight,
@@ -106,16 +107,10 @@ export default function DashboardLayout({ role, children, rightPanel }: Dashboar
       ]
     : [
         { icon: LayoutDashboard, label: '대시보드', path: '/evaluator/dashboard' },
-        // 좌측 네비에 아예 없어서 "참여 리뷰"가 비어있을 때 뜨는 버튼으로만
-        // 우연히 도달 가능했던 문제 — 정식 메뉴로 승격.
-        { icon: Search, label: '의뢰 둘러보기', path: '/evaluator/available' },
+        { icon: Search, label: '프로젝트 탐색', path: '/evaluator/projects' },
         { icon: FolderOpen, label: '참여 리뷰', path: '/evaluator/reviews' },
-        { icon: Wallet, label: '포인트 지갑', path: '/evaluator/wallet' },
-        // H-4: 매칭 점수에 쓰이는 domain_tags를 리뷰어가 설정할 화면이 없어
-        // 전원 매칭 점수가 낮게 고정돼 있던 문제.
-        { icon: UserCog, label: '프로필', path: '/evaluator/profile' },
-        // 계좌 등록은 어차피 정산(포인트 지갑)이랑 한 세트라 별도 메뉴로
-        // 분리해뒀던 걸 "포인트 지갑" 화면 안 카드로 합쳤다 — 메뉴 제거.
+        { icon: Wallet, label: '설정', path: '/evaluator/settings' },
+        { icon: UserCog, label: '프로필', path: '/evaluator/settings?tab=profile' },
       ]
 
   const rightTabs = [
@@ -182,17 +177,8 @@ export default function DashboardLayout({ role, children, rightPanel }: Dashboar
                 </nav>
 
                 <div className="flex items-center gap-4 flex-shrink-0">
-                  {/* Tiny role switcher */}
-                  <div className="p-0.5 rounded-full bg-[#1D1C1C]/5 flex items-center border border-[#1D1C1C]/5">
-                    <button onClick={() => role !== 'creator' && router.push('/builder/dashboard')}
-                      className={`px-2 py-0.5 rounded-full text-[9px] font-bold transition-all ${
-                        role === 'creator' ? 'bg-white text-[#F77019] shadow-sm' : 'text-[#999]'
-                      }`}>C</button>
-                    <button onClick={() => role !== 'reviewer' && router.push('/evaluator/dashboard')}
-                      className={`px-2 py-0.5 rounded-full text-[9px] font-bold transition-all ${
-                        role === 'reviewer' ? 'bg-white text-[#1565C0] shadow-sm' : 'text-[#999]'
-                      }`}>R</button>
-                  </div>
+                  {/* Role switcher toggle (2번 이미지 디자인 적용) */}
+                  <RoleSwitchToggle role={role} />
 
                   {/* User profile */}
                   <div className="flex items-center gap-2">

@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { RefreshCw, Settings, LogOut, Sparkles, ChevronDown, User, Wallet } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import NotificationBell from '../shared/NotificationBell'
+import RoleSwitchToggle from '../shared/RoleSwitchToggle'
 import Footer from '../landing/Footer'
 
 const DISMISS_KEY = 'findfit_reviewer_confirm_dismissed'
@@ -77,9 +78,11 @@ export default function ReviewerLayout({ children }: Props) {
               <img src="/logo.png" alt="FindFit" className="h-[36px] w-auto object-contain" />
             </div>
 
-            <nav className="flex items-center overflow-x-auto">
+            <nav className="flex items-center overflow-x-auto scrollbar-none">
               {[
                 { label: '홈', path: '/evaluator/dashboard' },
+                { label: '프로젝트 탐색', path: '/evaluator/projects' },
+                { label: '내 리뷰', path: '/evaluator/reviews' },
                 { label: '라운지', path: '/evaluator/lounge' },
                 { label: '피드', path: '/evaluator/feed' },
               ].map((item, index, arr) => {
@@ -107,18 +110,8 @@ export default function ReviewerLayout({ children }: Props) {
           </div>
 
           <div className="flex items-center gap-4 flex-shrink-0">
-            {/* 역할 스위처 — DashboardLayout과 동일한 C/R 버튼 */}
-            <div className="p-0.5 rounded-full bg-[#1D1C1C]/5 flex items-center border border-[#1D1C1C]/5">
-              <button
-                onClick={() => router.push('/builder/dashboard')}
-                className="px-2 py-0.5 rounded-full text-[9px] font-bold transition-all text-[#999]"
-              >
-                C
-              </button>
-              <button className="px-2 py-0.5 rounded-full text-[9px] font-bold transition-all bg-white text-[#1565C0] shadow-sm">
-                R
-              </button>
-            </div>
+            {/* 역할 스위처 — 2번 이미지 디자인 적용 */}
+            <RoleSwitchToggle role="reviewer" />
 
             {/* Profile Dropdown Menu */}
             <div className="relative">
@@ -146,21 +139,21 @@ export default function ReviewerLayout({ children }: Props) {
                     <p className="text-[10px] text-[#999] font-medium">FindFit Reviewer</p>
                   </div>
                   <button
-                    onClick={() => { setShowUserMenu(false); router.push('/evaluator/profile') }}
+                    onClick={() => { setShowUserMenu(false); router.push('/evaluator/settings?tab=profile') }}
                     className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] font-bold text-[#333] hover:bg-[#F5F5F5] rounded-xl transition-colors text-left"
                   >
                     <User className="w-3.5 h-3.5 text-[#1565C0]" />
                     <span>프로필 설정</span>
                   </button>
                   <button
-                    onClick={() => { setShowUserMenu(false); router.push('/evaluator/wallet') }}
+                    onClick={() => { setShowUserMenu(false); router.push('/evaluator/settings?tab=wallet') }}
                     className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] font-bold text-[#333] hover:bg-[#F5F5F5] rounded-xl transition-colors text-left"
                   >
                     <Wallet className="w-3.5 h-3.5 text-[#F77019]" />
                     <span>포인트 지갑</span>
                   </button>
                   <button
-                    onClick={() => { setShowUserMenu(false); router.push('/evaluator/account') }}
+                    onClick={() => { setShowUserMenu(false); router.push('/evaluator/settings?tab=account') }}
                     className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] font-bold text-[#333] hover:bg-[#F5F5F5] rounded-xl transition-colors text-left"
                   >
                     <Settings className="w-3.5 h-3.5 text-[#666]" />

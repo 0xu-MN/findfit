@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { RefreshCw, Settings, LogOut, Sparkles, ChevronDown, Wallet } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import NotificationBell from '../shared/NotificationBell'
+import RoleSwitchToggle from '../shared/RoleSwitchToggle'
 import Footer from '../landing/Footer'
 
 const DISMISS_KEY = 'findfit_creator_confirm_dismissed'
@@ -75,7 +76,7 @@ export default function CreatorLayout({ children }: Props) {
               <img src="/logo.png" alt="FindFit" className="h-[36px] w-auto object-contain" />
             </div>
 
-            <nav className="flex items-center overflow-x-auto">
+            <nav className="flex items-center overflow-x-auto scrollbar-none">
               {[
                 { label: '홈', path: '/builder/dashboard' },
                 { label: '라운지', path: '/builder/lounge' },
@@ -106,18 +107,8 @@ export default function CreatorLayout({ children }: Props) {
           </div>
 
           <div className="flex items-center gap-4 flex-shrink-0">
-            {/* 역할 스위처 — ReviewerLayout과 동일한 C/R 버튼 */}
-            <div className="p-0.5 rounded-full bg-[#1D1C1C]/5 flex items-center border border-[#1D1C1C]/5">
-              <button className="px-2 py-0.5 rounded-full text-[9px] font-bold transition-all bg-white text-[#F77019] shadow-sm">
-                C
-              </button>
-              <button
-                onClick={() => router.push('/evaluator/dashboard')}
-                className="px-2 py-0.5 rounded-full text-[9px] font-bold transition-all text-[#999]"
-              >
-                R
-              </button>
-            </div>
+            {/* 역할 스위처 — 2번 이미지 디자인 적용(ReviewerLayout과 동일 컴포넌트) */}
+            <RoleSwitchToggle role="creator" />
 
             {/* Profile Dropdown Menu */}
             <div className="relative">

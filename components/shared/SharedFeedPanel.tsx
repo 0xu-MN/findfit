@@ -17,7 +17,7 @@ const heroPost = {
 
 const FILTER_TABS = ['전체', '성공사례', '팁/노하우', '리뷰어 이야기', '트렌드']
 
-const feedPosts = [
+export const feedPosts = [
   {
     id: 1,
     category: '팁/노하우',
@@ -86,7 +86,7 @@ const feedPosts = [
   },
 ]
 
-const newsItems = [
+export const newsItems = [
   {
     id: 1,
     tag: '공지',
@@ -230,15 +230,41 @@ export default function SharedFeedPanel() {
           </div>
         </div>
 
-        {/* ── Newsroom sidebar — 축소 시 아래로 이동, 확장 시 우측 고정 ── */}
+        {/* ── Newsroom sidebar — 8번 요청 반영 (폰트 크기 및 시각적 UX/UI 확대 강화) ── */}
         <div
-          className={`flex-shrink-0 flex flex-col gap-4 ${isNarrow ? 'w-full pt-4 border-t border-[#1D1C1C]/5' : ''}`}
-          style={isNarrow ? undefined : { width: 220 }}
+          className={`flex-shrink-0 flex flex-col gap-4 ${isNarrow ? 'w-full pt-6 border-t border-[#1D1C1C]/10' : ''}`}
+          style={isNarrow ? undefined : { width: 300 }}
         >
-          <h2 className="text-[13px] font-black text-[#1D1C1C]">파인드핏 뉴스룸</h2>
-          <div className={isNarrow ? 'grid grid-cols-2 gap-3' : 'flex flex-col gap-3'}>
-            {newsItems.slice(0, isNarrow ? 4 : newsItems.length).map(item => (
-              <NewsItem key={item.id} item={item} />
+          <div className="flex items-center justify-between border-b border-[#1D1C1C]/10 pb-3">
+            <h2 className="text-[17px] font-black text-[#1D1C1C] flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#F77019]" />
+              파인드핏 뉴스룸
+            </h2>
+            <span className="text-[11px] font-bold text-[#F77019] bg-[#F77019]/10 px-2 py-0.5 rounded-full">NEWS</span>
+          </div>
+
+          <div className={isNarrow ? 'grid grid-cols-1 sm:grid-cols-2 gap-4' : 'flex flex-col gap-3.5'}>
+            {newsItems.slice(0, isNarrow ? 4 : newsItems.length).map((item) => (
+              <div
+                key={item.id}
+                className="p-4 rounded-2xl bg-white border border-[#1D1C1C]/10 hover:border-[#F77019] hover:shadow-md transition-all cursor-pointer flex flex-col gap-2 group"
+              >
+                <div className="flex items-center justify-between">
+                  <span
+                    className="text-[10px] font-black px-2 py-0.5 rounded-md text-white"
+                    style={{ background: item.tagColor }}
+                  >
+                    {item.tag}
+                  </span>
+                  <span className="text-[10px] font-bold text-[#999]">{item.date}</span>
+                </div>
+                <h3 className="text-[13px] font-black text-[#1D1C1C] leading-snug group-hover:text-[#F77019] transition-colors">
+                  {item.title}
+                </h3>
+                <p className="text-[11px] font-medium text-[#666] line-clamp-2 leading-relaxed">
+                  {item.desc}
+                </p>
+              </div>
             ))}
           </div>
         </div>

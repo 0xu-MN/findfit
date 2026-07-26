@@ -54,9 +54,6 @@ export default function ProjectListPage() {
         .then(async ({ data }) => {
           const rows = (data as ProjectRow[]) ?? []
           setProjects(rows)
-          // "완료됨" vs "결과 분석 중" 구분 — ReportListPage.tsx가 이미 쓰는
-          // 것과 동일한 기준(ai_reports 존재 여부)을 재사용. 목표인원 도달만
-          // 했지 리포트가 아직 안 나온 프로젝트는 "결과 분석 중"으로 남는다.
           const doneIds = rows.filter((p) => p.completed_count >= p.target_count).map((p) => p.id)
           if (doneIds.length > 0) {
             const { data: reports } = await supabase
@@ -70,8 +67,6 @@ export default function ProjectListPage() {
     })
   }, [])
 
-  // 진행 중 = 목표 미달, 결과 분석 중 = 목표 달성했지만 리포트 아직,
-  // 완료됨 = 리포트까지 생성 완료
   const inProgress = projects.filter((p) => p.completed_count < p.target_count)
   const analyzing = projects.filter((p) => p.completed_count >= p.target_count && !reportedIds.has(p.id))
   const completed = projects.filter((p) => p.completed_count >= p.target_count && reportedIds.has(p.id))
@@ -143,88 +138,138 @@ export default function ProjectListPage() {
         </div>
       </div>
 
-      {/* Kanban Board */}
-      <div className="flex items-start gap-6 w-full h-full pb-8 flex-wrap">
-        {/* 작성 중 */}
-        <div className="flex-1 min-w-[220px] flex flex-col gap-3">
-          <div className="flex items-center justify-between px-1">
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-black text-[#666]">작성 중</span>
-              <span className="bg-[#EEEEEE] text-[#666] text-[10px] font-bold px-2 py-0.5 rounded-full">
-                {hydrated ? draftCount : 0}
-              </span>
-            </div>
-            <button className="text-[#999] hover:text-[#1D1C1C] transition-colors">
-              <MoreHorizontal className="w-4 h-4" />
-            </button>
-          </div>
-
-          <div className="flex flex-col gap-3">
-            {hydrated && drafts.map((d) => (
-              <button
-                key={d.id}
-                onClick={() => openDraft(d.id)}
-                className="bg-white border border-[#1D1C1C]/5 rounded-xl p-4 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer group text-left"
-              >
-                <div className="flex items-start justify-between">
-                  <h3 className="text-xs font-extrabold group-hover:text-[#F77019] transition-colors line-clamp-2 pr-2">
-                    {d.productName || '(제목 미작성)'}
-                  </h3>
-                  <span
-                    onClick={(e) => handleDeleteDraft(e, d.id)}
-                    role="button"
-                    title="삭제"
-                    className="p-1 rounded-md text-[#CCC] hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </span>
-                </div>
-                <div className="flex items-center justify-between mt-1">
-                  <span className="text-[10px] font-bold text-[#F77019] bg-[#F77019]/10 px-2 py-1 rounded-md">
-                    {getDraftTagLabel(d.currentStep)}
-                  </span>
-                  <span className="text-[9px] text-[#999] font-medium">{relativeTime(d.updatedAt)}</span>
-                </div>
+      {/* View Mode Switching: Board vs List */}
+      {viewMode === 'board' ? (
+        <div className="flex items-start gap-6 w-full h-full pb-8 flex-wrap">
+          {/* 작성 중 */}
+          <div className="flex-1 min-w-[220px] flex flex-col gap-3">
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-black text-[#666]">작성 중</span>
+                <span className="bg-[#EEEEEE] text-[#666] text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  {hydrated ? draftCount : 0}
+                </span>
+              </div>
+              <button className="text-[#999] hover:text-[#1D1C1C] transition-colors">
+                <MoreHorizontal className="w-4 h-4" />
               </button>
-            ))}
-
-            <button
-              onClick={newDraft}
-              className="w-full flex items-center justify-center gap-1.5 py-3 border border-dashed border-[#1D1C1C]/10 rounded-xl text-[11px] font-bold text-[#999] hover:bg-[#FAFAFA] hover:text-[#1D1C1C] transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              새로 작성하기
-            </button>
-
-            {hydrated && drafts.length === 0 && (
-              <p className="text-[10px] font-bold text-[#CCC] text-center mt-1">
-                임시저장된 작성중인 의뢰가 없습니다
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* 진행 중 */}
-        <div className="flex-1 min-w-[220px] flex flex-col gap-3">
-          <div className="flex items-center justify-between px-1">
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-black text-[#F77019]">진행 중</span>
-              <span className="bg-[#F77019]/10 text-[#F77019] text-[10px] font-bold px-2 py-0.5 rounded-full">
-                {hydrated ? inProgressCount : 0}
-              </span>
             </div>
-            <button className="text-[#999] hover:text-[#1D1C1C] transition-colors">
-              <MoreHorizontal className="w-4 h-4" />
-            </button>
+
+            <div className="flex flex-col gap-3">
+              {hydrated && drafts.map((d) => (
+                <button
+                  key={d.id}
+                  onClick={() => openDraft(d.id)}
+                  className="bg-white border border-[#1D1C1C]/5 rounded-xl p-4 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer group text-left"
+                >
+                  <div className="flex items-start justify-between">
+                    <h3 className="text-xs font-extrabold group-hover:text-[#F77019] transition-colors line-clamp-2 pr-2">
+                      {d.productName || '(제목 미작성)'}
+                    </h3>
+                    <span
+                      onClick={(e) => handleDeleteDraft(e, d.id)}
+                      role="button"
+                      title="삭제"
+                      className="p-1 rounded-md text-[#CCC] hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-[10px] font-bold text-[#F77019] bg-[#F77019]/10 px-2 py-1 rounded-md">
+                      {getDraftTagLabel(d.currentStep)}
+                    </span>
+                    <span className="text-[9px] text-[#999] font-medium">{relativeTime(d.updatedAt)}</span>
+                  </div>
+                </button>
+              ))}
+
+              <button
+                onClick={newDraft}
+                className="w-full flex items-center justify-center gap-1.5 py-3 border border-dashed border-[#1D1C1C]/10 rounded-xl text-[11px] font-bold text-[#999] hover:bg-[#FAFAFA] hover:text-[#1D1C1C] transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                새로 작성하기
+              </button>
+            </div>
           </div>
 
-          <div className="flex flex-col gap-3">
-            {hydrated && inProgress.map((s) => {
-              const pct = s.target_count > 0 ? Math.round((s.completed_count / s.target_count) * 100) : 0
-              return (
+          {/* 진행 중 */}
+          <div className="flex-1 min-w-[220px] flex flex-col gap-3">
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-black text-[#F77019]">진행 중</span>
+                <span className="bg-[#F77019]/10 text-[#F77019] text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  {hydrated ? inProgressCount : 0}
+                </span>
+              </div>
+              <button className="text-[#999] hover:text-[#1D1C1C] transition-colors">
+                <MoreHorizontal className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              {hydrated && inProgress.map((s) => {
+                const pct = s.target_count > 0 ? Math.round((s.completed_count / s.target_count) * 100) : 0
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => router.push(`/builder/projects/${s.id}`)}
+                    className="bg-white border border-[#1D1C1C]/5 rounded-xl p-4 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer group text-left"
+                  >
+                    <div className="flex items-start justify-between mb-1">
+                      <h3 className="text-xs font-extrabold group-hover:text-[#F77019] transition-colors line-clamp-1 pr-4">
+                        {s.title || '(제목 미작성)'}
+                      </h3>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span className="text-[10px] font-bold text-[#2E7D32] whitespace-nowrap bg-[#2E7D32]/10 px-2 py-0.5 rounded">
+                          {s.completed_count === 0 ? '매칭 대기중' : '응답 수집중'}
+                        </span>
+                        <span
+                          onClick={(e) => handleDeleteProject(e, s.id)}
+                          role="button"
+                          title="삭제"
+                          className="p-1 rounded-md text-[#CCC] hover:text-red-500 hover:bg-red-50 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center justify-between text-[9px] font-bold text-[#666]">
+                        <span>응답 수집률</span>
+                        <span className="text-[#F77019]">{s.completed_count} / {s.target_count}</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-[#EEEEEE] rounded-full overflow-hidden">
+                        <div className="h-full bg-[#F77019]" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* 결과 분석 중 */}
+          <div className="flex-1 min-w-[220px] flex flex-col gap-3">
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-black text-[#666]">결과 분석 중</span>
+                <span className="bg-[#EEEEEE] text-[#666] text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  {hydrated ? analyzing.length : 0}
+                </span>
+              </div>
+              <button className="text-[#999] hover:text-[#1D1C1C] transition-colors">
+                <MoreHorizontal className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              {hydrated && analyzing.map((s) => (
                 <button
                   key={s.id}
-                  onClick={() => router.push(`/builder/projects/${s.id}`)}
+                  onClick={() => router.push(`/builder/reports/${s.id}`)}
                   className="bg-white border border-[#1D1C1C]/5 rounded-xl p-4 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer group text-left"
                 >
                   <div className="flex items-start justify-between mb-1">
@@ -232,8 +277,8 @@ export default function ProjectListPage() {
                       {s.title || '(제목 미작성)'}
                     </h3>
                     <div className="flex items-center gap-1 shrink-0">
-                      <span className="text-[10px] font-bold text-[#2E7D32] whitespace-nowrap bg-[#2E7D32]/10 px-2 py-0.5 rounded">
-                        {s.completed_count === 0 ? '매칭 대기중' : '응답 수집중'}
+                      <span className="text-[10px] font-bold text-[#F77019] whitespace-nowrap bg-[#F77019]/10 px-2 py-0.5 rounded">
+                        수집 완료
                       </span>
                       <span
                         onClick={(e) => handleDeleteProject(e, s.id)}
@@ -245,138 +290,99 @@ export default function ProjectListPage() {
                       </span>
                     </div>
                   </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <div className="flex items-center justify-between text-[9px] font-bold text-[#666]">
-                      <span>응답 수집률</span>
-                      <span className="text-[#F77019]">{s.completed_count} / {s.target_count}</span>
-                    </div>
-                    <div className="w-full h-1.5 bg-[#EEEEEE] rounded-full overflow-hidden">
-                      <div className="h-full bg-[#F77019]" style={{ width: `${pct}%` }} />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 mt-1 pt-3 border-t border-[#1D1C1C]/5 text-[10px] text-[#999] font-bold group-hover:text-[#F77019] transition-colors">
-                    <FileText className="w-3.5 h-3.5" />
-                    실시간 결과 보기
+                  <div className="flex items-center justify-between text-[9px] font-bold text-[#666]">
+                    <span>응답 수집률</span>
+                    <span className="text-[#F77019]">{s.completed_count} / {s.target_count}</span>
                   </div>
                 </button>
-              )
-            })}
-
-            {hydrated && inProgress.length === 0 && (
-              <div className="flex flex-col items-center justify-center p-8 border border-dashed border-[#1D1C1C]/10 rounded-xl bg-[#FAFAFA]/50 text-center gap-2">
-                <FileText className="w-6 h-6 text-[#CCC]" />
-                <span className="text-[10px] font-bold text-[#999]">진행 중인 프로젝트가 없습니다</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* 결과 분석 중 */}
-        <div className="flex-1 min-w-[220px] flex flex-col gap-3">
-          <div className="flex items-center justify-between px-1">
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-black text-[#666]">결과 분석 중</span>
-              <span className="bg-[#EEEEEE] text-[#666] text-[10px] font-bold px-2 py-0.5 rounded-full">
-                {hydrated ? analyzing.length : 0}
-              </span>
+              ))}
             </div>
-            <button className="text-[#999] hover:text-[#1D1C1C] transition-colors">
-              <MoreHorizontal className="w-4 h-4" />
-            </button>
           </div>
 
-          <div className="flex flex-col gap-3">
-            {hydrated && analyzing.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => router.push(`/builder/reports/${s.id}`)}
-                className="bg-white border border-[#1D1C1C]/5 rounded-xl p-4 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer group text-left"
-              >
-                <div className="flex items-start justify-between mb-1">
-                  <h3 className="text-xs font-extrabold group-hover:text-[#F77019] transition-colors line-clamp-1 pr-4">
-                    {s.title || '(제목 미작성)'}
-                  </h3>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <span className="text-[10px] font-bold text-[#F77019] whitespace-nowrap bg-[#F77019]/10 px-2 py-0.5 rounded">
-                      수집 완료
-                    </span>
-                    <span
-                      onClick={(e) => handleDeleteProject(e, s.id)}
-                      role="button"
-                      title="삭제"
-                      className="p-1 rounded-md text-[#CCC] hover:text-red-500 hover:bg-red-50 transition-colors"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
+          {/* 완료됨 */}
+          <div className="flex-1 min-w-[220px] flex flex-col gap-3">
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-black text-[#2E7D32]">완료됨</span>
+                <span className="bg-[#2E7D32]/10 text-[#2E7D32] text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  {hydrated ? completed.length : 0}
+                </span>
+              </div>
+              <button className="text-[#999] hover:text-[#1D1C1C] transition-colors">
+                <MoreHorizontal className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              {hydrated && completed.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => router.push(`/builder/reports/${s.id}`)}
+                  className="bg-white border border-[#1D1C1C]/5 rounded-xl p-4 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer group text-left"
+                >
+                  <div className="flex items-start justify-between mb-1">
+                    <h3 className="text-xs font-extrabold group-hover:text-[#F77019] transition-colors line-clamp-1 pr-4">
+                      {s.title || '(제목 미작성)'}
+                    </h3>
+                    <span className="text-[10px] font-bold text-[#2E7D32] whitespace-nowrap bg-[#2E7D32]/10 px-2 py-0.5 rounded shrink-0">
+                      분석 완료
                     </span>
                   </div>
-                </div>
-                <div className="flex items-center justify-between text-[9px] font-bold text-[#666]">
-                  <span>응답 수집률</span>
-                  <span className="text-[#F77019]">{s.completed_count} / {s.target_count}</span>
-                </div>
-                <div className="flex items-center gap-2 mt-1 pt-3 border-t border-[#1D1C1C]/5 text-[10px] text-[#999] font-bold group-hover:text-[#F77019] transition-colors">
-                  <FileText className="w-3.5 h-3.5" />
-                  AI 리포트 보기
-                </div>
-              </button>
-            ))}
+                </button>
+              ))}
 
-            {hydrated && analyzing.length === 0 && (
-              <div className="flex flex-col items-center justify-center p-8 border border-dashed border-[#1D1C1C]/10 rounded-xl bg-[#FAFAFA]/50 text-center gap-2">
-                <FileText className="w-6 h-6 text-[#CCC]" />
-                <span className="text-[10px] font-bold text-[#999]">분석 중인 프로젝트가 없습니다</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* 완료됨 — 리포트까지 생성된 프로젝트 */}
-        <div className="flex-1 min-w-[220px] flex flex-col gap-3">
-          <div className="flex items-center justify-between px-1">
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-black text-[#2E7D32]">완료됨</span>
-              <span className="bg-[#2E7D32]/10 text-[#2E7D32] text-[10px] font-bold px-2 py-0.5 rounded-full">
-                {hydrated ? completed.length : 0}
-              </span>
+              {hydrated && completed.length === 0 && (
+                <div className="flex flex-col items-center justify-center p-8 border border-dashed border-[#1D1C1C]/10 rounded-xl bg-[#FAFAFA]/50 text-center gap-2">
+                  <FileText className="w-6 h-6 text-[#CCC]" />
+                  <span className="text-[10px] font-bold text-[#999]">완료된 프로젝트가 없습니다</span>
+                </div>
+              )}
             </div>
-            <button className="text-[#999] hover:text-[#1D1C1C] transition-colors">
-              <MoreHorizontal className="w-4 h-4" />
-            </button>
-          </div>
-
-          <div className="flex flex-col gap-3">
-            {hydrated && completed.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => router.push(`/builder/reports/${s.id}`)}
-                className="bg-white border border-[#1D1C1C]/5 rounded-xl p-4 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer group text-left"
-              >
-                <div className="flex items-start justify-between mb-1">
-                  <h3 className="text-xs font-extrabold group-hover:text-[#F77019] transition-colors line-clamp-1 pr-4">
-                    {s.title || '(제목 미작성)'}
-                  </h3>
-                  <span className="text-[10px] font-bold text-[#2E7D32] whitespace-nowrap bg-[#2E7D32]/10 px-2 py-0.5 rounded shrink-0">
-                    분석 완료
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 mt-1 pt-3 border-t border-[#1D1C1C]/5 text-[10px] text-[#999] font-bold group-hover:text-[#F77019] transition-colors">
-                  <FileText className="w-3.5 h-3.5" />
-                  AI 리포트 보기
-                </div>
-              </button>
-            ))}
-
-            {hydrated && completed.length === 0 && (
-              <div className="flex flex-col items-center justify-center p-8 border border-dashed border-[#1D1C1C]/10 rounded-xl bg-[#FAFAFA]/50 text-center gap-2">
-                <FileText className="w-6 h-6 text-[#CCC]" />
-                <span className="text-[10px] font-bold text-[#999]">완료된 프로젝트가 없습니다</span>
-              </div>
-            )}
           </div>
         </div>
-      </div>
+      ) : (
+        /* 리스트형 테이블 뷰 */
+        <div className="w-full bg-white border border-[#1D1C1C]/10 rounded-2xl shadow-sm overflow-hidden mb-8">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-[#F8F9FA] border-b border-[#1D1C1C]/10 text-[11px] font-bold text-[#777]">
+                <th className="py-3 px-5">프로젝트 제목</th>
+                <th className="py-3 px-5">상태</th>
+                <th className="py-3 px-5 text-center">응답/목표 인원</th>
+                <th className="py-3 px-5 text-right">관리</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#1D1C1C]/5 text-xs">
+              {drafts.map((d) => (
+                <tr key={d.id} onClick={() => openDraft(d.id)} className="hover:bg-[#F8F9FA] cursor-pointer transition-colors">
+                  <td className="py-3.5 px-5 font-bold text-[#1D1C1C]">{d.productName || '(제목 미작성)'}</td>
+                  <td className="py-3.5 px-5"><span className="text-[10px] font-bold bg-[#EEE] text-[#666] px-2 py-0.5 rounded">작성 중</span></td>
+                  <td className="py-3.5 px-5 text-center text-[#999]">-</td>
+                  <td className="py-3.5 px-5 text-right">
+                    <button onClick={(e) => handleDeleteDraft(e, d.id)} className="p-1 text-[#CCC] hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                  </td>
+                </tr>
+              ))}
+              {projects.map((p) => (
+                <tr key={p.id} onClick={() => router.push(`/builder/projects/${p.id}`)} className="hover:bg-[#F8F8F8] cursor-pointer transition-colors">
+                  <td className="py-3.5 px-5 font-bold text-[#1D1C1C]">{p.title}</td>
+                  <td className="py-3.5 px-5">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                      p.completed_count >= p.target_count ? 'bg-[#2E7D32]/10 text-[#2E7D32]' : 'bg-[#F77019]/10 text-[#F77019]'
+                    }`}>
+                      {p.completed_count >= p.target_count ? '완료됨' : '진행 중'}
+                    </span>
+                  </td>
+                  <td className="py-3.5 px-5 text-center font-bold text-[#555]">{p.completed_count} / {p.target_count}</td>
+                  <td className="py-3.5 px-5 text-right">
+                    <button onClick={(e) => handleDeleteProject(e, p.id)} className="p-1 text-[#CCC] hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }

@@ -2,10 +2,10 @@
 
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { Search, TrendingUp, ChevronRight } from 'lucide-react'
+import { Search, TrendingUp } from 'lucide-react'
 import Step0Modal from '../builder/new-request/Step0Modal'
-import SharedLoungeFeed from '../shared/SharedLoungeFeed'
-import SharedFeedPanel from '../shared/SharedFeedPanel'
+import HappeningSection from '../shared/HappeningSection'
+import ReviewerBannerCarousel from '../shared/ReviewerBannerCarousel'
 import { useAgentBubble } from '../agent/AgentBubbleContext'
 
 const TREND_CHIP = '강아지 간식'
@@ -73,20 +73,15 @@ export default function CreatorHome() {
             </div>
           </button>
         </div>
-      </div>
 
-      {/* ── 지금 FindFit에서 일어나고 있어요 (라운지/피드 미리보기) ── */}
-      <div className="flex flex-col gap-4">
-        <h2 className="text-lg font-black text-[#1D1C1C]">지금 FindFit에서 일어나고 있어요</h2>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          <PreviewSection title="라운지" onMore={() => router.push('/builder/lounge')}>
-            <SharedLoungeFeed />
-          </PreviewSection>
-          <PreviewSection title="피드" onMore={() => router.push('/builder/feed')}>
-            <SharedFeedPanel />
-          </PreviewSection>
+        {/* ── 검색창 하단 리뷰어 광고 배너 (요청 1번 반영) ── */}
+        <div className="w-full mt-2">
+          <ReviewerBannerCarousel />
         </div>
       </div>
+
+      {/* ── 지금 FindFit에서 일어나고 있어요 (1번 전달 이미지 UI 반영) ── */}
+      <HappeningSection basePath="builder" />
 
       <Step0Modal
         isOpen={step0Open}
@@ -100,26 +95,6 @@ export default function CreatorHome() {
           router.push('/builder/new-request')
         }}
       />
-    </div>
-  )
-}
-
-function PreviewSection({ title, onMore, children }: { title: string; onMore: () => void; children: React.ReactNode }) {
-  return (
-    <div className="rounded-3xl border border-[#1D1C1C]/8 bg-white p-5 flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <h3 className="text-[13px] font-black text-[#1D1C1C]">{title}</h3>
-        <button
-          onClick={onMore}
-          className="flex items-center gap-0.5 text-[10px] font-bold text-[#999] hover:text-[#F77019] transition-colors"
-        >
-          더보기 <ChevronRight className="w-3 h-3" />
-        </button>
-      </div>
-      <div className="max-h-[420px] overflow-hidden relative">
-        {children}
-        <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-white to-transparent pointer-events-none" />
-      </div>
     </div>
   )
 }

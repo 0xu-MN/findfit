@@ -1,9 +1,11 @@
 'use client'
 
-import { Loader2, Search, ChevronLeft, ChevronRight, Sparkles, MessageCircle, Activity, TrendingUp, Newspaper, FileText } from 'lucide-react'
+import { Loader2, ChevronLeft, ChevronRight, Sparkles, Activity } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import ReviewerLayout from '@/components/reviewer/ReviewerLayout'
 import ProjectCardExpandable, { type CardMatch, type CardProject } from '@/components/evaluator/ProjectCardExpandable'
+import LiveActivityTicker from '@/components/evaluator/LiveActivityTicker'
+import HappeningSection from '@/components/shared/HappeningSection'
 import { createClient } from '@/lib/supabase/client'
 
 type MatchRow = {
@@ -309,15 +311,12 @@ export default function EvaluatorDashboardPage() {
           )}
         </section>
 
-        {/* 3. 지금 FindFit에서 일어나고 있어요 섹션 (2번 이미지 UI 스타일 반영) */}
+        {/* 3. 지금 FindFit에서 일어나고 있어요 섹션 (실시간 활동 + HappeningSection) */}
         <section className="flex flex-col gap-5 pt-4 border-t border-[#1D1C1C]/8">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-black text-[#1D1C1C] flex items-center gap-2">
-                지금 <span className="text-[#1565C0]">FindFit</span>에서 일어나고 있어요
-              </h2>
               <p className="text-xs text-[#666] font-medium mt-0.5">
-                실시간으로 이뤄지고 있는 리뷰어 활동 및 라운지 인기글
+                실시간으로 이뤄지고 있는 리뷰어 활동 및 프로젝트 동향
               </p>
             </div>
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#1565C0]/10 text-[#1565C0] text-xs font-bold">
@@ -326,94 +325,11 @@ export default function EvaluatorDashboardPage() {
             </div>
           </div>
 
-          {/* 2번 이미지와 동일한 실시간 활동 카드 롤링 Banner UI */}
-          <div className="rounded-3xl bg-white border border-[#1D1C1C]/10 p-5 shadow-[0_4px_24px_rgba(0,0,0,0.03)] flex items-center justify-between gap-6 flex-wrap lg:flex-nowrap overflow-x-auto">
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="text-xs font-black text-[#1D1C1C] whitespace-nowrap">실시간 활동</span>
-            </div>
+          {/* 물 흐르는 듯한 무한 티커 (4번 요청) */}
+          <LiveActivityTicker />
 
-            <div className="flex items-center gap-4 flex-1 min-w-0 overflow-x-auto">
-              {LIVE_ACTIVITIES.map((act) => (
-                <div
-                  key={act.id}
-                  className="flex items-center gap-3 p-3 rounded-2xl bg-[#F8F9FA] border border-[#1D1C1C]/5 hover:border-[#1565C0]/30 transition-all shrink-0 min-w-[280px]"
-                >
-                  <img src={act.img} alt="" className="w-12 h-12 rounded-xl object-cover" />
-                  <div className="flex flex-col gap-0.5 min-w-0">
-                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded w-fit ${act.tagColor}`}>
-                      {act.tag}
-                    </span>
-                    <p className="text-xs font-bold text-[#1D1C1C] truncate">{act.title}</p>
-                    <div className="flex items-center gap-2 text-[10px] text-[#999]">
-                      <span>{act.time}</span>
-                      {act.comments && (
-                        <span className="flex items-center gap-0.5 text-[#1565C0]">
-                          <MessageCircle className="w-2.5 h-2.5" /> {act.comments}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex items-center gap-3 shrink-0 bg-[#F5F7FA] px-4 py-3 rounded-2xl border border-[#1D1C1C]/5">
-              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-              <div className="flex flex-col">
-                <span className="text-[10px] font-bold text-[#666]">현재 활동 중</span>
-                <span className="text-sm font-black text-[#1565C0]">1,248명</span>
-              </div>
-            </div>
-          </div>
-
-          {/* 라운지 인기글 & 뉴스 피드 하단 2열 배치 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-2">
-            <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-6 flex flex-col gap-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-base font-black text-[#1D1C1C] flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-[#F77019]" /> 라운지 인기글
-                </h3>
-                <a href="/evaluator/lounge" className="text-xs font-bold text-[#1565C0] hover:underline">
-                  더보기 &rarr;
-                </a>
-              </div>
-              <div className="flex flex-col gap-3 divide-y divide-[#1D1C1C]/5">
-                <div className="pt-2 flex flex-col gap-1">
-                  <span className="text-[10px] font-bold text-[#F77019]">질문/답변</span>
-                  <p className="text-xs font-bold text-[#1D1C1C]">리뷰 수락 후 피드백 작성 시 제일 중요하게 보는 기준이 뭔가요?</p>
-                  <span className="text-[10px] text-[#999]">댓글 18개 · 1시간 전</span>
-                </div>
-                <div className="pt-3 flex flex-col gap-1">
-                  <span className="text-[10px] font-bold text-[#1565C0]">자유게시판</span>
-                  <p className="text-xs font-bold text-[#1D1C1C]">이번 주 신규 등록된 AI 프로젝트 리뷰 후기 남깁니다.</p>
-                  <span className="text-[10px] text-[#999]">댓글 9개 · 3시간 전</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-6 flex flex-col gap-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-base font-black text-[#1D1C1C] flex items-center gap-2">
-                  <Newspaper className="w-4 h-4 text-[#1565C0]" /> FINDFIT NEWS & FEED
-                </h3>
-                <a href="/evaluator/feed" className="text-xs font-bold text-[#1565C0] hover:underline">
-                  전체보기 &rarr;
-                </a>
-              </div>
-              <div className="flex flex-col gap-3 divide-y divide-[#1D1C1C]/5">
-                <div className="pt-2 flex flex-col gap-1">
-                  <span className="text-[10px] font-bold text-[#2E7D32]">트렌드 분석</span>
-                  <p className="text-xs font-bold text-[#1D1C1C]">2026년 상반기 국내 소비재 PMF 검증 리포트 공개</p>
-                  <span className="text-[10px] text-[#999]">FindFit 리서치팀 · 1일 전</span>
-                </div>
-                <div className="pt-3 flex flex-col gap-1">
-                  <span className="text-[10px] font-bold text-[#8B5CF6]">팁/노하우</span>
-                  <p className="text-xs font-bold text-[#1D1C1C]">양질의 피드백 작성으로 마스터 리뷰어로 등업하는 팁</p>
-                  <span className="text-[10px] text-[#999]">에디터 PICK · 2일 전</span>
-                </div>
-              </div>
-            </div>
-          </div>
+          {/* 라운지 & findfit news 카드 그리드 (HappeningSection — 1번 이미지 UI) */}
+          <HappeningSection basePath="evaluator" />
         </section>
       </div>
     </ReviewerLayout>

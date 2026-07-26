@@ -1,7 +1,14 @@
-import { redirect } from 'next/navigation'
+'use client'
 
-// 참여 가능 의뢰 피드는 /evaluator/dashboard(통합 단일화면)에 흡수됐다.
-// 기존 링크/북마크 호환을 위해 리다이렉트만 남겨둔다.
-export default function AvailableRedirect() {
-  redirect('/evaluator/dashboard')
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+
+// 전체 프로젝트 탐색 화면은 /evaluator/projects로 통합됐다(ProjectCardExpandable
+// 재사용, 지원/리뷰 로직까지 그 자리에서 바로 되는 진짜 페이지).
+export default function EvaluatorAvailableRedirect() {
+  const router = useRouter()
+  useEffect(() => {
+    router.replace('/evaluator/projects')
+  }, [router])
+  return null
 }

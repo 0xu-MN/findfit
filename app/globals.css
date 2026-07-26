@@ -258,5 +258,23 @@ html.snap-active {
   * {
     @apply border-border outline-ring/50;
   }
-  /* body와 html의 font-family는 Pretendard를 쓰도록 위에서 명시적으로 선언 */
 }
+
+/* 4번 요청: 무한 마키(Marquee) 애니메이션 효과 */
+@keyframes marquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  animation: marquee 25s linear infinite;
+}
+
+/* 3번 요청: 헤더 및 네비 스크롤바 숨김 유틸리티 */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}

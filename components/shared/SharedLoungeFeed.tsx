@@ -19,7 +19,7 @@ import { useRightPanel } from './RightPanelContext'
 /*  데이터 모델                                              */
 /* ─────────────────────────────────────────────────────── */
 
-type LoungePost = {
+export type LoungePost = {
   id: number
   author: string
   authorHandle: string
@@ -33,7 +33,7 @@ type LoungePost = {
   replies?: { author: string; avatarColor: string; body: string }[]
 }
 
-const loungePosts: LoungePost[] = [
+export const loungePosts: LoungePost[] = [
   {
     id: 1,
     author: '강똥',

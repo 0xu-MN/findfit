@@ -3,14 +3,11 @@
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import {
-  AlertTriangle,
-  ChevronRight,
   FolderKanban,
   Info,
   Loader2,
   PlusCircle,
   FileText as FileTextIcon,
-  Wallet,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { listDrafts } from '../builder/new-request/storage'
@@ -27,33 +24,7 @@ type ProjectRow = {
   created_at: string
 }
 
-type FeedbackRow = {
-  id: string
-  answer_text: string
-  created_at: string
-  project_id: string
-  review_questions: { question_text: string } | null
-}
-
-type ActivityRow = {
-  id: string
-  project_id: string
-  nickname: string | null
-  submitted_at: string | null
-}
-
 const PROGRESS_GRADIENT = 'linear-gradient(90deg, rgba(247,112,25,0.5) 0%, rgba(247,112,25,1) 100%)'
-
-function relTime(iso: string | null) {
-  if (!iso) return '—'
-  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
-  if (mins < 1) return '방금 전'
-  if (mins < 60) return `${mins}분 전`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}시간 전`
-  const days = Math.floor(hours / 24)
-  return `${days}일 전`
-}
 
 function fmt(n: number) {
   return n.toLocaleString('ko-KR')
@@ -63,8 +34,8 @@ type View = 'projects' | 'reports'
 
 // 예전엔 "프로젝트 목록"과 "리포트 목록"이 완전히 분리된 페이지였는데,
 // 하나의 작업공간으로 합쳤다 — 좌측 미니 메뉴로 전환하고(라우팅 없음),
-// 상단엔 CreatorDashboard.tsx에 있던 개요 위젯들을 그대로 옮겨왔다
-// (데이터 조회/계산 로직은 전혀 안 바꾸고 위치만 이동).
+// 상단엔 "한눈에 보기"·"TOP 3"만 남겼다(최근 피드백/모집속도관리/최근활동/
+// Fit Credit 위젯은 제거 요청 반영 — 데이터 조회 자체를 뺐다).
 export default function ProjectsWorkspace() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -72,9 +43,6 @@ export default function ProjectsWorkspace() {
   const [loading, setLoading] = useState(true)
   const [projects, setProjects] = useState<ProjectRow[]>([])
   const [drafts, setDrafts] = useState<{ id: string; title: string }[]>([])
-  const [feedbacks, setFeedbacks] = useState<FeedbackRow[]>([])
-  const [activity, setActivity] = useState<ActivityRow[]>([])
-  const [creditBalance, setCreditBalance] = useState(0)
 
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -86,58 +54,22 @@ export default function ProjectsWorkspace() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { setLoading(false); return }
 
-      const [{ data: projRows }, { data: creditRows }] = await Promise.all([
-        supabase
-          .from('projects')
-          .select('id, title, status, target_count, completed_count, deadline, created_at')
-          .eq('creator_id', user.id)
-          .order('created_at', { ascending: false }),
-        supabase.from('credit_transactions').select('amount').eq('user_id', user.id),
-      ])
+      const { data: projRows } = await supabase
+        .from('projects')
+        .select('id, title, status, target_count, completed_count, deadline, created_at')
+        .eq('creator_id', user.id)
+        .order('created_at', { ascending: false })
 
-      const myProjects = (projRows ?? []) as ProjectRow[]
-      setProjects(myProjects)
-      setCreditBalance((creditRows ?? []).reduce((s: number, r: { amount: number }) => s + r.amount, 0))
-
-      const projectIds = myProjects.map((p) => p.id)
-      if (projectIds.length > 0) {
-        const [{ data: fbRows }, { data: actRows }] = await Promise.all([
-          supabase
-            .from('review_answers')
-            .select('id, answer_text, created_at, project_id, review_questions(question_text)')
-            .in('project_id', projectIds)
-            .order('created_at', { ascending: false })
-            .limit(4),
-          supabase
-            .from('project_matches')
-            .select('id, project_id, nickname, submitted_at')
-            .in('project_id', projectIds)
-            .eq('status', 'completed')
-            .order('submitted_at', { ascending: false })
-            .limit(3),
-        ])
-        setFeedbacks((fbRows ?? []) as FeedbackRow[])
-        setActivity((actRows ?? []) as ActivityRow[])
-      }
-
+      setProjects((projRows ?? []) as ProjectRow[])
       setLoading(false)
     }
     load()
   }, [])
 
-  const projectTitle = (id: string) => projects.find((p) => p.id === id)?.title ?? '프로젝트'
   const activeProjects = projects.filter((p) => p.status === 'active')
 
   const topProjects = [...activeProjects]
     .sort((a, b) => (b.completed_count / (b.target_count || 1)) - (a.completed_count / (a.target_count || 1)))
-    .slice(0, 3)
-
-  const now = Date.now()
-  const recruitAlerts = activeProjects
-    .filter((p) => p.deadline && p.completed_count < p.target_count)
-    .map((p) => ({ ...p, daysLeft: Math.ceil((new Date(p.deadline!).getTime() - now) / 86400000) }))
-    .filter((p) => p.daysLeft <= 3)
-    .sort((a, b) => a.daysLeft - b.daysLeft)
     .slice(0, 3)
 
   const donutSegments = [
@@ -185,41 +117,28 @@ export default function ProjectsWorkspace() {
           </div>
         ) : (
           <>
-            {/* 개요 위젯 — CreatorDashboard.tsx에서 그대로 이동 */}
-            <div className="grid gap-4 items-stretch" style={{ gridTemplateColumns: '1fr 320px' }}>
-              <div className="flex flex-col gap-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <OverviewCard
-                    donutSegments={donutSegments}
-                    donutTotal={donutTotal}
-                    totalProjects={projects.length + drafts.length}
-                    avgCompletionRate={avgCompletionRate}
-                    totalReviewers={totalReviewers}
-                  />
-                  <TopProjectsCard
-                    projects={topProjects}
-                    onOpen={(id) => router.push(`/builder/projects/${id}`)}
-                  />
-                </div>
-                <RecentFeedbackCard feedbacks={feedbacks} projectTitle={projectTitle} />
-              </div>
-
-              <div className="flex flex-col gap-3 h-full">
-                <button
-                  onClick={() => router.push('/builder/new-request')}
-                  className="w-full flex items-center justify-center gap-1.5 font-black rounded-2xl text-white text-sm py-4 hover:scale-[1.02] active:scale-[0.98] transition-all"
-                  style={{ background: 'linear-gradient(135deg,#F77019,#FF8F45)', boxShadow: '0 6px 16px rgba(247,112,25,0.28)' }}
-                >
-                  <PlusCircle className="w-4 h-4" />새 프로젝트 등록하기
-                </button>
-                <FitCreditCard balance={creditBalance} onViewAll={() => router.push('/builder/wallet')} />
-                <RecentActivityCard activity={activity} projectTitle={projectTitle} />
-                <RecruitAlertsCard
-                  alerts={recruitAlerts}
-                  className="flex-1"
-                  onOpen={(id) => router.push(`/builder/projects/${id}`)}
-                />
-              </div>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-black text-[#1D1C1C]">한눈에 보기</h2>
+              <button
+                onClick={() => router.push('/builder/new-request')}
+                className="flex items-center gap-1.5 font-black rounded-2xl text-white text-[12px] px-5 py-2.5 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                style={{ background: 'linear-gradient(135deg,#F77019,#FF8F45)', boxShadow: '0 6px 16px rgba(247,112,25,0.28)' }}
+              >
+                <PlusCircle className="w-4 h-4" />새 프로젝트 등록하기
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <OverviewCard
+                donutSegments={donutSegments}
+                donutTotal={donutTotal}
+                totalProjects={projects.length + drafts.length}
+                avgCompletionRate={avgCompletionRate}
+                totalReviewers={totalReviewers}
+              />
+              <TopProjectsCard
+                projects={topProjects}
+                onOpen={(id) => router.push(`/builder/projects/${id}`)}
+              />
             </div>
 
             {/* 리스트 영역 */}
@@ -367,147 +286,6 @@ function TopProjectsCard({ projects, onOpen }: { projects: ProjectRow[]; onOpen:
                   </span>
                 </div>
               </div>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  )
-}
-
-/* ─────────────────────────────────────────────────────── */
-/*  최근 리뷰어 피드백                                        */
-/* ─────────────────────────────────────────────────────── */
-
-function RecentFeedbackCard({ feedbacks, projectTitle }: { feedbacks: FeedbackRow[]; projectTitle: (id: string) => string }) {
-  return (
-    <div className="rounded-2xl border border-[#1D1C1C]/5 bg-white p-5 flex flex-col gap-3">
-      <div className="flex items-center">
-        <span className="text-[11px] font-black text-[#1D1C1C]">최근 리뷰어 피드백</span>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
-        {feedbacks.length === 0 ? (
-          <EmptyRow text="아직 도착한 피드백이 없습니다" />
-        ) : (
-          feedbacks.map((f) => (
-            <div key={f.id} className="flex items-start gap-2.5 p-2.5 rounded-xl border border-[#1D1C1C]/5">
-              <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-                <span className="text-[9px] font-bold text-[#999] truncate">
-                  {projectTitle(f.project_id)} · {f.review_questions?.question_text ?? ''}
-                </span>
-                <span className="text-[10px] font-extrabold text-[#1D1C1C] leading-snug line-clamp-2">
-                  {f.answer_text}
-                </span>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  )
-}
-
-/* ─────────────────────────────────────────────────────── */
-/*  Fit Credit                                              */
-/* ─────────────────────────────────────────────────────── */
-
-function FitCreditCard({ balance, onViewAll }: { balance: number; onViewAll: () => void }) {
-  return (
-    <div className="rounded-2xl p-4 flex flex-col gap-3" style={{ background: 'rgba(247,112,25,0.06)', border: '1.5px solid #F77019' }}>
-      <div className="flex items-center justify-between">
-        <span className="text-[13px] font-black text-[#1D1C1C]">Fit Credit</span>
-        <button onClick={onViewAll} className="text-[10px] font-bold text-[#F77019] hover:underline flex items-center gap-0.5">
-          Fit Credit 내역 보기 <ChevronRight className="w-2.5 h-2.5" />
-        </button>
-      </div>
-
-      <div className="flex flex-col gap-0.5">
-        <span className="text-[10px] text-[#666] font-bold">사용 가능 잔액</span>
-        <div className="flex items-baseline gap-1.5 mt-0.5">
-          <span className="text-2xl font-black text-[#1D1C1C]">{fmt(balance)}</span>
-          <Wallet className="w-4 h-4 text-[#F77019]" />
-        </div>
-      </div>
-
-      <button
-        onClick={onViewAll}
-        className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-[#F77019] text-white text-xs font-black hover:opacity-90 transition-all shadow-sm"
-        style={{ boxShadow: '0 4px 12px rgba(247,112,25,0.25)' }}
-      >
-        <PlusCircle className="w-3.5 h-3.5" /> 충전하기
-      </button>
-    </div>
-  )
-}
-
-/* ─────────────────────────────────────────────────────── */
-/*  최근 활동                                                */
-/* ─────────────────────────────────────────────────────── */
-
-function RecentActivityCard({ activity, projectTitle }: { activity: ActivityRow[]; projectTitle: (id: string) => string }) {
-  return (
-    <div className="rounded-2xl border border-[#1D1C1C]/5 bg-white p-4 flex flex-col gap-3">
-      <span className="text-[12px] font-black text-[#1D1C1C]">최근 활동</span>
-      <div className="flex flex-col gap-2.5">
-        {activity.length === 0 ? (
-          <EmptyRow text="아직 활동 내역이 없습니다" />
-        ) : (
-          activity.map((a) => (
-            <div key={a.id} className="flex items-center justify-between text-[10px]">
-              <span className="text-[#1D1C1C] font-bold truncate pr-2">
-                {projectTitle(a.project_id)} · {a.nickname ?? '익명 리뷰어'} 평가 완료
-              </span>
-              <span className="text-[#999] text-[9px] font-medium flex-shrink-0">{relTime(a.submitted_at)}</span>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  )
-}
-
-/* ─────────────────────────────────────────────────────── */
-/*  모집 속도 관리                                            */
-/* ─────────────────────────────────────────────────────── */
-
-function RecruitAlertsCard({
-  alerts,
-  className = '',
-  onOpen,
-}: {
-  alerts: (ProjectRow & { daysLeft: number })[]
-  className?: string
-  onOpen: (id: string) => void
-}) {
-  return (
-    <div className={`rounded-2xl border border-[#1D1C1C]/5 bg-white p-4 flex flex-col gap-3 ${className}`}>
-      <span className="text-[12px] font-black text-[#1D1C1C]">모집 속도 관리</span>
-
-      <div className="flex flex-col gap-2 flex-1">
-        {alerts.length === 0 ? (
-          <EmptyRow text="마감이 임박한 프로젝트가 없습니다" />
-        ) : (
-          alerts.map((a) => (
-            <div key={a.id} className="flex items-center gap-2 p-2.5 rounded-xl border border-[#F77019]/15 bg-[#FFF8F2]">
-              <AlertTriangle className="w-4 h-4 text-[#F77019] flex-shrink-0" />
-              <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-                <span className="text-[10px] font-extrabold text-[#1D1C1C] truncate">{a.title || '(제목 미작성)'}</span>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[9px] text-[#999] font-medium">
-                    현재 {a.completed_count}/{a.target_count}명 참여
-                  </span>
-                  <span className="text-[8px] font-black text-white bg-[#E53935] px-1.5 py-0.5 rounded">
-                    D-{Math.max(a.daysLeft, 0)}
-                  </span>
-                </div>
-              </div>
-              <button
-                onClick={() => onOpen(a.id)}
-                className="text-[9px] font-black text-white bg-[#F77019] px-2 py-1.5 rounded-md hover:opacity-90 transition-all flex-shrink-0"
-              >
-                확인하기
-              </button>
             </div>
           ))
         )}
