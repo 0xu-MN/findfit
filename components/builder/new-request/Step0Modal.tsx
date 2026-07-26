@@ -6,14 +6,24 @@ import { useRouter } from 'next/navigation'
 interface Step0ModalProps {
   isOpen: boolean
   onClose: () => void
+  // 홈 화면에서 열 때는 플로팅 Agent 버블을 여는 콜백을 넘겨준다.
+  // 안 넘기면(마법사 안에서 열릴 때) 기존처럼 대시보드로 이동한다 — 회귀 없음.
+  onExplore?: () => void
+  // 홈 화면에서 열 때는 마법사로 이동하는 콜백. 안 넘기면(마법사 안에서
+  // 열릴 때) 기존처럼 모달만 닫는다 — 회귀 없음.
+  onHasItem?: () => void
 }
 
-export default function Step0Modal({ isOpen, onClose }: Step0ModalProps) {
+export default function Step0Modal({ isOpen, onClose, onExplore, onHasItem }: Step0ModalProps) {
   const router = useRouter()
 
   if (!isOpen) return null
 
   const handleExplore = () => {
+    if (onExplore) {
+      onExplore()
+      return
+    }
     // Navigate to dashboard with agent exploration flags
     router.push('/builder/dashboard?agent=explore&from=new_project')
   }
@@ -76,7 +86,7 @@ export default function Step0Modal({ isOpen, onClose }: Step0ModalProps) {
 
           {/* Option B: 아이템 있어요 */}
           <div
-            onClick={onClose}
+            onClick={onHasItem ?? onClose}
             className="group rounded-[24px] border border-[#1D1C1C]/8 bg-white p-6 flex flex-col gap-4 hover:border-[#F77019]/35 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer text-left"
           >
             <div className="w-10 h-10 rounded-xl bg-[#F77019]/8 flex items-center justify-center text-[#F77019] group-hover:bg-[#F77019] group-hover:text-white transition-all">

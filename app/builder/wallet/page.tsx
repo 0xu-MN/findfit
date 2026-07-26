@@ -1,7 +1,6 @@
 'use client'
 
-import DashboardLayout from '@/components/shared/DashboardLayout'
-import SharedLoungeFeed from '@/components/shared/SharedLoungeFeed'
+import CreatorLayout from '@/components/creator/CreatorLayout'
 import { CREDIT_SOURCE_LABELS } from '@/lib/constants/credit'
 import { createClient } from '@/lib/supabase/client'
 import { useEffect, useState } from 'react'
@@ -156,8 +155,8 @@ function WalletContent() {
 
 export default function BuilderWalletPage() {
   return (
-    <DashboardLayout role="creator" rightPanel={<SharedLoungeFeed />}>
+    <CreatorLayout>
       <WalletContent />
-    </DashboardLayout>
+    </CreatorLayout>
   )
 }

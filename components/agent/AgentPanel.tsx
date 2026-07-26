@@ -17,6 +17,12 @@ import {
 
 interface AgentPanelProps {
   isExpanded?: boolean
+  // 플로팅 버블(AgentBubbleContext)에서 넘기는 값 — 있으면 URL 쿼리파라미터보다
+  // 우선한다. 기존 ?reportProjectId=...  방식도 하위호환으로 계속 동작한다.
+  reportProjectIdOverride?: string | null
+  // 홈 화면 "아이템 탐색부터 시작" → 모달에서 입력한 첫 문장을 마운트 직후
+  // 자동으로 보내기 위한 시드 메시지. 없으면 기존과 동일하게 인사말만 뜬다.
+  initialSeedMessage?: string | null
 }
 
 // 단계별 레이블: 인덱스 = phase (0~4)
@@ -24,14 +30,16 @@ const PHASE_LABELS = ['대화 시작', '아이디어 파악', '단계 파악', '
 // 축소/확장 모드 진행 dots 레이블
 const DOT_LABELS = ['아이디어', '단계', '타겟', '완료'] as const
 
-export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
+export default function AgentPanel({ isExpanded = false, reportProjectIdOverride, initialSeedMessage }: AgentPanelProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const isExploreMode = searchParams.get('agent') === 'explore'
   const fromNewProject = searchParams.get('from') === 'new_project'
   // 리포트 챗봇 → Agent 흡수(§21.3) — 리포트 페이지의 "Agent에게 물어보기"
   // 버튼으로 진입하면 이 프로젝트에 한해 대화 전체가 리포트 Q&A 모드로 전환된다.
-  const reportProjectId = searchParams.get('reportProjectId')
+  // 플로팅 버블은 페이지 이동 없이 이 값을 prop으로 바로 넘긴다(override 우선),
+  // 기존 URL 쿼리파라미터 방식도 하위호환으로 계속 지원.
+  const reportProjectId = reportProjectIdOverride ?? searchParams.get('reportProjectId')
 
   const [messages, setMessages] = useState<AgentMessage[]>([])
   const [input, setInput] = useState('')
@@ -52,48 +60,67 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
+  const enterReportMode = useCallback((projectId: string) => {
+    setReportModeStatus('checking')
+    // 결제 게이트 유지 — 심층 리포트 구매자(captured 또는 테스트 기간
+    // waived_test)만 리포트 모드 진입 가능. ENABLE_PAYMENT_GATE=false인
+    // 지금은 등록 시 자동으로 waived_test가 기록되므로 사실상 전원 통과.
+    const supabase = createClient()
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) { setReportModeStatus('denied'); return }
+      const { data } = await supabase
+        .from('payments')
+        .select('status')
+        .eq('project_id', projectId)
+        .eq('sku_type', 'deep_report')
+        .in('status', ['captured', 'waived_test'])
+        .limit(1)
+      if (data && data.length > 0) {
+        setReportModeStatus('ready')
+        setTimeout(() => setMessages(prev => [...prev, {
+          id: `report-mode-greeting-${projectId}`,
+          role: 'assistant',
+          content: '이 프로젝트 리포트에 대해 궁금한 점을 물어보세요. 검증 결과를 바탕으로 다음 프로젝트도 함께 정해볼 수 있어요 📊',
+          timestamp: new Date().toISOString(),
+        }]), 400)
+      } else {
+        setReportModeStatus('denied')
+        setMessages(prev => [...prev, {
+          id: `report-mode-denied-${projectId}`,
+          role: 'assistant',
+          content: '이 리포트의 심층 분석을 먼저 열람해야 Agent에게 물어볼 수 있어요. 리포트 페이지에서 먼저 열람해주세요.',
+          timestamp: new Date().toISOString(),
+        }])
+      }
+    })
+  }, [])
+
   useEffect(() => {
     if (initialized) return
     setInitialized(true)
 
     if (reportProjectId) {
-      // 결제 게이트 유지 — 심층 리포트 구매자(captured 또는 테스트 기간
-      // waived_test)만 리포트 모드 진입 가능. ENABLE_PAYMENT_GATE=false인
-      // 지금은 등록 시 자동으로 waived_test가 기록되므로 사실상 전원 통과.
-      const supabase = createClient()
-      supabase.auth.getUser().then(async ({ data: { user } }) => {
-        if (!user) { setReportModeStatus('denied'); return }
-        const { data } = await supabase
-          .from('payments')
-          .select('status')
-          .eq('project_id', reportProjectId)
-          .eq('sku_type', 'deep_report')
-          .in('status', ['captured', 'waived_test'])
-          .limit(1)
-        if (data && data.length > 0) {
-          setReportModeStatus('ready')
-          setTimeout(() => setMessages([{
-            id: 'report-mode-greeting',
-            role: 'assistant',
-            content: '이 프로젝트 리포트에 대해 궁금한 점을 물어보세요. 검증 결과를 바탕으로 다음 프로젝트도 함께 정해볼 수 있어요 📊',
-            timestamp: new Date().toISOString(),
-          }]), 400)
-        } else {
-          setReportModeStatus('denied')
-          setMessages([{
-            id: 'report-mode-denied',
-            role: 'assistant',
-            content: '이 리포트의 심층 분석을 먼저 열람해야 Agent에게 물어볼 수 있어요. 리포트 페이지에서 먼저 열람해주세요.',
-            timestamp: new Date().toISOString(),
-          }])
-        }
-      })
+      enterReportMode(reportProjectId)
       return
     }
 
     const greeting = getGreeting(isExploreMode && fromNewProject)
     setTimeout(() => setMessages([greeting]), 500)
-  }, [initialized, isExploreMode, fromNewProject, reportProjectId])
+  }, [initialized, isExploreMode, fromNewProject, reportProjectId, enterReportMode])
+
+  // 플로팅 버블은 언마운트 없이 계속 살아있으므로, 이미 초기화된 뒤에
+  // reportProjectIdOverride가 새로 들어오면(리포트 상세에서 "Agent에게
+  // 물어보기" 클릭) 그때도 리포트 모드로 전환해야 한다. URL 쿼리파라미터
+  // 방식(페이지당 1회 마운트)은 위 초기화 effect만으로 충분해 영향 없음.
+  const prevOverrideRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!initialized) return
+    if (reportProjectIdOverride && reportProjectIdOverride !== prevOverrideRef.current) {
+      prevOverrideRef.current = reportProjectIdOverride
+      enterReportMode(reportProjectIdOverride)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reportProjectIdOverride, initialized])
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -146,11 +173,29 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
         return
       }
 
-      // FindFit Agent Phase 1(자유 텍스트 이해) — 토스트 버튼 클릭이 아니라
-      // 자유 텍스트를 입력했고, 아직 단계(phase 0/1)가 안 끝난 경우에만
-      // Claude로 라우팅한다. 토스트 버튼 흐름과 Phase 2~4는 기존 규칙기반
-      // (generatePhaseResponse) 그대로 — 여기서 건드리지 않는다.
-      if (!isToastSelection && (context.phase === 0 || context.phase === 1)) {
+      // FindFit Agent 자유 텍스트 이해 — 토스트 버튼 클릭이 아니면 모든
+      // phase에서 Claude로 라우팅한다(2026-07 확장: 예전엔 phase 0/1만
+      // Claude를 탔고 그 이후는 무조건 규칙기반 고정 문구였음). 토스트
+      // 버튼 흐름(구조화된 값)은 지금처럼 규칙기반(generatePhaseResponse)
+      // 그대로 — 여기서 건드리지 않는다. Claude 실패/캡초과 시엔 기존
+      // generatePhaseResponse(원래 엔진)가 안전망으로 동작 — 회귀 없음.
+      if (!isToastSelection) {
+        // Phase 2에서만 실제 트렌드 데이터가 필요하다(기획서 5.3) — Claude
+        // 프롬프트에 참고자료로 실어준다.
+        let realTrendLine: string | undefined
+        if (context.phase === 2) {
+          try {
+            const trendRes = await fetch('/api/agent/trend', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ category: context.category ?? 'default' }),
+            })
+            if (trendRes.ok) realTrendLine = (await trendRes.json()).line
+          } catch {
+            // 실패해도 프롬프트에서 trendLine 없이 진행
+          }
+        }
+
         try {
           const recentMessages = messages.slice(-6).map(m => ({
             role: m.role,
@@ -165,6 +210,9 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
                 ideaSummary: context.ideaSummary,
                 category: context.category,
                 stage: context.stage,
+                targetCustomer: context.targetCustomer,
+                phase: context.phase,
+                trendLine: realTrendLine,
                 recentMessages,
               },
               sessionId: sessionIdRef.current,
@@ -173,7 +221,9 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
           const body = await res.json()
 
           if (!res.ok || body.fallback) {
-            const { message, updatedContext } = fallbackUnderstanding(context)
+            const { message, updatedContext } = context.phase <= 1
+              ? fallbackUnderstanding(context)
+              : generatePhaseResponse(value, context, isToastSelection, realTrendLine)
             setMessages(prev => [...prev, message])
             setContext(updatedContext)
           } else if (body.capped) {
@@ -190,7 +240,9 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
             setContext(updatedContext)
           }
         } catch {
-          const { message, updatedContext } = fallbackUnderstanding(context)
+          const { message, updatedContext } = context.phase <= 1
+            ? fallbackUnderstanding(context)
+            : generatePhaseResponse(value, context, isToastSelection, realTrendLine)
           setMessages(prev => [...prev, message])
           setContext(updatedContext)
         } finally {
@@ -199,6 +251,7 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
         return
       }
 
+      // ── 토스트 버튼 흐름 — 기존 규칙기반 그대로 ──
       // Phase 2 → 3 전환에서만 실제 트렌드 데이터가 필요하다 (기획서 5.3
       // Phase 2 "실시간 데이터 수집"). 이 요청 하나만 fetch로 보내고 나머지
       // phase는 그대로 동기 로직.
@@ -228,6 +281,18 @@ export default function AgentPanel({ isExpanded = false }: AgentPanelProps) {
     if (!trimmed) return
     processInput(trimmed, false)
   }, [input, processInput])
+
+  // 홈 화면에서 "아이템 탐색부터 시작"으로 들어올 때, 이미 입력해둔 첫
+  // 문장을 인사말 뜬 직후 자동으로 한 번만 보낸다. prop이 없으면 기존과
+  // 동일하게 인사말만 뜨고 끝(회귀 없음).
+  const seedSentRef = useRef(false)
+  useEffect(() => {
+    if (!initialSeedMessage || seedSentRef.current || !initialized || reportProjectId) return
+    seedSentRef.current = true
+    const t = setTimeout(() => processInput(initialSeedMessage, false), 900)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialSeedMessage, initialized, reportProjectId])
 
   const handleToastSelect = useCallback((value: string | string[]) => {
     const displayValue = Array.isArray(value) ? value.join(', ') : value

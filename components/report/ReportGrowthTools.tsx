@@ -4,9 +4,11 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2, Bot, Download } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useAgentBubble } from '@/components/agent/AgentBubbleContext'
 
 export default function ReportGrowthTools({ projectId }: { projectId: string }) {
   const router = useRouter()
+  const agentBubble = useAgentBubble()
 
   return (
     <div className="flex flex-col gap-4">
@@ -23,7 +25,7 @@ export default function ReportGrowthTools({ projectId }: { projectId: string }) 
         <p className="text-sm font-black text-[#1D1C1C]">이 리포트에 대해 더 물어보고 싶으신가요?</p>
         <p className="text-[11px] font-bold text-[#999]">FindFit Agent가 데이터를 바탕으로 답하고, 다음 프로젝트도 함께 준비해드려요.</p>
         <button
-          onClick={() => router.push(`/builder/dashboard?agent=explore&reportProjectId=${projectId}`)}
+          onClick={() => agentBubble.openForReport(projectId)}
           className="mt-1 px-5 py-2.5 rounded-xl bg-[#F77019] text-white text-[11px] font-black hover:bg-[#e0621a] transition-colors"
         >
           Agent에게 물어보기

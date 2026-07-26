@@ -56,19 +56,43 @@ export type AgentConversationContext = {
   ideaSummary?: string
   category?: string
   stage?: string
+  targetCustomer?: string
+  // 지금 대화가 몇 단계인지(0~4) — phase별로 다른 걸 캐묻게 하기 위함.
+  // 없으면(과거 호출부 호환) phase 0/1 취급.
+  phase?: number
   recentMessages?: { role: 'user' | 'assistant'; content: string }[]
   // 이 크리에이터의 지난 프로젝트 종료 시점 경량 요약(최근 2건) — 원본 대화
   // 로그는 저장하지 않고 이 요약만 참고자료로 이관한다(§21.2/§21.4).
   pastSummaries?: string[]
+  // Phase 2→3 전환 시에만 실제 네이버 데이터랩 트렌드 한 줄이 채워진다
+  // (서버 전용 키가 필요해 AgentPanel이 미리 조회해서 넘겨준다).
+  trendLine?: string
 }
 
-// FindFit Agent Phase 1(자유 텍스트 이해) — 사용자가 토스트 버튼이 아니라
-// 자유 텍스트를 입력했을 때만 쓰인다. 버튼 클릭 흐름/Phase 2~4는 그대로
-// 기존 규칙기반 로직(components/agent/agentMock.ts)이 처리한다.
+// FindFit Agent 자유 텍스트 이해 — 사용자가 토스트 버튼이 아니라 자유
+// 텍스트를 입력했을 때 모든 phase에서 쓰인다(2026-07 확장: 이전엔 phase
+// 0/1에서만 Claude를 탔고 phase 2+는 무조건 규칙기반 고정 문구였음 — 입력
+// 내용과 무관하게 매번 다음 단계로 넘어가 "형식적인 챗봇" 느낌을 줬다).
+// 토스트 버튼 클릭 흐름은 여전히 기존 규칙기반(agentMock.ts) 그대로.
 export function buildAgentUnderstandingPrompt(userInput: string, context: AgentConversationContext): string {
   const history = (context.recentMessages ?? [])
     .map((m) => `${m.role === 'user' ? '사용자' : 'FindFit Agent'}: ${m.content}`)
     .join('\n')
+
+  const phase = context.phase ?? 0
+
+  const phaseInstruction =
+    phase <= 1
+      ? `1. 단계를 아직 모르면 — 지금 아이디어 단계인지 / 만들고 있는지 / 이미 출시했는지
+2. 단계를 이미 안다면 — 타겟 고객이 누구인지`
+      : phase === 2
+        ? `타겟 고객이 누구인지 파악하세요. 이미 답했다면(또는 "모르겠다"고 하면) 그 내용을
+target_customer로 정리하고, 아래 트렌드 정보가 있으면 자연스럽게 한 줄 언급하며
+"실제 사용자 반응이 궁금하지 않으세요?" 같은 뉘앙스로 검증에 대한 관심을 끌어보세요.
+${context.trendLine ? `[참고 트렌드] ${context.trendLine}` : ''}`
+        : `지금까지 파악한 아이디어/단계/타겟을 짧게 요약하며 확인하고, 검증 등록으로
+넘어갈 준비가 됐는지 자연스럽게 물어보세요. 사용자가 추가 정보를 주면 반영하되,
+같은 말을 반복하지 말고 매번 대화 맥락에 맞게 다르게 응답하세요.`
 
   return `당신은 FindFit의 창업 아이디어 상담 에이전트입니다. FindFit은 창업 아이디어를
 실제 사용자에게 검증받게 해주는 서비스입니다.
@@ -77,11 +101,14 @@ export function buildAgentUnderstandingPrompt(userInput: string, context: AgentC
 검증으로 연결하는 것입니다. 일반적인 AI 챗봇처럼 아무 주제에나 답하면 안 됩니다.
 사용자가 아이디어와 무관한 질문을 하면, 짧게 답한 뒤 부드럽게 "그런데 지금
 생각 중이신 아이디어가 있으신가요?" 식으로 원래 목적으로 되돌리세요.
+같은 문장·같은 인사말을 반복하지 말고, 매번 사용자의 실제 발화 내용에 맞춰
+다르게 응답하세요 — 정형화된 챗봇처럼 느껴지면 안 됩니다.
 
 [지금까지 파악된 정보]
 아이디어 요약: ${context.ideaSummary ?? '아직 없음'}
 분야: ${context.category ?? '아직 미파악'}
 단계: ${context.stage ?? '아직 미파악'}
+타겟 고객: ${context.targetCustomer ?? '아직 미파악'}
 
 [이 크리에이터의 지난 프로젝트 요약(참고용, 언급은 자연스러울 때만)]
 ${context.pastSummaries?.length ? context.pastSummaries.map((s, i) => `${i + 1}. ${s}`).join('\n') : '없음'}
@@ -93,19 +120,22 @@ ${history || '(첫 대화)'}
 ${userInput}
 
 [요청]
-사용자의 발화를 실제로 이해하고 자연스럽게 응답하면서, 다음 정보 중 아직 모르는
-것을 자연스럽게 캐물으세요(질문을 나열하지 말고 자연스러운 대화체로 하나만):
-1. 단계를 아직 모르면 — 지금 아이디어 단계인지 / 만들고 있는지 / 이미 출시했는지
-2. 단계를 이미 안다면 — 타겟 고객이 누구인지
+사용자의 발화를 실제로 이해하고 자연스럽게 응답하면서, 다음을 진행하세요(질문을
+나열하지 말고 자연스러운 대화체로 하나만):
+${phaseInstruction}
 
 컨설턴트처럼 친근하지만 전문적인 톤을 유지하고, 1~3문장으로 간결하게 답하세요.
+아직 정보가 불충분하면(예: "몰라요", 한두 글자 성의없는 답 등) 억지로 다음 단계로
+넘어가지 말고 다시 물어보세요 — 필드는 실제로 확인됐을 때만 채우세요.
 
 아래 JSON 형식으로만 반환하세요:
 {
   "reply": "...",
   "category": "health" 또는 "food" 또는 "edu" 또는 "fintech" 또는 "commerce" 또는 "app" 또는 null,
   "stage": "idea" 또는 "building" 또는 "launched" 또는 null,
-  "item_summary": "지금까지 파악된 아이디어 한 줄 요약" 또는 null
+  "item_summary": "지금까지 파악된 아이디어 한 줄 요약" 또는 null,
+  "target_customer": "이번 발화에서 확인된 타겟 고객" 또는 null,
+  "ready_for_cta": true 또는 false
 }`
 }
 

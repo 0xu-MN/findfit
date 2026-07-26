@@ -35,6 +35,7 @@ export default function ProjectListPage() {
   const [viewMode, setViewMode] = useState<'board' | 'list'>('board')
   const [drafts, setDrafts] = useState<RequestFormData[]>([])
   const [projects, setProjects] = useState<ProjectRow[]>([])
+  const [reportedIds, setReportedIds] = useState<Set<string>>(new Set())
   const [hydrated, setHydrated] = useState(false)
 
   useEffect(() => {
@@ -50,16 +51,30 @@ export default function ProjectListPage() {
         .select('id, title, target_count, completed_count, status, created_at')
         .eq('creator_id', user.id)
         .order('created_at', { ascending: false })
-        .then(({ data }) => {
-          setProjects((data as ProjectRow[]) ?? [])
+        .then(async ({ data }) => {
+          const rows = (data as ProjectRow[]) ?? []
+          setProjects(rows)
+          // "완료됨" vs "결과 분석 중" 구분 — ReportListPage.tsx가 이미 쓰는
+          // 것과 동일한 기준(ai_reports 존재 여부)을 재사용. 목표인원 도달만
+          // 했지 리포트가 아직 안 나온 프로젝트는 "결과 분석 중"으로 남는다.
+          const doneIds = rows.filter((p) => p.completed_count >= p.target_count).map((p) => p.id)
+          if (doneIds.length > 0) {
+            const { data: reports } = await supabase
+              .from('ai_reports')
+              .select('project_id')
+              .in('project_id', doneIds)
+            setReportedIds(new Set((reports ?? []).map((r: { project_id: string | null }) => r.project_id).filter((id): id is string => Boolean(id))))
+          }
           setHydrated(true)
         })
     })
   }, [])
 
-  // 진행 중 = 목표 미달, 결과 분석 중 = 목표 달성(리포트 생성/완료)
+  // 진행 중 = 목표 미달, 결과 분석 중 = 목표 달성했지만 리포트 아직,
+  // 완료됨 = 리포트까지 생성 완료
   const inProgress = projects.filter((p) => p.completed_count < p.target_count)
-  const analyzing = projects.filter((p) => p.completed_count >= p.target_count)
+  const analyzing = projects.filter((p) => p.completed_count >= p.target_count && !reportedIds.has(p.id))
+  const completed = projects.filter((p) => p.completed_count >= p.target_count && reportedIds.has(p.id))
 
   const draftCount = drafts.length
   const inProgressCount = inProgress.length
@@ -129,9 +144,9 @@ export default function ProjectListPage() {
       </div>
 
       {/* Kanban Board */}
-      <div className="flex items-start gap-6 w-full h-full pb-8">
+      <div className="flex items-start gap-6 w-full h-full pb-8 flex-wrap">
         {/* 작성 중 */}
-        <div className="flex-1 flex flex-col gap-3">
+        <div className="flex-1 min-w-[220px] flex flex-col gap-3">
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-black text-[#666]">작성 중</span>
@@ -190,7 +205,7 @@ export default function ProjectListPage() {
         </div>
 
         {/* 진행 중 */}
-        <div className="flex-1 flex flex-col gap-3">
+        <div className="flex-1 min-w-[220px] flex flex-col gap-3">
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-black text-[#F77019]">진행 중</span>
@@ -259,7 +274,7 @@ export default function ProjectListPage() {
         </div>
 
         {/* 결과 분석 중 */}
-        <div className="flex-1 flex flex-col gap-3">
+        <div className="flex-1 min-w-[220px] flex flex-col gap-3">
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-black text-[#666]">결과 분석 중</span>
@@ -312,6 +327,51 @@ export default function ProjectListPage() {
               <div className="flex flex-col items-center justify-center p-8 border border-dashed border-[#1D1C1C]/10 rounded-xl bg-[#FAFAFA]/50 text-center gap-2">
                 <FileText className="w-6 h-6 text-[#CCC]" />
                 <span className="text-[10px] font-bold text-[#999]">분석 중인 프로젝트가 없습니다</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 완료됨 — 리포트까지 생성된 프로젝트 */}
+        <div className="flex-1 min-w-[220px] flex flex-col gap-3">
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-black text-[#2E7D32]">완료됨</span>
+              <span className="bg-[#2E7D32]/10 text-[#2E7D32] text-[10px] font-bold px-2 py-0.5 rounded-full">
+                {hydrated ? completed.length : 0}
+              </span>
+            </div>
+            <button className="text-[#999] hover:text-[#1D1C1C] transition-colors">
+              <MoreHorizontal className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {hydrated && completed.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => router.push(`/builder/reports/${s.id}`)}
+                className="bg-white border border-[#1D1C1C]/5 rounded-xl p-4 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer group text-left"
+              >
+                <div className="flex items-start justify-between mb-1">
+                  <h3 className="text-xs font-extrabold group-hover:text-[#F77019] transition-colors line-clamp-1 pr-4">
+                    {s.title || '(제목 미작성)'}
+                  </h3>
+                  <span className="text-[10px] font-bold text-[#2E7D32] whitespace-nowrap bg-[#2E7D32]/10 px-2 py-0.5 rounded shrink-0">
+                    분석 완료
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 mt-1 pt-3 border-t border-[#1D1C1C]/5 text-[10px] text-[#999] font-bold group-hover:text-[#F77019] transition-colors">
+                  <FileText className="w-3.5 h-3.5" />
+                  AI 리포트 보기
+                </div>
+              </button>
+            ))}
+
+            {hydrated && completed.length === 0 && (
+              <div className="flex flex-col items-center justify-center p-8 border border-dashed border-[#1D1C1C]/10 rounded-xl bg-[#FAFAFA]/50 text-center gap-2">
+                <FileText className="w-6 h-6 text-[#CCC]" />
+                <span className="text-[10px] font-bold text-[#999]">완료된 프로젝트가 없습니다</span>
               </div>
             )}
           </div>

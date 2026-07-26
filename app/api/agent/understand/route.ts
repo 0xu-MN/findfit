@@ -57,6 +57,8 @@ export async function POST(req: Request) {
         category?: string | null
         stage?: string | null
         item_summary?: string | null
+        target_customer?: string | null
+        ready_for_cta?: boolean
       }
       if (!result.reply) return NextResponse.json({ fallback: true })
 
@@ -65,6 +67,8 @@ export async function POST(req: Request) {
         category: result.category ?? null,
         stage: result.stage ?? null,
         item_summary: result.item_summary ?? null,
+        target_customer: result.target_customer ?? null,
+        ready_for_cta: Boolean(result.ready_for_cta),
       })
     } catch (err) {
       // Claude 호출 실패(크레딧 부족/네트워크 오류 등) — 에러를 사용자에게

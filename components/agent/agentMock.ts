@@ -299,6 +299,8 @@ export type UnderstandingResult = {
   category: string | null
   stage: string | null
   item_summary: string | null
+  target_customer?: string | null
+  ready_for_cta?: boolean
 }
 
 const VALID_STAGES = ['idea', 'building', 'launched']
@@ -309,7 +311,34 @@ export function applyUnderstanding(
 ): { message: AgentMessage; updatedContext: AgentContext } {
   const category = result.category ?? context.category
   const ideaSummary = result.item_summary ?? context.ideaSummary
+  const phase = context.phase
 
+  // ── Phase 2: 타겟 고객 확인 중 ──
+  // Claude가 실제로 타겟을 확인했을 때만 phase 3으로 전이한다(입력값과
+  // 무관하게 매번 다음 단계로 넘어가던 예전 규칙기반 버그를 여기서도
+  // 반복하지 않기 위함) — 확인 안 됐으면 phase 2 유지, 재질문.
+  if (phase === 2) {
+    if (result.target_customer) {
+      return {
+        message: { id: genId(), role: 'assistant', content: result.reply, timestamp: new Date().toISOString(), showCTA: true },
+        updatedContext: { ...context, phase: 3, targetCustomer: result.target_customer, ideaSummary, category },
+      }
+    }
+    return {
+      message: { id: genId(), role: 'assistant', content: result.reply, timestamp: new Date().toISOString(), toastOptions: TARGET_SKIP_OPTION, toastType: 'single' },
+      updatedContext: { ...context, ideaSummary, category },
+    }
+  }
+
+  // ── Phase 3+: 요약 확인 → 등록 준비됐다고 Claude가 판단하면 CTA ──
+  if (phase >= 3) {
+    return {
+      message: { id: genId(), role: 'assistant', content: result.reply, timestamp: new Date().toISOString(), showCTA: true },
+      updatedContext: { ...context, phase: result.ready_for_cta ? 4 : phase, ideaSummary, category },
+    }
+  }
+
+  // ── Phase 0/1: 아이디어/단계 파악 (기존 로직 그대로) ──
   // 이번 발화에서 단계가 확인됐으면 phase 2로 전이 — 이후 AgentPanel의
   // 기존 phase===2 트렌드 조회/타겟 질문 흐름을 그대로 태운다(건드리지 않음).
   if (result.stage && VALID_STAGES.includes(result.stage)) {
