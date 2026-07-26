@@ -248,9 +248,8 @@ export default function EvaluatorDashboardPage() {
               <button
                 key={idx}
                 onClick={() => setCurrentBannerIndex(idx)}
-                className={`h-2 rounded-full transition-all ${
-                  currentBannerIndex === idx ? 'w-6 bg-white' : 'w-2 bg-white/40'
-                }`}
+                className={`h-2 rounded-full transition-all ${currentBannerIndex === idx ? 'w-6 bg-white' : 'w-2 bg-white/40'
+                  }`}
               />
             ))}
           </div>
@@ -260,7 +259,7 @@ export default function EvaluatorDashboardPage() {
         <section className="flex flex-col gap-6">
           <div className="flex flex-col gap-1">
             <h2 className="text-2xl font-black text-[#1D1C1C] flex items-center gap-2">
-              <span className="text-[#1565C0]">{userNickname}님</span>을 위해 엄선한 맞춤 서비스
+              <span className="text-[#1565C0]">{userNickname}님</span>을 위해 엄선한 맞춤 프로젝트
             </h2>
             <p className="text-xs font-medium text-[#666]">
               설정하신 관심 분야({userInterests.join(', ')})를 기반으로 딱 맞는 프로젝트를 추천해 드려요.
@@ -275,11 +274,10 @@ export default function EvaluatorDashboardPage() {
                 <button
                   key={tab}
                   onClick={() => setSelectedInterestTab(tab)}
-                  className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
-                    active
+                  className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${active
                       ? 'bg-[#1565C0] text-white shadow-sm'
                       : 'bg-white text-[#666] border border-[#1D1C1C]/10 hover:border-[#1565C0]/40'
-                  }`}
+                    }`}
                 >
                   {tab === '맞춤 추천' ? '✨ 맞춤 추천' : tab}
                 </button>
