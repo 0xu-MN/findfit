@@ -1,137 +1,73 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { ArrowRight, Bookmark, Clock, User } from 'lucide-react'
+import { Clock, Loader2, User } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { useRightPanel } from './RightPanelContext'
 
-const heroPost = {
-  category: '성공사례',
-  categoryColor: '#F77019',
-  title: 'PSF 검증으로 출시 3개월 만에 월 매출 1억을 달성한 브랜드 이야기',
-  desc: '단백질 쉐이크 스타트업 NutriFit이 FindFit 리뷰어 425명의 솔직한 피드백을 통해 제품을 다듬고, 타깃 고객을 정확히 찾아내기까지의 여정을 공유합니다. 검증 데이터가 어떻게 투자 유치로 이어졌는지도 함께 담겨 있습니다.',
-  author: '김준혁',
-  date: '2026.06.10',
-  readTime: '8분',
-  img: 'https://images.unsplash.com/photo-1556228578-8c89e6adf883?auto=format&fit=crop&w=900&q=80',
+export type InsightPost = {
+  id: string
+  type: 'feed' | 'newsroom'
+  title: string
+  category: string | null
+  tag: string | null
+  cover_image_url: string | null
+  body: string
+  author: string
+  created_at: string
 }
 
 const FILTER_TABS = ['전체', '성공사례', '팁/노하우', '리뷰어 이야기', '트렌드']
 
-export const feedPosts = [
-  {
-    id: 1,
-    category: '팁/노하우',
-    categoryColor: '#8B5CF6',
-    title: '검증 설문지를 잘 쓰면 리포트 품질이 2배 올라갑니다',
-    desc: '막연한 "좋아요/싫어요" 대신 행동 기반 질문으로 구성하는 법을 단계별로 설명합니다.',
-    author: '이서연',
-    date: '2026.06.09',
-    readTime: '5분',
-    img: 'https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?auto=format&fit=crop&w=600&q=80',
-  },
-  {
-    id: 2,
-    category: '트렌드',
-    categoryColor: '#1565C0',
-    title: '2026년 상반기 국내 소비재 PMF 트렌드 분석',
-    desc: '헬스·뷰티·식품 카테고리에서 가장 빠르게 성장한 제품들의 공통점을 분석했습니다.',
-    author: 'FindFit 리서치팀',
-    date: '2026.06.07',
-    readTime: '10분',
-    img: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=600&q=80',
-  },
-  {
-    id: 3,
-    category: '리뷰어 이야기',
-    categoryColor: '#2E7D32',
-    title: '6개월간 47개 제품을 리뷰한 마스터 핏 리뷰어의 솔직 후기',
-    desc: '어떤 제품이 기억에 남고, 크리에이터에게 바라는 점은 무엇인지 인터뷰 형식으로 담았습니다.',
-    author: '박민준',
-    date: '2026.06.05',
-    readTime: '6분',
-    img: 'https://images.unsplash.com/photo-1516321497487-e288fb19713f?auto=format&fit=crop&w=600&q=80',
-  },
-  {
-    id: 4,
-    category: '성공사례',
-    categoryColor: '#F77019',
-    title: '비건 간식 브랜드가 타깃 수정으로 전환율을 3배 높인 방법',
-    desc: '처음엔 20대를 노렸지만, 검증 데이터가 30대 직장 여성이 핵심임을 알려줬습니다.',
-    author: '최다은',
-    date: '2026.06.03',
-    readTime: '7분',
-    img: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=600&q=80',
-  },
-  {
-    id: 5,
-    category: '팁/노하우',
-    categoryColor: '#8B5CF6',
-    title: '리뷰어 사례금, 얼마가 적당할까? 카테고리별 가이드',
-    desc: '식품·뷰티·IT 기기·반려동물 등 카테고리에 따라 달라지는 적정 인센티브 기준을 공개합니다.',
-    author: 'FindFit 운영팀',
-    date: '2026.06.01',
-    readTime: '4분',
-    img: 'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=600&q=80',
-  },
-  {
-    id: 6,
-    category: '트렌드',
-    categoryColor: '#1565C0',
-    title: '홈트레이닝 기구, 포화 시장에서 살아남는 차별화 포인트',
-    desc: '검증 데이터 2,000건을 분석해보니 "무소음"과 "공간 절약"이 결정적 구매 요인이었습니다.',
-    author: '정하준',
-    date: '2026.05.28',
-    readTime: '6분',
-    img: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=600&q=80',
-  },
-]
+// 카테고리/태그 문자열에 색을 고정 배정하기 위한 간단한 팔레트 — DB에는
+// 색상을 안 저장하므로(관리자가 텍스트만 입력) 문자열 해시로 팔레트에서
+// 하나를 골라 항상 같은 카테고리는 같은 색이 나오게 한다.
+const PALETTE = ['#F77019', '#8B5CF6', '#1565C0', '#2E7D32', '#E91E63', '#FF8F00']
+function colorFor(label: string | null): string {
+  if (!label) return PALETTE[0]
+  let hash = 0
+  for (let i = 0; i < label.length; i++) hash = (hash * 31 + label.charCodeAt(i)) >>> 0
+  return PALETTE[hash % PALETTE.length]
+}
 
-export const newsItems = [
-  {
-    id: 1,
-    tag: '공지',
-    tagColor: '#F77019',
-    title: 'FindFit 리뷰어 10만 명 돌파 기념 이벤트 안내',
-    desc: '6월 한 달간 참여 리뷰어 전원에게 보너스 FC 지급',
-    date: '2026.06.11',
-  },
-  {
-    id: 2,
-    tag: '업데이트',
-    tagColor: '#1565C0',
-    title: 'AI 리포트 엔진 v2.0 업데이트: 감성 분석 추가',
-    desc: '긍정/부정 감성 분류와 키워드 클러스터링이 자동화됩니다.',
-    date: '2026.06.08',
-  },
-  {
-    id: 3,
-    tag: '이벤트',
-    tagColor: '#8B5CF6',
-    title: '6월 의뢰 등록 크리에이터 대상 수수료 50% 할인',
-    desc: '이번 달 신규 등록 의뢰 한정, 플랫폼 수수료 혜택 제공',
-    date: '2026.06.06',
-  },
-  {
-    id: 4,
-    tag: '인사이트',
-    tagColor: '#2E7D32',
-    title: '리뷰어가 가장 선호하는 제품 카테고리 TOP 5',
-    desc: '식품·뷰티·헬스케어·반려동물·IT 기기 순으로 참여율이 높습니다.',
-    date: '2026.06.04',
-  },
-  {
-    id: 5,
-    tag: '공지',
-    tagColor: '#F77019',
-    title: '새로운 EXP 등급 시스템 도입 예정 안내',
-    desc: 'Seed → Sprout → Builder → Launcher 순의 크리에이터 레벨 공개',
-    date: '2026.06.02',
-  },
-]
+function readTime(body: string): string {
+  return `${Math.max(1, Math.round(body.length / 350))}분`
+}
 
-export default function SharedFeedPanel() {
+function fmtDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('ko-KR')
+}
+
+interface Props {
+  basePath: 'builder' | 'evaluator'
+}
+
+// "피드"(→ 화면 표기는 "인사이트") — 예전엔 전부 하드코딩된 샘플 글이었는데,
+// 관리자만 작성 가능한 실제 DB 콘텐츠(insight_posts, /api/insights)로
+// 교체했다. 카드를 클릭하면 노트폴리오 스타일 상세 페이지로 이동한다.
+export default function SharedFeedPanel({ basePath }: Props) {
+  const router = useRouter()
   const [activeFilter, setActiveFilter] = useState('전체')
   const { isExpanded: ctxExpanded, hasProvider } = useRightPanel()
+
+  const [feedPosts, setFeedPosts] = useState<InsightPost[]>([])
+  const [newsItems, setNewsItems] = useState<InsightPost[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const load = async () => {
+      const [feedRes, newsRes] = await Promise.all([
+        fetch('/api/insights?type=feed'),
+        fetch('/api/insights?type=newsroom'),
+      ])
+      const feedBody = await feedRes.json()
+      const newsBody = await newsRes.json()
+      setFeedPosts(feedBody.posts ?? [])
+      setNewsItems(newsBody.posts ?? [])
+      setLoading(false)
+    }
+    load()
+  }, [])
 
   // 패널 너비 감지 — fallback (단독 페이지 호환)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -152,52 +88,72 @@ export default function SharedFeedPanel() {
   const isExpanded = hasProvider ? ctxExpanded : widthExpanded
   const isNarrow = !isExpanded // 축소 모드일 때 반응형 적용
 
+  const heroPost = feedPosts[0] ?? null
+  const restPosts = feedPosts.slice(1)
   const filtered = activeFilter === '전체'
-    ? feedPosts
-    : feedPosts.filter(p => p.category === activeFilter)
+    ? restPosts
+    : restPosts.filter(p => p.category === activeFilter)
+
+  const goToDetail = (post: InsightPost) => router.push(`/${basePath}/feed/${post.id}`)
 
   // 그리드 컬럼 수 — 축소 시 1열, 확장 시 3열
   const gridCols = isNarrow ? 'repeat(1, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))'
+
+  if (loading) {
+    return (
+      <div className="w-full flex items-center justify-center py-24">
+        <Loader2 className="w-6 h-6 text-[#F77019] animate-spin" />
+      </div>
+    )
+  }
 
   return (
     <div ref={containerRef} className="w-full min-h-full flex flex-col select-none text-[#1D1C1C]">
 
       {/* ── Hero Article — 축소 시 세로 적층, 확장 시 좌우 분할 ── */}
-      <div className="pb-8 border-b border-[#1D1C1C]/6">
-        <div className={`gap-5 ${isNarrow ? 'flex flex-col' : 'flex items-stretch gap-7'}`}>
-          {/* 썸네일 */}
-          <div
-            className={`flex-shrink-0 rounded-2xl overflow-hidden bg-[#F0F0F2] ${isNarrow ? 'w-full aspect-[16/9]' : 'aspect-[3/2]'}`}
-            style={isNarrow ? undefined : { width: '44%' }}
-          >
-            <img src={heroPost.img} alt={heroPost.title} className="w-full h-full object-cover" />
-          </div>
-          {/* 텍스트 */}
-          <div className={`flex-1 min-w-0 flex flex-col gap-3 ${isNarrow ? '' : 'justify-center gap-4 py-2'}`}>
-            <h1
-              className="font-black text-[#1D1C1C] leading-snug"
-              style={{ fontSize: isNarrow ? 'clamp(17px,3.5vw,22px)' : 'clamp(20px,2.2vw,30px)' }}
+      {heroPost ? (
+        <div className="pb-8 border-b border-[#1D1C1C]/6 cursor-pointer" onClick={() => goToDetail(heroPost)}>
+          <div className={`gap-5 ${isNarrow ? 'flex flex-col' : 'flex items-stretch gap-7'}`}>
+            {/* 썸네일 */}
+            <div
+              className={`flex-shrink-0 rounded-2xl overflow-hidden bg-[#F0F0F2] ${isNarrow ? 'w-full aspect-[16/9]' : 'aspect-[3/2]'}`}
+              style={isNarrow ? undefined : { width: '44%' }}
             >
-              {heroPost.title}
-            </h1>
-            <p className={`text-[#666] leading-relaxed ${isNarrow ? 'text-[12px] line-clamp-3' : 'text-[13px]'}`}>
-              {heroPost.desc}
-            </p>
-            <div className="flex items-center gap-3 text-[10px] text-[#999] font-medium flex-wrap">
-              <span className="flex items-center gap-1"><User className="w-3 h-3" />{heroPost.author}</span>
-              <span>{heroPost.date}</span>
-              <span className="flex items-center gap-1"><Clock className="w-3 h-3" />읽기 {heroPost.readTime}</span>
+              {heroPost.cover_image_url && (
+                <img src={heroPost.cover_image_url} alt={heroPost.title} className="w-full h-full object-cover" />
+              )}
             </div>
-            <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-              {[heroPost.category, '검증', 'PSF', '성장'].slice(0, isNarrow ? 3 : 4).map(tag => (
-                <span key={tag} className="text-[9px] font-bold px-2 py-0.5 rounded-full border border-[#1D1C1C]/10 text-[#666]">
-                  {tag}
-                </span>
-              ))}
+            {/* 텍스트 */}
+            <div className={`flex-1 min-w-0 flex flex-col gap-3 ${isNarrow ? '' : 'justify-center gap-4 py-2'}`}>
+              <h1
+                className="font-black text-[#1D1C1C] leading-snug"
+                style={{ fontSize: isNarrow ? 'clamp(17px,3.5vw,22px)' : 'clamp(20px,2.2vw,30px)' }}
+              >
+                {heroPost.title}
+              </h1>
+              <p className={`text-[#666] leading-relaxed ${isNarrow ? 'text-[12px] line-clamp-3' : 'text-[13px]'}`}>
+                {heroPost.body}
+              </p>
+              <div className="flex items-center gap-3 text-[10px] text-[#999] font-medium flex-wrap">
+                <span className="flex items-center gap-1"><User className="w-3 h-3" />{heroPost.author}</span>
+                <span>{fmtDate(heroPost.created_at)}</span>
+                <span className="flex items-center gap-1"><Clock className="w-3 h-3" />읽기 {readTime(heroPost.body)}</span>
+              </div>
+              {heroPost.category && (
+                <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                  <span className="text-[9px] font-bold px-2 py-0.5 rounded-full border border-[#1D1C1C]/10 text-[#666]">
+                    {heroPost.category}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="pb-8 border-b border-[#1D1C1C]/6">
+          <p className="text-[12px] font-bold text-[#999] py-8 text-center">아직 등록된 인사이트가 없습니다</p>
+        </div>
+      )}
 
       {/* ── Main Content (+ Sidebar 확장 시만) ── */}
       <div className={`pt-7 pb-10 ${isNarrow ? 'flex flex-col gap-6' : 'flex gap-8'}`}>
@@ -205,7 +161,7 @@ export default function SharedFeedPanel() {
         {/* ── Latest Posts ── */}
         <div className="flex-1 min-w-0 flex flex-col gap-5">
           <div className="flex items-center justify-between">
-            <h2 className="text-[15px] font-black text-[#1D1C1C]">최신 피드</h2>
+            <h2 className="text-[15px] font-black text-[#1D1C1C]">최신 인사이트</h2>
           </div>
 
           {/* Filter tabs */}
@@ -223,14 +179,18 @@ export default function SharedFeedPanel() {
           </div>
 
           {/* Card grid — 축소 시 1열, 확장 시 3열 */}
-          <div className="grid gap-5" style={{ gridTemplateColumns: gridCols }}>
-            {filtered.map(post => (
-              <FeedCard key={post.id} post={post} horizontal={isNarrow} />
-            ))}
-          </div>
+          {filtered.length === 0 ? (
+            <p className="text-[11px] font-bold text-[#999] py-8 text-center">해당 카테고리의 글이 없습니다</p>
+          ) : (
+            <div className="grid gap-5" style={{ gridTemplateColumns: gridCols }}>
+              {filtered.map(post => (
+                <FeedCard key={post.id} post={post} horizontal={isNarrow} onClick={() => goToDetail(post)} />
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* ── Newsroom sidebar — 8번 요청 반영 (폰트 크기 및 시각적 UX/UI 확대 강화) ── */}
+        {/* ── Newsroom sidebar ── */}
         <div
           className={`flex-shrink-0 flex flex-col gap-4 ${isNarrow ? 'w-full pt-6 border-t border-[#1D1C1C]/10' : ''}`}
           style={isNarrow ? undefined : { width: 300 }}
@@ -243,30 +203,35 @@ export default function SharedFeedPanel() {
             <span className="text-[11px] font-bold text-[#F77019] bg-[#F77019]/10 px-2 py-0.5 rounded-full">NEWS</span>
           </div>
 
-          <div className={isNarrow ? 'grid grid-cols-1 sm:grid-cols-2 gap-4' : 'flex flex-col gap-3.5'}>
-            {newsItems.slice(0, isNarrow ? 4 : newsItems.length).map((item) => (
-              <div
-                key={item.id}
-                className="p-4 rounded-2xl bg-white border border-[#1D1C1C]/10 hover:border-[#F77019] hover:shadow-md transition-all cursor-pointer flex flex-col gap-2 group"
-              >
-                <div className="flex items-center justify-between">
-                  <span
-                    className="text-[10px] font-black px-2 py-0.5 rounded-md text-white"
-                    style={{ background: item.tagColor }}
-                  >
-                    {item.tag}
-                  </span>
-                  <span className="text-[10px] font-bold text-[#999]">{item.date}</span>
+          {newsItems.length === 0 ? (
+            <p className="text-[11px] font-bold text-[#999] py-6 text-center">아직 등록된 소식이 없습니다</p>
+          ) : (
+            <div className={isNarrow ? 'grid grid-cols-1 sm:grid-cols-2 gap-4' : 'flex flex-col gap-3.5'}>
+              {newsItems.slice(0, isNarrow ? 4 : newsItems.length).map((item) => (
+                <div
+                  key={item.id}
+                  onClick={() => goToDetail(item)}
+                  className="p-4 rounded-2xl bg-white border border-[#1D1C1C]/10 hover:border-[#F77019] hover:shadow-md transition-all cursor-pointer flex flex-col gap-2 group"
+                >
+                  <div className="flex items-center justify-between">
+                    <span
+                      className="text-[10px] font-black px-2 py-0.5 rounded-md text-white"
+                      style={{ background: colorFor(item.tag) }}
+                    >
+                      {item.tag ?? '소식'}
+                    </span>
+                    <span className="text-[10px] font-bold text-[#999]">{fmtDate(item.created_at)}</span>
+                  </div>
+                  <h3 className="text-[13px] font-black text-[#1D1C1C] leading-snug group-hover:text-[#F77019] transition-colors">
+                    {item.title}
+                  </h3>
+                  <p className="text-[11px] font-medium text-[#666] line-clamp-2 leading-relaxed">
+                    {item.body}
+                  </p>
                 </div>
-                <h3 className="text-[13px] font-black text-[#1D1C1C] leading-snug group-hover:text-[#F77019] transition-colors">
-                  {item.title}
-                </h3>
-                <p className="text-[11px] font-medium text-[#666] line-clamp-2 leading-relaxed">
-                  {item.desc}
-                </p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
       </div>
@@ -274,41 +239,41 @@ export default function SharedFeedPanel() {
   )
 }
 
-function FeedCard({ post, horizontal }: { post: typeof feedPosts[0]; horizontal?: boolean }) {
+function FeedCard({ post, horizontal, onClick }: { post: InsightPost; horizontal?: boolean; onClick: () => void }) {
+  const categoryColor = colorFor(post.category)
+
   if (horizontal) {
     // 축소 시 — 좌측 썸네일 + 우측 텍스트 가로 카드
     return (
-      <article className="flex items-start gap-3 group cursor-pointer p-3 rounded-2xl bg-white border border-[#1D1C1C]/5 hover:border-[#F77019]/30 transition-all">
-        <div
-          className="flex-shrink-0 rounded-xl overflow-hidden bg-[#F0F0F2] w-[100px] aspect-[4/3]"
-        >
-          <img
-            src={post.img}
-            alt={post.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          />
+      <article onClick={onClick} className="flex items-start gap-3 group cursor-pointer p-3 rounded-2xl bg-white border border-[#1D1C1C]/5 hover:border-[#F77019]/30 transition-all">
+        <div className="flex-shrink-0 rounded-xl overflow-hidden bg-[#F0F0F2] w-[100px] aspect-[4/3]">
+          {post.cover_image_url && (
+            <img
+              src={post.cover_image_url}
+              alt={post.title}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            />
+          )}
         </div>
         <div className="flex-1 min-w-0 flex flex-col gap-1.5">
           <div className="flex items-center gap-2 flex-wrap">
-            <span
-              className="text-[9px] font-black px-2 py-0.5 rounded-md"
-              style={{
-                color: post.categoryColor,
-                background: `${post.categoryColor}12`,
-                border: `1px solid ${post.categoryColor}20`,
-              }}
-            >
-              {post.category}
-            </span>
-            <span className="text-[9px] text-[#BBB] font-medium">{post.date}</span>
+            {post.category && (
+              <span
+                className="text-[9px] font-black px-2 py-0.5 rounded-md"
+                style={{ color: categoryColor, background: `${categoryColor}12`, border: `1px solid ${categoryColor}20` }}
+              >
+                {post.category}
+              </span>
+            )}
+            <span className="text-[9px] text-[#BBB] font-medium">{fmtDate(post.created_at)}</span>
           </div>
           <h3 className="text-[12px] font-black text-[#1D1C1C] leading-snug line-clamp-2 group-hover:text-[#F77019] transition-colors">
             {post.title}
           </h3>
-          <p className="text-[10px] text-[#888] leading-relaxed line-clamp-2">{post.desc}</p>
+          <p className="text-[10px] text-[#888] leading-relaxed line-clamp-2">{post.body}</p>
           <div className="flex items-center justify-between mt-0.5 text-[9px] text-[#999] font-medium">
             <span>{post.author}</span>
-            <span className="flex items-center gap-0.5"><Clock className="w-2.5 h-2.5" />{post.readTime}</span>
+            <span className="flex items-center gap-0.5"><Clock className="w-2.5 h-2.5" />{readTime(post.body)}</span>
           </div>
         </div>
       </article>
@@ -317,23 +282,27 @@ function FeedCard({ post, horizontal }: { post: typeof feedPosts[0]; horizontal?
 
   // 확장 시 — 세로 카드 (기존 3-column 그리드용)
   return (
-    <article className="flex flex-col gap-3 group cursor-pointer">
+    <article onClick={onClick} className="flex flex-col gap-3 group cursor-pointer">
       <div className="w-full rounded-2xl overflow-hidden bg-[#F0F0F2]" style={{ aspectRatio: '4 / 3' }}>
-        <img src={post.img} alt={post.title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+        {post.cover_image_url && (
+          <img src={post.cover_image_url} alt={post.title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+        )}
       </div>
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2">
-          <span className="text-[9px] font-black px-2 py-0.5 rounded-md"
-            style={{ color: post.categoryColor, background: `${post.categoryColor}12`, border: `1px solid ${post.categoryColor}20` }}>
-            {post.category}
-          </span>
-          <span className="text-[9px] text-[#BBB] font-medium">{post.date}</span>
+          {post.category && (
+            <span className="text-[9px] font-black px-2 py-0.5 rounded-md"
+              style={{ color: categoryColor, background: `${categoryColor}12`, border: `1px solid ${categoryColor}20` }}>
+              {post.category}
+            </span>
+          )}
+          <span className="text-[9px] text-[#BBB] font-medium">{fmtDate(post.created_at)}</span>
         </div>
         <h3 className="text-[12px] font-black text-[#1D1C1C] leading-snug line-clamp-2 group-hover:text-[#F77019] transition-colors">
           {post.title}
         </h3>
-        <p className="text-[10px] text-[#888] leading-relaxed line-clamp-2">{post.desc}</p>
+        <p className="text-[10px] text-[#888] leading-relaxed line-clamp-2">{post.body}</p>
         <div className="flex items-center justify-between mt-1">
           <div className="flex items-center gap-1.5">
             <div className="w-4 h-4 rounded-full bg-[#1D1C1C]/10 flex items-center justify-center text-[8px] font-black text-[#666]">
@@ -342,28 +311,10 @@ function FeedCard({ post, horizontal }: { post: typeof feedPosts[0]; horizontal?
             <span className="text-[9px] text-[#999] font-medium">{post.author}</span>
           </div>
           <span className="text-[9px] text-[#BBB] font-medium flex items-center gap-0.5">
-            <Clock className="w-2.5 h-2.5" />{post.readTime}
+            <Clock className="w-2.5 h-2.5" />{readTime(post.body)}
           </span>
         </div>
       </div>
     </article>
-  )
-}
-
-function NewsItem({ item }: { item: typeof newsItems[0] }) {
-  return (
-    <div className="flex flex-col gap-1.5 pb-3 border-b border-[#1D1C1C]/5 last:border-0 cursor-pointer group">
-      <div className="flex items-center gap-1.5">
-        <span className="text-[8px] font-black px-1.5 py-0.5 rounded"
-          style={{ color: item.tagColor, background: `${item.tagColor}12` }}>
-          {item.tag}
-        </span>
-        <span className="text-[9px] text-[#BBB] font-medium">{item.date}</span>
-      </div>
-      <p className="text-[11px] font-black text-[#1D1C1C] leading-snug group-hover:text-[#F77019] transition-colors line-clamp-2">
-        {item.title}
-      </p>
-      <p className="text-[9px] text-[#999] leading-relaxed line-clamp-2">{item.desc}</p>
-    </div>
   )
 }

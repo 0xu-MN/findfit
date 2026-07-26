@@ -1,15 +1,9 @@
 import { createAdminClient } from '@/lib/supabase/admin'
-import { cookies } from 'next/headers'
+import { checkAdmin } from '@/lib/auth/checkAdmin'
 import { NextResponse } from 'next/server'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = any
-
-async function checkAdmin(): Promise<boolean> {
-  const cookieStore = await cookies()
-  const token = cookieStore.get('findfit-admin-token')?.value
-  return !!token && token === process.env.ADMIN_SECRET_KEY
-}
 
 async function sendPaidEmail(to: string, projectTitle: string, netAmount: number) {
   const apiKey = process.env.RESEND_API_KEY

@@ -1,12 +1,6 @@
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
+import { checkAdmin } from '@/lib/auth/checkAdmin'
 import { createAdminClient } from '@/lib/supabase/admin'
-
-async function checkAdmin(): Promise<boolean> {
-  const cookieStore = await cookies()
-  const token = cookieStore.get('findfit-admin-token')?.value
-  return !!token && token === process.env.ADMIN_SECRET_KEY
-}
 
 // 관리자용 전체 유저 목록(빌더+리뷰어) — 역할별 프로젝트/리뷰 활동 수를
 // 함께 집계해서 반환한다.

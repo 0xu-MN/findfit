@@ -1,9 +1,11 @@
+import Link from 'next/link'
+
 const footerLinks = [
   {
     category: '서비스',
     links: [
-      { label: '크리에이터', href: '#' },
-      { label: '리뷰어', href: '#reviewer' },
+      { label: '크리에이터', href: '/' },
+      { label: '리뷰어', href: '/for-reviewers' },
       { label: '이용 요금', href: '#pricing' },
     ],
   },
@@ -45,9 +47,15 @@ export default function Footer() {
                 <ul className="flex flex-col gap-3">
                   {links.map((link) => (
                     <li key={link.label}>
-                      <a href={link.href} className="text-sm text-white/55 hover:text-white transition-colors">
-                        {link.label}
-                      </a>
+                      {link.href.startsWith('/') ? (
+                        <Link href={link.href} className="text-sm text-white/55 hover:text-white transition-colors">
+                          {link.label}
+                        </Link>
+                      ) : (
+                        <a href={link.href} className="text-sm text-white/55 hover:text-white transition-colors">
+                          {link.label}
+                        </a>
+                      )}
                     </li>
                   ))}
                 </ul>

@@ -1,6 +1,6 @@
 'use client'
 
-import { Loader2, ChevronLeft, ChevronRight, Sparkles, Activity } from 'lucide-react'
+import { Loader2, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import ReviewerLayout from '@/components/reviewer/ReviewerLayout'
 import ProjectCardExpandable, { type CardMatch, type CardProject } from '@/components/evaluator/ProjectCardExpandable'
@@ -311,25 +311,9 @@ export default function EvaluatorDashboardPage() {
           )}
         </section>
 
-        {/* 3. 지금 FindFit에서 일어나고 있어요 섹션 (실시간 활동 + HappeningSection) */}
-        <section className="flex flex-col gap-5 pt-4 border-t border-[#1D1C1C]/8">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-[#666] font-medium mt-0.5">
-                실시간으로 이뤄지고 있는 리뷰어 활동 및 프로젝트 동향
-              </p>
-            </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#1565C0]/10 text-[#1565C0] text-xs font-bold">
-              <Activity className="w-3.5 h-3.5 animate-pulse" />
-              <span>실시간 동향</span>
-            </div>
-          </div>
-
-          {/* 물 흐르는 듯한 무한 티커 (4번 요청) */}
-          <LiveActivityTicker />
-
-          {/* 라운지 & findfit news 카드 그리드 (HappeningSection — 1번 이미지 UI) */}
-          <HappeningSection basePath="evaluator" />
+        {/* 3. 지금 FindFit에서 일어나고 있어요 섹션 (실시간 활동이 그 안에 포함됨) */}
+        <section className="pt-4 border-t border-[#1D1C1C]/8">
+          <HappeningSection basePath="evaluator" activityTicker={<LiveActivityTicker />} />
         </section>
       </div>
     </ReviewerLayout>

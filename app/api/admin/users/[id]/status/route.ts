@@ -1,13 +1,7 @@
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
+import { checkAdmin } from '@/lib/auth/checkAdmin'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { UserStatus } from '@/types/database'
-
-async function checkAdmin(): Promise<boolean> {
-  const cookieStore = await cookies()
-  const token = cookieStore.get('findfit-admin-token')?.value
-  return !!token && token === process.env.ADMIN_SECRET_KEY
-}
 
 // 유저 정지/재활성/탈퇴 처리. users.status는 authenticated 롤의 UPDATE
 // 권한이 DB에서 REVOKE되어 있어(migration 009, 본인 스스로 정지 해제

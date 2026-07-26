@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { Check, Loader2, X } from 'lucide-react'
+import { Check, ChevronDown, Loader2, X } from 'lucide-react'
 
 import { createClient } from '@/lib/supabase/client'
 import SocialLoginButtons from '@/components/auth/SocialLoginButtons'
@@ -174,13 +174,7 @@ export default function SignupPage() {
 
           {/* 생년월일 — 실제 CI/PASS 인증이 아니라 자진 입력 기준 만 19세 게이트 */}
           <Field label="생년월일" hint="만 19세 미만은 이용이 제한돼요">
-            <input
-              type="date"
-              value={birthDate}
-              onChange={(e) => setBirthDate(e.target.value)}
-              max={new Date().toISOString().slice(0, 10)}
-              className="w-full px-4 py-3 rounded-xl border border-[#1D1C1C]/12 text-[13px] font-bold text-[#1D1C1C] outline-none focus:border-[#F77019] transition-colors"
-            />
+            <BirthDateSelect value={birthDate} onChange={setBirthDate} />
             {underAge && (
               <span className="flex items-center gap-1 text-[10px] font-bold text-red-500"><X className="w-3 h-3" />만 19세 미만은 가입이 제한돼요</span>
             )}
@@ -255,6 +249,77 @@ function computeAge(birthDateStr: string): number {
     (today.getMonth() === birth.getMonth() && today.getDate() >= birth.getDate())
   if (!hasHadBirthdayThisYear) age -= 1
   return age
+}
+
+// 브라우저 기본 <input type="date"> 대신 FindFit 톤에 맞춘 연/월/일 3분할
+// 셀렉트 — 값은 기존과 동일하게 YYYY-MM-DD 문자열로 부모에 올려서
+// computeAge 등 이후 검증 로직은 그대로 재사용한다.
+function BirthDateSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  // 년/월/일을 각각 자체 상태로 들고 있는다 — 부모의 완성된 YYYY-MM-DD
+  // 문자열(value)에서만 파생시키면, 셋 중 하나만 골랐을 때(아직 조합이
+  // 안 끝나 부모 값이 ''로 남는 순간) 방금 고른 값도 함께 ''로 리셋돼
+  // 화면에서 사라져 보이는 버그가 있었다 — 선택 상태 자체는 로컬로 유지하고,
+  // 셋 다 채워졌을 때만 부모에 조합된 문자열을 올린다.
+  const [year, setYear] = useState(() => (value ? value.split('-')[0] : ''))
+  const [month, setMonth] = useState(() => (value ? value.split('-')[1] : ''))
+  const [day, setDay] = useState(() => (value ? value.split('-')[2] : ''))
+
+  const thisYear = new Date().getFullYear()
+  const years = Array.from({ length: 100 }, (_, i) => String(thisYear - i))
+  const months = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'))
+  const daysInMonth = year && month ? new Date(Number(year), Number(month), 0).getDate() : 31
+  const days = Array.from({ length: daysInMonth }, (_, i) => String(i + 1).padStart(2, '0'))
+
+  const update = (y: string, m: string, d: string) => {
+    setYear(y)
+    setMonth(m)
+    setDay(d)
+    if (y && m && d) {
+      // 월이 바뀌어 일수가 줄어드는 경우(예: 31일→2월) 마지막 날로 보정
+      const maxDay = new Date(Number(y), Number(m), 0).getDate()
+      const clampedDay = String(Math.min(Number(d), maxDay)).padStart(2, '0')
+      setDay(clampedDay)
+      onChange(`${y}-${m}-${clampedDay}`)
+    } else {
+      onChange('')
+    }
+  }
+
+  return (
+    <div className="flex gap-2">
+      <DateSelect value={year} onChange={(v) => update(v, month, day)} placeholder="년" options={years} grow />
+      <DateSelect value={month} onChange={(v) => update(year, v, day)} placeholder="월" options={months} />
+      <DateSelect value={day} onChange={(v) => update(year, month, v)} placeholder="일" options={days} />
+    </div>
+  )
+}
+
+function DateSelect({
+  value,
+  onChange,
+  placeholder,
+  options,
+  grow,
+}: {
+  value: string
+  onChange: (v: string) => void
+  placeholder: string
+  options: string[]
+  grow?: boolean
+}) {
+  return (
+    <div className={`relative ${grow ? 'flex-[1.3]' : 'flex-1'}`}>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full pl-3 pr-8 py-3 rounded-xl border border-[#1D1C1C]/12 text-[13px] font-bold text-[#1D1C1C] outline-none focus:border-[#F77019] transition-colors bg-white appearance-none cursor-pointer"
+      >
+        <option value="">{placeholder}</option>
+        {options.map((o) => <option key={o} value={o}>{o}</option>)}
+      </select>
+      <ChevronDown className="w-3.5 h-3.5 text-[#999] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+    </div>
+  )
 }
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {

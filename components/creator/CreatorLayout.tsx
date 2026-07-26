@@ -80,7 +80,7 @@ export default function CreatorLayout({ children }: Props) {
               {[
                 { label: '홈', path: '/builder/dashboard' },
                 { label: '라운지', path: '/builder/lounge' },
-                { label: '피드', path: '/builder/feed' },
+                { label: '인사이트', path: '/builder/feed' },
                 { label: '프로젝트', path: '/builder/projects' },
               ].map((item, index, arr) => {
                 const isActive = pathname === item.path || (item.path === '/builder/projects' && pathname?.startsWith('/builder/projects'))
@@ -165,8 +165,9 @@ export default function CreatorLayout({ children }: Props) {
           </div>
         </header>
 
-        {/* ── CONTENT — 단일 스크롤 ── */}
-        <main className="pb-16">{children}</main>
+        {/* ── CONTENT — 단일 스크롤. 콘텐츠가 짧아도 푸터가 바로 안 붙게
+            최소 높이를 잡는다(헤더 80px + 푸터 실측 높이 감안) ── */}
+        <main className="pb-16 min-h-[calc(100vh-320px)]">{children}</main>
       </div>
 
       {/* ── FOOTER — 랜딩페이지/리뷰어와 동일한 스타일 재사용 ── */}

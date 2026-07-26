@@ -1,12 +1,6 @@
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
+import { checkAdmin } from '@/lib/auth/checkAdmin'
 import { createAdminClient } from '@/lib/supabase/admin'
-
-async function checkAdmin(): Promise<boolean> {
-  const cookieStore = await cookies()
-  const token = cookieStore.get('findfit-admin-token')?.value
-  return !!token && token === process.env.ADMIN_SECRET_KEY
-}
 
 // 관리자용 프로젝트 목록(전체 status) — projects는 RLS상 소유 크리에이터만
 // 조회 가능하므로 서비스 롤로 대신 조회한다. 검수 큐(pending_review)뿐

@@ -13,6 +13,16 @@ export async function POST(req: Request) {
     const trimmed = (value ?? '').trim()
     if (!trimmed) return NextResponse.json({ error: '값을 입력해주세요' }, { status: 400 })
 
+    // "haloforge"는 관리자 전용 식별자라 다른 사람이 이메일/닉네임에 쓸 수
+    // 없게 예약한다 — 단, 실제 관리자 계정 본인의 이메일(haloforge@haloforge.kr)
+    // 이나 그 계정이 쓸 닉네임(haloforge)까지 막으면 본인도 (재)가입을 못
+    // 하게 되므로, 그 정확한 값 자체는 예외로 통과시킨다.
+    const ADMIN_RESERVED_VALUES = ['haloforge@haloforge.kr', 'haloforge']
+    const isExactAdminValue = ADMIN_RESERVED_VALUES.includes(trimmed.toLowerCase())
+    if (!isExactAdminValue && trimmed.toLowerCase().includes('haloforge')) {
+      return NextResponse.json({ available: false })
+    }
+
     const admin = createAdminClient()
     const column = field === 'email' ? 'email' : 'nickname'
     const { data } = await admin.from('users').select('id').eq(column, trimmed).maybeSingle()

@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowRight, Sparkles, Bot, FileText } from 'lucide-react'
+import { ArrowRight, Sparkles, FileText, X } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { AgentMessageBubble, TypingIndicator } from './AgentComponents'
 import { createClient } from '@/lib/supabase/client'
@@ -23,6 +23,9 @@ interface AgentPanelProps {
   // 홈 화면 "아이템 탐색부터 시작" → 모달에서 입력한 첫 문장을 마운트 직후
   // 자동으로 보내기 위한 시드 메시지. 없으면 기존과 동일하게 인사말만 뜬다.
   initialSeedMessage?: string | null
+  // 있으면 축소 모드 헤더 안에 닫기 버튼을 같이 그린다(플로팅 버블 전용) —
+  // 카드 위에 별도로 떠 있던 닫기 버튼을 헤더 한 줄로 합치기 위함.
+  onClose?: () => void
 }
 
 // 단계별 레이블: 인덱스 = phase (0~4)
@@ -30,7 +33,7 @@ const PHASE_LABELS = ['대화 시작', '아이디어 파악', '단계 파악', '
 // 축소/확장 모드 진행 dots 레이블
 const DOT_LABELS = ['아이디어', '단계', '타겟', '완료'] as const
 
-export default function AgentPanel({ isExpanded = false, reportProjectIdOverride, initialSeedMessage }: AgentPanelProps) {
+export default function AgentPanel({ isExpanded = false, reportProjectIdOverride, initialSeedMessage, onClose }: AgentPanelProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const isExploreMode = searchParams.get('agent') === 'explore'
@@ -77,7 +80,10 @@ export default function AgentPanel({ isExpanded = false, reportProjectIdOverride
         .limit(1)
       if (data && data.length > 0) {
         setReportModeStatus('ready')
-        setTimeout(() => setMessages(prev => [...prev, {
+        // 리포트 모드는 항상 그 리포트에 대한 새 대화로 취급한다 — 이전에
+        // 쌓여 있던 일반 인사말/대화(플로팅 버블은 언마운트되지 않으므로
+        // 남아있을 수 있음)를 지우고 리포트 안내만 단독으로 보여준다.
+        setTimeout(() => setMessages([{
           id: `report-mode-greeting-${projectId}`,
           role: 'assistant',
           content: '이 프로젝트 리포트에 대해 궁금한 점을 물어보세요. 검증 결과를 바탕으로 다음 프로젝트도 함께 정해볼 수 있어요 📊',
@@ -85,7 +91,7 @@ export default function AgentPanel({ isExpanded = false, reportProjectIdOverride
         }]), 400)
       } else {
         setReportModeStatus('denied')
-        setMessages(prev => [...prev, {
+        setMessages([{
           id: `report-mode-denied-${projectId}`,
           role: 'assistant',
           content: '이 리포트의 심층 분석을 먼저 열람해야 Agent에게 물어볼 수 있어요. 리포트 페이지에서 먼저 열람해주세요.',
@@ -320,11 +326,11 @@ export default function AgentPanel({ isExpanded = false, reportProjectIdOverride
 
     return (
       <div className="w-full h-full flex flex-col select-none overflow-hidden">
-        {/* 헤더 */}
+        {/* 헤더 — 아바타 + 타이틀/상태 + 닫기 버튼을 한 줄에 */}
         <div className="flex-shrink-0 px-5 pt-5 pb-3 flex items-center gap-2">
           <div className="w-8 h-8 rounded-xl flex items-center justify-center"
             style={{ background: 'linear-gradient(135deg, #F77019, #FF8F45)', boxShadow: '0 4px 12px rgba(247,112,25,0.25)' }}>
-            <Bot className="w-4 h-4 text-white" />
+            <Sparkles className="w-4 h-4 text-white" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
@@ -340,6 +346,14 @@ export default function AgentPanel({ isExpanded = false, reportProjectIdOverride
               <span className="text-[9px] font-bold text-[#999]">온라인</span>
             </div>
           </div>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="flex-shrink-0 w-7 h-7 rounded-full bg-[#F5F5F5] flex items-center justify-center text-[#666] hover:text-[#1D1C1C] hover:bg-[#EAEAEA] transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
         {/* 탐색 현황 (축소 모드 인라인) — 리포트 모드에선 phase/카테고리
@@ -456,7 +470,7 @@ export default function AgentPanel({ isExpanded = false, reportProjectIdOverride
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl flex items-center justify-center"
             style={{ background: 'linear-gradient(135deg, #F77019, #FF8F45)', boxShadow: '0 6px 16px rgba(247,112,25,0.25)' }}>
-            <Bot className="w-5 h-5 text-white" />
+            <Sparkles className="w-5 h-5 text-white" />
           </div>
           <div>
             <div className="flex items-center gap-1.5">

@@ -129,12 +129,6 @@ export default function ProjectListPage() {
               className="w-full text-xs outline-none bg-transparent"
             />
           </div>
-          <button
-            onClick={newDraft}
-            className="bg-[#1D1C1C] text-white text-xs font-black px-4 py-2 rounded-lg flex items-center gap-1.5 hover:bg-[#333] transition-colors"
-          >
-            <Plus className="w-4 h-4" />새 프로젝트
-          </button>
         </div>
       </div>
 

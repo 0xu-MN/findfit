@@ -10,7 +10,7 @@ export default function CreatorArticleFeedPage() {
   return (
     <CreatorLayout>
       <RightPanelProvider value={{ tab: 'feed', setTab: () => {}, isExpanded: true }}>
-        <SharedFeedPanel />
+        <SharedFeedPanel basePath="builder" />
       </RightPanelProvider>
     </CreatorLayout>
   )

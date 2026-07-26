@@ -5,15 +5,19 @@ import {
   Image as ImageIcon,
   Link2,
   MessageSquare,
+  PenSquare,
   Repeat2,
   Send,
   Share2,
   Smile,
   Sparkles,
+  User as UserIcon,
+  X,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 import { useRightPanel } from './RightPanelContext'
+import { createClient } from '@/lib/supabase/client'
 
 /* ─────────────────────────────────────────────────────── */
 /*  데이터 모델                                              */
@@ -142,63 +146,127 @@ export default function SharedLoungeFeed() {
   // Context가 있으면 Context, 없으면 너비 측정 fallback
   const isExpanded = hasProvider ? ctxExpanded : widthExpanded
 
-  // 수축/확장 모두 동일한 loungePosts 데이터 + 트위터 스타일
-  // 차이는 밀도뿐 (compact prop으로 사이즈 조절)
-  return (
-    <div ref={containerRef} className="w-full h-full flex flex-col gap-4 select-none text-[#1D1C1C] min-w-0 overflow-x-hidden pb-8 animate-fade-in">
-      {/* 상단 컴포저 */}
-      <LoungeComposer compact={!isExpanded} />
+  const [nickname, setNickname] = useState<string | null>(null)
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setNickname(user?.user_metadata?.name ?? user?.email?.split('@')[0] ?? null)
+    })
+  }, [])
 
-      {/* 포스트 리스트 (트위터 스타일) */}
-      <div className="w-full rounded-2xl bg-white border border-[#1D1C1C]/5 divide-y divide-[#1D1C1C]/5 overflow-hidden">
-        {loungePosts.map((p) => (
-          <LoungePostItem key={p.id} post={p} compact={!isExpanded} />
-        ))}
+  // 라운지 자체가 아직 백엔드 미연동이라(원래 loungePosts는 정적 목데이터),
+  // "글쓰기"로 작성한 글은 로컬 state에만 앞쪽에 추가된다 — 새로고침하면
+  // 사라지는 세션 한정 글쓰기다. 실제 영속화(Supabase insert)는 라운지
+  // 백엔드 연동 시점의 범위.
+  const [posts, setPosts] = useState<LoungePost[]>(loungePosts)
+  const [composerOpen, setComposerOpen] = useState(false)
+
+  const submitPost = (body: string) => {
+    if (!body.trim()) return
+    const newPost: LoungePost = {
+      id: Date.now(),
+      author: nickname ?? '게스트',
+      authorHandle: (nickname ?? 'guest').toLowerCase().replace(/\s+/g, '_'),
+      authorAvatarColor: '#F77019',
+      category: '자유',
+      time: '방금 전',
+      body,
+      images: 0,
+      likes: 0,
+      comments: 0,
+    }
+    setPosts((prev) => [newPost, ...prev])
+    setComposerOpen(false)
+  }
+
+  const myPosts = posts.filter((p) => nickname && p.author === nickname)
+
+  return (
+    <div ref={containerRef} className="w-full h-full flex gap-6 select-none text-[#1D1C1C] min-w-0 animate-fade-in">
+      <div className="flex-1 min-w-0 flex flex-col gap-4 overflow-x-hidden pb-8">
+        {/* 포스트 리스트 (트위터 스타일) — 상단 상시 컴포저는 없애고
+            "글쓰기" 버튼(우측 사이드바)으로만 작성 모달을 연다 */}
+        <div className="w-full rounded-2xl bg-white border border-[#1D1C1C]/5 divide-y divide-[#1D1C1C]/5 overflow-hidden">
+          {posts.map((p) => (
+            <LoungePostItem key={p.id} post={p} compact={!isExpanded} />
+          ))}
+        </div>
       </div>
+
+      {/* 우측 사이드바 — 프로필/글쓰기 바로가기/내 글 관리. 넓은 화면에서만
+          보여준다(좁으면 기존처럼 단일 컬럼) */}
+      {isExpanded && (
+        <LoungeSidebar nickname={nickname} myPosts={myPosts} onWriteClick={() => setComposerOpen(true)} />
+      )}
+
+      {composerOpen && (
+        <ComposerModal nickname={nickname} onClose={() => setComposerOpen(false)} onSubmit={submitPost} />
+      )}
     </div>
   )
 }
 
 /* ─────────────────────────────────────────────────────── */
-/*  CompactView — 패널 닫힘 모드 (건들지 않음)              */
+/*  글쓰기 모달                                              */
 /* ─────────────────────────────────────────────────────── */
 
-function LoungeComposer({ compact }: { compact?: boolean }) {
+function ComposerModal({
+  nickname,
+  onClose,
+  onSubmit,
+}: {
+  nickname: string | null
+  onClose: () => void
+  onSubmit: (body: string) => void
+}) {
+  const [value, setValue] = useState('')
+
   return (
-    <div className={`w-full rounded-2xl bg-white border border-[#1D1C1C]/5 flex items-start gap-3 ${compact ? 'p-3' : 'p-4'}`}>
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center p-6"
+      style={{ background: 'rgba(29,28,28,0.4)', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}
+    >
       <div
-        className={`rounded-full bg-[#F77019] flex items-center justify-center text-white font-black flex-shrink-0 ${
-          compact ? 'w-8 h-8 text-[10px]' : 'w-10 h-10 text-xs'
-        }`}
+        className="w-full max-w-[520px] rounded-3xl bg-white p-5 flex flex-col gap-3 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
       >
-        C
-      </div>
-      <div className="flex-1 flex flex-col gap-2 min-w-0">
-        <textarea
-          rows={compact ? 1 : 2}
-          placeholder="무슨 일이 일어나고 있나요?"
-          className={`w-full bg-transparent outline-none text-[#1D1C1C] placeholder-[#999] font-medium resize-none leading-relaxed ${
-            compact ? 'text-[12px]' : 'text-[13px]'
-          }`}
-        />
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-0.5">
-            <CircleIcon><ImageIcon className={compact ? 'w-3 h-3' : 'w-3.5 h-3.5'} /></CircleIcon>
-            <CircleIcon><Link2 className={compact ? 'w-3 h-3' : 'w-3.5 h-3.5'} /></CircleIcon>
-            {!compact && (
-              <>
+          <span className="text-[13px] font-black text-[#1D1C1C]">새 글 작성</span>
+          <button onClick={onClose} className="w-7 h-7 rounded-full text-[#999] hover:text-[#1D1C1C] hover:bg-[#F5F5F5] flex items-center justify-center transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-full bg-[#F77019] flex items-center justify-center text-white font-black text-xs flex-shrink-0">
+            {(nickname ?? 'C')[0]}
+          </div>
+          <div className="flex-1 flex flex-col gap-2 min-w-0">
+            <textarea
+              autoFocus
+              rows={4}
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              placeholder="무슨 일이 일어나고 있나요?"
+              className="w-full bg-transparent outline-none text-[#1D1C1C] placeholder-[#999] font-medium resize-none leading-relaxed text-[13px]"
+            />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-0.5">
+                <CircleIcon><ImageIcon className="w-3.5 h-3.5" /></CircleIcon>
+                <CircleIcon><Link2 className="w-3.5 h-3.5" /></CircleIcon>
                 <CircleIcon><Smile className="w-3.5 h-3.5" /></CircleIcon>
                 <CircleIcon><Sparkles className="w-3.5 h-3.5" /></CircleIcon>
-              </>
-            )}
+              </div>
+              <button
+                onClick={() => onSubmit(value)}
+                disabled={!value.trim()}
+                className="px-4 py-1.5 rounded-full bg-[#F77019] text-white font-black hover:opacity-90 disabled:opacity-40 transition-all shadow-sm text-[11px]"
+              >
+                올리기
+              </button>
+            </div>
           </div>
-          <button
-            className={`rounded-full bg-[#F77019] text-white font-black hover:opacity-90 transition-all shadow-sm ${
-              compact ? 'px-3 py-1 text-[10px]' : 'px-4 py-1.5 text-[11px]'
-            }`}
-          >
-            올리기
-          </button>
         </div>
       </div>
     </div>
@@ -300,6 +368,59 @@ function LoungePostItem({ post, compact }: { post: LoungePost; compact?: boolean
 }
 
 /* ─────────────────────────────────────────────────────── */
+/*  우측 사이드바 — 프로필 + 글쓰기 바로가기 + 내 글 관리       */
+/* ─────────────────────────────────────────────────────── */
+
+function LoungeSidebar({
+  nickname,
+  myPosts,
+  onWriteClick,
+}: {
+  nickname: string | null
+  myPosts: LoungePost[]
+  onWriteClick: () => void
+}) {
+  return (
+    <div className="w-[300px] flex-shrink-0 flex flex-col gap-4">
+      {/* 프로필 카드 */}
+      <div className="rounded-2xl bg-white border border-[#1D1C1C]/5 p-5 flex flex-col items-center gap-3 text-center">
+        <div className="w-14 h-14 rounded-full bg-[#F77019]/10 flex items-center justify-center text-[#F77019]">
+          <UserIcon className="w-6 h-6" />
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[13px] font-black text-[#1D1C1C]">{nickname ?? '게스트'}</span>
+          <span className="text-[10px] font-bold text-[#999]">FindFit 멤버</span>
+        </div>
+        <button
+          onClick={onWriteClick}
+          className="w-full flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#F77019] text-white text-[11px] font-black hover:opacity-90 transition-opacity"
+        >
+          <PenSquare className="w-3.5 h-3.5" />
+          글쓰기
+        </button>
+      </div>
+
+      {/* 내가 쓴 글 관리 */}
+      <div className="rounded-2xl bg-white border border-[#1D1C1C]/5 p-5 flex flex-col gap-3">
+        <span className="text-[11px] font-black text-[#1D1C1C]">내가 쓴 글</span>
+        {myPosts.length === 0 ? (
+          <p className="text-[10px] font-bold text-[#999] py-4 text-center">아직 작성한 글이 없어요</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {myPosts.map((p) => (
+              <div key={p.id} className="flex flex-col gap-1 p-2.5 rounded-xl hover:bg-[#FAFAFA] transition-colors cursor-pointer">
+                <span className="text-[11px] font-bold text-[#1D1C1C] line-clamp-1">{p.body}</span>
+                <span className="text-[9px] text-[#999] font-medium">{p.time}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ─────────────────────────────────────────────────────── */
 /*  공통 작은 컴포넌트들                                      */
 /* ─────────────────────────────────────────────────────── */
 
@@ -336,4 +457,3 @@ function ActionIcon({
     </button>
   )
 }
-

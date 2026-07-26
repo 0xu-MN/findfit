@@ -1,12 +1,6 @@
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
+import { checkAdmin } from '@/lib/auth/checkAdmin'
 import { createAdminClient } from '@/lib/supabase/admin'
-
-async function checkAdmin(): Promise<boolean> {
-  const cookieStore = await cookies()
-  const token = cookieStore.get('findfit-admin-token')?.value
-  return !!token && token === process.env.ADMIN_SECRET_KEY
-}
 
 export async function POST(
   _req: Request,

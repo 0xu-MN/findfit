@@ -6,6 +6,7 @@ import { Search, TrendingUp } from 'lucide-react'
 import Step0Modal from '../builder/new-request/Step0Modal'
 import HappeningSection from '../shared/HappeningSection'
 import ReviewerBannerCarousel from '../shared/ReviewerBannerCarousel'
+import ItemDiscoveryFlow from './ItemDiscoveryFlow'
 import { useAgentBubble } from '../agent/AgentBubbleContext'
 
 const TREND_CHIP = '강아지 간식'
@@ -19,6 +20,7 @@ export default function CreatorHome() {
   const agentBubble = useAgentBubble()
   const [keyword, setKeyword] = useState('')
   const [step0Open, setStep0Open] = useState(false)
+  const [discoveryOpen, setDiscoveryOpen] = useState(false)
 
   // 마법사 등 다른 곳에서 ?agent=explore로 들어오는 기존 링크 호환 —
   // 홈에 도착하면 바로 버블을 열어준다.
@@ -29,7 +31,7 @@ export default function CreatorHome() {
 
   const startValidation = () => {
     if (!keyword.trim()) return
-    setStep0Open(true)
+    setDiscoveryOpen(true)
   }
 
   return (
@@ -95,6 +97,10 @@ export default function CreatorHome() {
           router.push('/builder/new-request')
         }}
       />
+
+      {discoveryOpen && (
+        <ItemDiscoveryFlow keyword={keyword} onClose={() => setDiscoveryOpen(false)} />
+      )}
     </div>
   )
 }

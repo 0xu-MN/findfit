@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { checkAdmin } from '@/lib/auth/checkAdmin'
 import Link from 'next/link'
-import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -30,9 +30,7 @@ async function getAdminStats() {
 }
 
 export default async function AdminDashboardPage() {
-  const cookieStore = await cookies()
-  const token = cookieStore.get('findfit-admin-token')?.value
-  if (!token || token !== process.env.ADMIN_SECRET_KEY) redirect('/admin/login')
+  if (!(await checkAdmin())) redirect('/admin/login')
 
   const stats = await getAdminStats()
 
@@ -103,6 +101,13 @@ export default async function AdminDashboardPage() {
             desc="등록된 프로젝트 승인/반려"
             count={stats.pendingReview}
             color="#1565C0"
+          />
+          <NavCard
+            href="/admin/insights"
+            title="인사이트 관리"
+            desc="피드 · 뉴스룸 글 작성/수정"
+            count={0}
+            color="#F77019"
           />
           <NavCard
             href="/admin/evaluators"

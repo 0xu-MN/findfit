@@ -84,7 +84,7 @@ export default function ReviewerLayout({ children }: Props) {
                 { label: '프로젝트 탐색', path: '/evaluator/projects' },
                 { label: '내 리뷰', path: '/evaluator/reviews' },
                 { label: '라운지', path: '/evaluator/lounge' },
-                { label: '피드', path: '/evaluator/feed' },
+                { label: '인사이트', path: '/evaluator/feed' },
               ].map((item, index, arr) => {
                 const isActive = pathname === item.path
                 return (
@@ -175,8 +175,9 @@ export default function ReviewerLayout({ children }: Props) {
           </div>
         </header>
 
-        {/* ── CONTENT — 단일 스크롤 ── */}
-        <main className="pb-16">{children}</main>
+        {/* ── CONTENT — 단일 스크롤. 콘텐츠가 짧아도 푸터가 바로 안 붙게
+            최소 높이를 잡는다(헤더 80px + 푸터 실측 높이 감안) ── */}
+        <main className="pb-16 min-h-[calc(100vh-320px)]">{children}</main>
       </div>
 
       {/* ── FOOTER — 랜딩페이지와 동일한 스타일/디자인 재사용 ── */}

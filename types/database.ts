@@ -78,6 +78,7 @@ export interface Database {
           phone: string | null
           phone_verified_at: string | null
           birth_date: string | null
+          is_admin: boolean
           created_at: string
         }
         Insert: {
@@ -90,20 +91,22 @@ export interface Database {
           phone?: string | null
           phone_verified_at?: string | null
           birth_date?: string | null
+          is_admin?: boolean
           created_at?: string
         }
         Update: {
           role?: UserRole | null
-          // status: DB에서 authenticated 롤의 UPDATE 권한이 REVOKE되어 있어
-          // (본인 스스로 정지 해제 불가) 브라우저 클라이언트로는 실제로 안
-          // 먹는다 — 타입만 허용해두고, 실질 차단은 DB 권한이 담당한다.
-          // 서비스 롤(관리자 API)에서만 의미 있게 사용된다.
+          // status, is_admin: DB에서 authenticated 롤의 UPDATE 권한이
+          // REVOKE되어 있어(본인 스스로 정지 해제/관리자 승격 불가) 브라우저
+          // 클라이언트로는 실제로 안 먹는다 — 타입만 허용해두고, 실질 차단은
+          // DB 권한이 담당한다. 서비스 롤(관리자 API)에서만 의미 있게 사용된다.
           status?: UserStatus
           nickname?: string | null
           real_name?: string | null
           phone?: string | null
           phone_verified_at?: string | null
           birth_date?: string | null
+          is_admin?: boolean
         }
 
         Relationships: []
@@ -257,6 +260,37 @@ export interface Database {
           created_at?: string
         }
         Update: Partial<Database['public']['Tables']['project_summaries']['Insert']>
+
+        Relationships: []
+      }
+
+      /* ── 현행: insight_posts (migration 030) ──────────────── */
+      insight_posts: {
+        Row: {
+          id: string
+          type: string
+          title: string
+          category: string | null
+          tag: string | null
+          cover_image_url: string | null
+          body: string
+          author: string
+          published: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          type: string
+          title: string
+          category?: string | null
+          tag?: string | null
+          cover_image_url?: string | null
+          body: string
+          author?: string
+          published?: boolean
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['insight_posts']['Insert']>
 
         Relationships: []
       }

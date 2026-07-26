@@ -71,6 +71,13 @@ function getMockResponse(prompt: string): Record<string, unknown> | unknown[] {
   if (prompt.includes('[사용자 질문]')) {
     return { answer: '리포트 기준으로는 문제 공감도와 솔루션 수용도가 높게 나타났어요. 실제 키가 연결되면 더 정확한 답변을 드릴 수 있어요.' }
   }
+  if (prompt.includes('창업 아이템 추천 에이전트')) {
+    return [
+      { title: '저당 간식 정기구독 키트', description: '당 섭취를 관리하는 2030 소비자를 위한 월간 저당 간식 큐레이션', reason: '건강 관리 트렌드와 정기구독 모델 수요가 동시에 늘고 있어요' },
+      { title: '반려동물 맞춤 영양 간식', description: '견종·연령별 맞춤 레시피를 제공하는 프리미엄 펫 간식', reason: '반려동물 헬스케어 시장이 꾸준히 성장 중이에요' },
+      { title: '1인 가구용 소분 밀키트', description: '조리 부담을 줄인 1~2인분 단위의 간편식 밀키트', reason: '1인 가구 증가와 함께 소용량 식품 수요가 커지고 있어요' },
+    ]
+  }
   if (prompt.includes('관심사 키워드')) {
     return ['가성비', '시간 절약', '트렌드에 민감함', '1인 가구', '재택근무', '자기계발']
   }

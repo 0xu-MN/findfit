@@ -11,7 +11,7 @@ export default function EvaluatorArticleFeedPage() {
   return (
     <ReviewerLayout>
       <RightPanelProvider value={{ tab: 'feed', setTab: () => {}, isExpanded: true }}>
-        <SharedFeedPanel />
+        <SharedFeedPanel basePath="evaluator" />
       </RightPanelProvider>
     </ReviewerLayout>
   )

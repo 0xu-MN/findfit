@@ -1,5 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
-import { cookies } from 'next/headers'
+import { checkAdmin } from '@/lib/auth/checkAdmin'
 import { redirect } from 'next/navigation'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -42,9 +42,7 @@ async function getActivityStats() {
 }
 
 export default async function AdminStatsPage() {
-  const cookieStore = await cookies()
-  const token = cookieStore.get('findfit-admin-token')?.value
-  if (!token || token !== process.env.ADMIN_SECRET_KEY) redirect('/admin/login')
+  if (!(await checkAdmin())) redirect('/admin/login')
 
   const stats = await getActivityStats()
 

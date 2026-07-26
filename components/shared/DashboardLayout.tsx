@@ -369,7 +369,7 @@ export default function DashboardLayout({ role, children, rightPanel }: Dashboar
               {rightTab === 'main'
                 ? <SharedMainPanel />
                 : rightTab === 'feed'
-                  ? <SharedFeedPanel />
+                  ? <SharedFeedPanel basePath={role === 'creator' ? 'builder' : 'evaluator'} />
                   : rightPanel}
               {/* 패널 확장 + 메인 탭이 아닐 때 공통 Footer (메인은 overflow-hidden이라 스크롤 불가) */}
               {!isLeftOpen && rightTab !== 'main' && <RightPanelFooter />}

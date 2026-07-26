@@ -24,12 +24,14 @@ import {
   CATEGORIES,
 } from './new-request/types'
 import Step0Modal from './new-request/Step0Modal'
+import { useAgentBubble } from '../agent/AgentBubbleContext'
 
 const WALLET_BALANCE = 80000 // 임시: 추후 Supabase wallet 테이블에서 조회
 
 export default function NewRequestPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const agentBubble = useAgentBubble()
   const draftIdFromUrl = searchParams.get('draftId')
 
   const [data, setData] = useState<RequestFormData>(() => createEmptyDraft())
@@ -171,7 +173,14 @@ export default function NewRequestPage() {
 
   return (
     <div className="w-full flex flex-col gap-6 text-[#1D1C1C]">
-      <Step0Modal isOpen={isStep0Open} onClose={() => setIsStep0Open(false)} />
+      <Step0Modal
+        isOpen={isStep0Open}
+        onClose={() => setIsStep0Open(false)}
+        onExplore={() => {
+          setIsStep0Open(false)
+          agentBubble.open()
+        }}
+      />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex flex-col gap-1.5">

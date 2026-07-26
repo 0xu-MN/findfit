@@ -10,6 +10,7 @@ import ReportPaidSections, { type ReportPaidData } from '@/components/report/Rep
 import ExternalInterestCard from '@/components/report/ExternalInterestCard'
 import ReportGrowthTools from '@/components/report/ReportGrowthTools'
 import { createClient } from '@/lib/supabase/client'
+import { useAgentBubble } from '@/components/agent/AgentBubbleContext'
 
 type ReportData = {
   winner?: 'A' | 'B' | null
@@ -57,6 +58,7 @@ function makePsfPmf(stage: string | null): 'psf' | 'pmf' {
 export default function ReportDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: projectId } = use(params)
   const router = useRouter()
+  const agentBubble = useAgentBubble()
   const [project, setProject] = useState<ProjectMeta | null>(null)
   const [report, setReport] = useState<ReportData | null>(null)
   const [meta, setMeta] = useState<ReportMeta | null>(null)
@@ -127,6 +129,15 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
       })
   }, [projectId, fetchReport])
 
+  // 지금 이 리포트가 화면에 떠 있다는 것만 버블에 알려준다 — 버블이 이미
+  // 열려 있으면 자동으로 이 리포트 대화로 전환되고(AgentBubbleContext),
+  // 닫혀 있으면 다음에 열 때 이 리포트 모드로 시작한다(FloatingAgentBubble).
+  useEffect(() => {
+    agentBubble.setActiveReportProjectId(projectId)
+    return () => agentBubble.setActiveReportProjectId(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId])
+
   // 심층 리포트 언락 — ENABLE_PAYMENT_GATE=false(기본값)면 서버가 결제 없이
   // 즉시 통과시키고 payments row만 waived_test로 남긴다.
   const handleUnlock = async () => {
@@ -150,12 +161,13 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
   const psfPmf: 'psf' | 'pmf' = makePsfPmf(project?.stage ?? null)
 
   return (
-    <div className="min-h-screen bg-[#F7F7F5] pb-16">
-      {/* 상단 바 */}
-      <div className="sticky top-0 z-10 bg-white border-b border-[#1D1C1C]/8 px-6 py-4 flex items-center gap-3">
+    <div className="min-h-[calc(100vh-80px)] pb-16">
+      {/* 상단 바 — 좌측에 리포트 목록이 상시 떠 있으므로(app/builder/reports/layout.tsx)
+          뒤로가기는 보조 수단으로만 남겨둔다 */}
+      <div className="sticky top-20 z-10 bg-[#F7F7F5]/95 backdrop-blur px-2 py-4 flex items-center gap-3">
         <button
           onClick={() => router.back()}
-          className="p-1.5 rounded-lg hover:bg-[#F5F5F5] transition-colors text-[#666]"
+          className="p-1.5 rounded-lg hover:bg-white transition-colors text-[#666]"
         >
           <ArrowLeft className="w-4 h-4" />
         </button>

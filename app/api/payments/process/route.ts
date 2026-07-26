@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { FEATURES } from '@/lib/features/flags'
 import { verifyPortOnePayment, type PortOneSkuType } from '@/lib/payment/portone'
 
@@ -23,7 +24,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'skuType/amount가 필요합니다' }, { status: 400 })
     }
 
-    if (!FEATURES.paymentGate) {
+    // 관리자 계정(is_admin)은 결제 게이트가 켜져 있어도 항상 waived_test로
+    // 통과 — "어떤 상황에서도 제한 없이" 요청을 실제로 반영하는 지점.
+    const { data: profile } = await createAdminClient()
+      .from('users')
+      .select('is_admin')
+      .eq('id', user.id)
+      .maybeSingle()
+    const isAdmin = Boolean(profile?.is_admin)
+
+    if (!FEATURES.paymentGate || isAdmin) {
       const { data: waived, error } = await supabase
         .from('payments')
         .insert({
