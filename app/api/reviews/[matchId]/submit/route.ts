@@ -52,6 +52,22 @@ export async function POST(
     if (match.submitted_at) return NextResponse.json({ error: '이미 제출된 리뷰입니다' }, { status: 400 })
     const projectId = match.project_id
 
+    // 관리자가 지원을 수락해도(match.status='accepted') 크리에이터가 프로젝트
+    // 단위로 "리뷰 시작하기"를 눌러 status를 'reviewing'으로 넘기기 전까지는
+    // 실제 리뷰 제출을 막는다 — projects 원본 테이블은 RLS상 크리에이터
+    // 본인만 조회 가능하므로 리뷰어용 projects_public 뷰로 확인한다.
+    const { data: projectGate } = await supabase
+      .from('projects_public')
+      .select('status')
+      .eq('id', projectId)
+      .single()
+    if (projectGate?.status !== 'reviewing') {
+      return NextResponse.json(
+        { error: '아직 크리에이터가 리뷰를 시작하지 않았어요. 시작되면 알림으로 알려드릴게요.' },
+        { status: 403 }
+      )
+    }
+
     const { data: questions } = await supabase
       .from('review_questions')
       .select('id')

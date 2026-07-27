@@ -38,6 +38,7 @@ type ProjectRow = {
   completed_count: number
   access_method: AccessMethod
   created_at: string
+  deadline: string | null
 }
 
 type QuestionRow = {
@@ -73,8 +74,13 @@ export default function ProjectDetailPage({ projectId }: Props) {
   const [questions, setQuestions] = useState<QuestionRow[]>([])
   const [matches, setMatches] = useState<MatchRow[]>([])
   const [hydrated, setHydrated] = useState(false)
-  const [closeMode, setCloseMode] = useState<'proceed_short' | 'early_close' | null>(null)
-  const [closing, setClosing] = useState(false)
+  // force_early만 재확인 모달을 거친다(손실이 확정되는 유일한 경우) —
+  // proceed_short/complete_start는 되돌릴 수 없는 손해가 없어서 버튼 클릭
+  // 즉시 실행한다.
+  const [confirmForceEarly, setConfirmForceEarly] = useState(false)
+  const [closing, setClosing] = useState<'force_early' | 'proceed_short' | 'complete_start' | null>(null)
+  const [extending, setExtending] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const load = useCallback(async () => {
     const supabase = createClient()
@@ -82,7 +88,7 @@ export default function ProjectDetailPage({ projectId }: Props) {
       supabase
         .from('projects')
         .select(
-          'id, title, one_liner, categories, stage, project_type, status, problem, solution, alternative_limit, target_age_range, target_jobs, target_count, completed_count, access_method, created_at'
+          'id, title, one_liner, categories, stage, project_type, status, problem, solution, alternative_limit, target_age_range, target_jobs, target_count, completed_count, access_method, created_at, deadline'
         )
         .eq('id', projectId)
         .single(),
@@ -109,8 +115,22 @@ export default function ProjectDetailPage({ projectId }: Props) {
 
   const [deleting, setDeleting] = useState(false)
 
+  // 모집 중(active)이거나 이미 리뷰 단계(reviewing)인 프로젝트는 이미
+  // 리뷰어 사례금이 걸려있을 수 있어서, 네이티브 confirm() 대신 환불 불가를
+  // 명시하는 커스텀 모달로 한 번 더 물어본다. draft/pending_review처럼
+  // 아직 아무도 모집 안 된 상태는 가벼운 native confirm으로 충분하다.
+  const isRecruitingOrReviewing = project?.status === 'active' || project?.status === 'reviewing'
+
+  const requestDelete = () => {
+    if (isRecruitingOrReviewing) {
+      setShowDeleteConfirm(true)
+      return
+    }
+    if (!confirm('이 프로젝트를 삭제하시겠습니까? 질문/답변이 모두 함께 삭제되며 되돌릴 수 없습니다.')) return
+    void handleDelete()
+  }
+
   const handleDelete = async () => {
-    if (!confirm('이 프로젝트를 삭제하시겠습니까? 리뷰어 지원 내역, 질문, 답변이 모두 함께 삭제되며 되돌릴 수 없습니다.')) return
     setDeleting(true)
     const supabase = createClient()
     const { error } = await supabase.from('projects').delete().eq('id', projectId)
@@ -133,21 +153,35 @@ export default function ProjectDetailPage({ projectId }: Props) {
     })
   }
 
-  const confirmCloseRecruitment = async () => {
-    if (!project || !closeMode) return
-    setClosing(true)
+  const runCloseRecruitment = async (mode: 'force_early' | 'proceed_short' | 'complete_start') => {
+    if (!project) return
+    setClosing(mode)
     try {
       const res = await fetch(`/api/projects/${project.id}/close-recruitment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode: closeMode }),
+        body: JSON.stringify({ mode }),
       })
       if (res.ok) {
         setProject((prev) => (prev ? { ...prev, status: 'reviewing' } : prev))
-        setCloseMode(null)
+        setConfirmForceEarly(false)
       }
     } finally {
-      setClosing(false)
+      setClosing(null)
+    }
+  }
+
+  const handleExtendDeadline = async () => {
+    if (!project) return
+    setExtending(true)
+    try {
+      const res = await fetch(`/api/projects/${project.id}/extend-deadline`, { method: 'POST' })
+      const body = await res.json()
+      if (res.ok && body.deadline) {
+        setProject((prev) => (prev ? { ...prev, deadline: body.deadline } : prev))
+      }
+    } finally {
+      setExtending(false)
     }
   }
 
@@ -245,7 +279,7 @@ export default function ProjectDetailPage({ projectId }: Props) {
           <p className="text-[10px] text-[#999] font-bold">{stageMeta?.title ?? project.stage}</p>
         </div>
         <button
-          onClick={handleDelete}
+          onClick={requestDelete}
           disabled={deleting}
           title="프로젝트 삭제"
           className="mt-1 p-1.5 rounded-lg hover:bg-red-50 transition-colors text-[#999] hover:text-red-500 disabled:opacity-50"
@@ -253,6 +287,43 @@ export default function ProjectDetailPage({ projectId }: Props) {
           <Trash2 className="w-4 h-4" />
         </button>
       </div>
+
+      {/* 모집 중/리뷰 진행 중인 프로젝트를 삭제하려 할 때 — 이미 리뷰어
+          사례금이 걸려있을 수 있어서 실수/충동 삭제를 막는 토스트형 모달 */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6" style={{ background: 'rgba(29,28,28,0.4)' }}>
+          <div className="w-full max-w-[420px] rounded-3xl bg-white p-6 flex flex-col gap-4">
+            <div className="flex items-center gap-2 text-red-500">
+              <AlertTriangle className="w-5 h-5" />
+              <span className="text-[13px] font-black">정말 삭제할까요?</span>
+            </div>
+            <p className="text-[12px] font-bold text-[#666] leading-relaxed">
+              {project.status === 'reviewing'
+                ? '이미 모집이 마감되고 리뷰가 진행 중인 프로젝트예요.'
+                : '지금 리뷰어를 모집 중인 프로젝트예요.'}{' '}
+              지원 내역, 질문, 답변이 모두 함께 삭제되며 되돌릴 수 없어요.
+            </p>
+            <p className="text-[11px] font-black text-red-500 bg-red-50 rounded-xl px-3 py-2.5 leading-relaxed">
+              이미 모집된 리뷰어 사례금은 삭제해도 환불되지 않아요.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 py-2.5 rounded-xl bg-[#F5F5F5] text-[#666] text-[12px] font-black hover:bg-[#EBEBEB] transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 py-2.5 rounded-xl bg-red-500 text-white text-[12px] font-black hover:opacity-90 transition-opacity disabled:opacity-60"
+              >
+                {deleting ? '삭제하는 중...' : '네, 삭제할게요'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 리뷰어 진행 현황 */}
       <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-6 flex flex-col gap-4 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
@@ -273,58 +344,104 @@ export default function ProjectDetailPage({ projectId }: Props) {
           />
         </div>
 
-        {/* 모집 인원 미달/조기 마감 선택권 — 크리에이터가 개별 리뷰어를
-            승인/거절하는 대신, 프로젝트를 지금 리뷰 단계로 넘길지 말지를
-            직접 결정한다(active → reviewing). 모집 중(active)이기만 하면
-            항상 보인다 — 미달 상태든, 이미 목표 인원이 다 찼든 둘 다
-            해당하는 선택이라 completedCount로 좁혀서 숨기면 안 된다
-            (이전엔 completedCount>0 && <targetCount로 좁혀놔서, 0명일 때나
-            이미 다 찼을 때는 아예 버튼 자체가 안 보이던 버그가 있었다). */}
-        {project.status === 'active' && (
-          <div className="flex flex-col sm:flex-row gap-2">
-            <button
-              onClick={() => setCloseMode('proceed_short')}
-              className="flex-1 py-2.5 rounded-xl border border-[#1D1C1C]/15 text-[#666] text-[11px] font-black hover:bg-[#1D1C1C]/5 transition-colors"
-            >
-              모집인원 미달이어도 진행하기
-            </button>
-            <button
-              onClick={() => setCloseMode('early_close')}
-              className="flex-1 py-2.5 rounded-xl border border-[#1D1C1C]/15 text-[#666] text-[11px] font-black hover:bg-[#1D1C1C]/5 transition-colors"
-            >
-              모집 조기 마감하고 바로 리뷰 시작
-            </button>
-          </div>
-        )}
+        {/* 모집 마감/리뷰 시작 선택권 — 상황(마감일 지남 여부 × 목표 인원
+            도달 여부)에 따라 3가지 화면으로 나뉜다. 관리자가 개별 리뷰어
+            지원을 수락해도 프로젝트는 여기서 크리에이터가 명시적으로
+            시작하기 전까진 active 상태 그대로라 리뷰 제출 자체가 막혀있다
+            (app/api/reviews/[matchId]/submit이 status==='reviewing' 요구). */}
+        {project.status === 'active' && (() => {
+          const deadlinePassed = project.deadline ? new Date(project.deadline) < new Date() : false
+          const targetMet = completedCount >= targetCount && targetCount > 0
 
-        {closeMode && (
+          // ── 케이스 3: 목표 인원 다 채움 — 경고 없이 바로 시작 ──
+          if (targetMet) {
+            return (
+              <div className="rounded-2xl bg-[#F77019]/5 border border-[#F77019]/20 p-4 flex flex-col gap-3">
+                <div>
+                  <p className="text-[12px] font-black text-[#1D1C1C]">목표했던 리뷰어가 모두 모였어요!</p>
+                  <p className="text-[10px] font-bold text-[#999] mt-0.5">지금 바로 프로젝트를 시작하고 리뷰를 받아보세요.</p>
+                </div>
+                <button
+                  onClick={() => runCloseRecruitment('complete_start')}
+                  disabled={closing !== null}
+                  className="py-2.5 rounded-xl bg-[#F77019] text-white text-[12px] font-black hover:opacity-90 transition-opacity disabled:opacity-60"
+                >
+                  {closing === 'complete_start' ? '시작하는 중...' : '지금 바로 시작하기'}
+                </button>
+              </div>
+            )
+          }
+
+          // ── 케이스 2: 마감일 지남 + 미달 — 중립 톤, 선택지 2개 ──
+          if (deadlinePassed) {
+            return (
+              <div className="rounded-2xl bg-[#F5F5F5] p-4 flex flex-col gap-3">
+                <div>
+                  <p className="text-[12px] font-black text-[#1D1C1C]">모집 마감일이 지났어요</p>
+                  <p className="text-[10px] font-bold text-[#999] mt-0.5">목표했던 인원이 다 모이지 않았어요. 지금까지 모인 리뷰어로 시작하거나, 기간을 늘려 더 모집해볼 수 있어요.</p>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex-1 flex flex-col gap-1">
+                    <button
+                      onClick={() => runCloseRecruitment('proceed_short')}
+                      disabled={closing !== null}
+                      className="w-full py-2.5 rounded-xl bg-[#1D1C1C] text-white text-[11px] font-black hover:opacity-90 transition-opacity disabled:opacity-60"
+                    >
+                      {closing === 'proceed_short' ? '처리 중...' : '지금 모인 인원으로 시작하기'}
+                    </button>
+                    <span className="text-[9px] font-bold text-[#999] text-center">부족한 인원만큼의 금액은 전액 환불돼요</span>
+                  </div>
+                  <div className="flex-1 flex flex-col gap-1">
+                    <button
+                      onClick={handleExtendDeadline}
+                      disabled={extending}
+                      className="w-full py-2.5 rounded-xl border border-[#1D1C1C]/15 text-[#666] text-[11px] font-black hover:bg-white transition-colors disabled:opacity-60"
+                    >
+                      {extending ? '연장하는 중...' : '모집 기간 연장하기'}
+                    </button>
+                    <span className="text-[9px] font-bold text-[#999] text-center">며칠 더 기다리며 리뷰어를 추가로 모을 수 있어요</span>
+                  </div>
+                </div>
+              </div>
+            )
+          }
+
+          // ── 케이스 1: 마감일 전 + 미달 — 가장 위험, 재확인 모달 필요 ──
+          return (
+            <div className="flex flex-col gap-1">
+              <button
+                onClick={() => setConfirmForceEarly(true)}
+                className="py-2.5 rounded-xl border-2 border-[#F77019] text-[#F77019] text-[11px] font-black hover:bg-[#F77019]/5 transition-colors"
+              >
+                모집 마감 전에 조기 시작하기
+              </button>
+            </div>
+          )
+        })()}
+
+        {confirmForceEarly && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-6" style={{ background: 'rgba(29,28,28,0.4)' }}>
             <div className="w-full max-w-[420px] rounded-3xl bg-white p-6 flex flex-col gap-4">
               <div className="flex items-center gap-2 text-[#F77019]">
                 <AlertTriangle className="w-5 h-5" />
-                <span className="text-[13px] font-black">정말 진행할까요?</span>
+                <span className="text-[13px] font-black">정말 지금 시작할까요?</span>
               </div>
               <p className="text-[12px] font-bold text-[#666] leading-relaxed">
-                {closeMode === 'proceed_short'
-                  ? `현재 ${completedCount}명만 참여한 상태로 진행합니다. 남은 모집은 종료돼요.`
-                  : '예상보다 일찍 목표 인원이 채워져 모집을 마감하고 바로 리뷰 단계로 넘어갑니다.'}
-              </p>
-              <p className="text-[11px] font-black text-red-500 bg-red-50 rounded-xl px-3 py-2.5 leading-relaxed">
-                이미 모집된 리뷰어 사례금은 환불되지 않습니다.
+                아직 모집 마감일도 안 됐고, 목표한 인원({completedCount}/{targetCount}명)도 다 채우지 못했어요. 지금 시작하면 부족한 인원만큼의 금액을 포함해 이미 결제한 금액은 환불되지 않아요.
               </p>
               <div className="flex gap-2">
                 <button
-                  onClick={() => setCloseMode(null)}
+                  onClick={() => setConfirmForceEarly(false)}
                   className="flex-1 py-2.5 rounded-xl bg-[#F5F5F5] text-[#666] text-[12px] font-black hover:bg-[#EBEBEB] transition-colors"
                 >
-                  취소
+                  마감일까지 기다릴게요
                 </button>
                 <button
-                  onClick={confirmCloseRecruitment}
-                  disabled={closing}
-                  className="flex-1 py-2.5 rounded-xl bg-[#F77019] text-white text-[12px] font-black hover:opacity-90 transition-opacity disabled:opacity-60"
+                  onClick={() => runCloseRecruitment('force_early')}
+                  disabled={closing !== null}
+                  className="flex-1 py-2.5 rounded-xl bg-red-500 text-white text-[12px] font-black hover:opacity-90 transition-opacity disabled:opacity-60"
                 >
-                  {closing ? '처리 중...' : '확인, 진행합니다'}
+                  {closing === 'force_early' ? '처리 중...' : '네, 지금 시작할게요'}
                 </button>
               </div>
             </div>
