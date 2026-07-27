@@ -16,7 +16,11 @@ export default function ReviewerPeek({ onEnter }: { onEnter: () => void }) {
 
   return (
     <div
-      className="fixed right-0 z-40 cursor-pointer"
+      // 마우스 hover로만 펼쳐지는 인터랙션이라 터치 기기에선 절대 펼쳐지지
+      // 않으면서 접힌 탭이 좁은 화면에서 히어로 일러스트와 겹쳐 보이던
+      // 문제 — md 미만(터치 위주 화면)에서는 아예 숨긴다. 리뷰어 진입은
+      // 헤더/CTA로도 가능하니 기능 손실은 없다.
+      className="fixed right-0 z-40 cursor-pointer hidden md:block"
       style={{
         top: '50%',
         transform: 'translateY(-50%)',

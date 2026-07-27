@@ -132,7 +132,7 @@ export default function ReviewerDashboard() {
   if (loading) {
     return (
       <div className="w-full flex items-center justify-center py-24">
-        <Loader2 className="w-6 h-6 text-[#1565C0] animate-spin" />
+        <Loader2 className="w-6 h-6 text-[#189DF7] animate-spin" />
       </div>
     )
   }
@@ -150,7 +150,7 @@ export default function ReviewerDashboard() {
         }}
       >
         <div className="flex flex-col max-w-[700px] z-10">
-          <div className="inline-flex items-center gap-1 text-[10px] font-black text-[#1565C0] mb-3 bg-[#1565C0]/10 px-2.5 py-1 rounded-full uppercase tracking-wider self-start border border-[#1565C0]/15">
+          <div className="inline-flex items-center gap-1 text-[10px] font-black text-[#189DF7] mb-3 bg-[#189DF7]/10 px-2.5 py-1 rounded-full uppercase tracking-wider self-start border border-[#189DF7]/15">
             <Sparkles className="w-3 h-3 animate-pulse" /> Reviewer Dashboard
           </div>
           <h2 className="text-2xl font-black tracking-tight mb-2">
@@ -165,7 +165,7 @@ export default function ReviewerDashboard() {
           onClick={() => router.push('/evaluator/available')}
           className="flex items-center gap-2 font-black rounded-full text-white text-xs px-6 py-4 hover:scale-[1.03] active:scale-[0.98] transition-all z-10 cursor-pointer shadow-md"
           style={{
-            background: 'linear-gradient(135deg, #1565C0 0%, #1e5bb0 100%)',
+            background: 'linear-gradient(135deg, #189DF7 0%, #1e5bb0 100%)',
             boxShadow: '0 8px 24px rgba(21,101,192,0.25)',
           }}
         >
@@ -184,13 +184,13 @@ export default function ReviewerDashboard() {
         >
           <div className="flex items-center justify-between mb-5">
             <h3 className="text-xs font-black text-[#666] uppercase tracking-wider flex items-center gap-1.5">
-              <Wallet className="w-4 h-4 text-[#1565C0]" />
+              <Wallet className="w-4 h-4 text-[#189DF7]" />
               내 정산 현황
             </h3>
           </div>
 
           <div className="flex flex-col mb-4">
-            <span className="text-3xl font-black text-[#1565C0] tracking-tight">{fmt(totalEarned)}원</span>
+            <span className="text-3xl font-black text-[#189DF7] tracking-tight">{fmt(totalEarned)}원</span>
             <span className="text-[9px] text-[#999] font-bold mt-1">정산 대기 중: {fmt(pendingTotal)}원</span>
           </div>
 
@@ -198,7 +198,7 @@ export default function ReviewerDashboard() {
 
           <button
             onClick={() => router.push('/evaluator/wallet')}
-            className="w-full py-3.5 rounded-2xl text-[10px] font-black border border-[#1565C0] text-[#1565C0] bg-[#1565C0]/5 hover:bg-[#1565C0] hover:text-white transition-all"
+            className="w-full py-3.5 rounded-2xl text-[10px] font-black border border-[#189DF7] text-[#189DF7] bg-[#189DF7]/5 hover:bg-[#189DF7] hover:text-white transition-all"
           >
             포인트 지갑 자세히 보기
           </button>
@@ -211,7 +211,7 @@ export default function ReviewerDashboard() {
         >
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xs font-black text-[#1D1C1C] uppercase tracking-wider flex items-center gap-1.5">
-              <Award className="w-4 h-4 text-[#1565C0]" />
+              <Award className="w-4 h-4 text-[#189DF7]" />
               평가 등급 및 전문 분야
             </h3>
             <span className="text-[9px] font-black text-[#F77019] bg-[#F77019]/10 px-2 py-0.5 rounded-md border border-[#F77019]/15">
@@ -224,7 +224,7 @@ export default function ReviewerDashboard() {
           </p>
           <button
             onClick={() => router.push('/evaluator/profile')}
-            className="w-fit mt-3 text-[10px] font-black text-[#1565C0] hover:underline flex items-center gap-0.5"
+            className="w-fit mt-3 text-[10px] font-black text-[#189DF7] hover:underline flex items-center gap-0.5"
           >
             프로필 설정하기 <ChevronRight className="w-3 h-3" />
           </button>
@@ -242,12 +242,12 @@ export default function ReviewerDashboard() {
         >
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xs font-black text-[#1D1C1C] uppercase tracking-wider flex items-center gap-1.5">
-              <Coins className="w-4 h-4 text-[#1565C0]" />
+              <Coins className="w-4 h-4 text-[#189DF7]" />
               참여 가능한 오늘의 신제품 검증 의뢰
             </h3>
             <button
               onClick={() => router.push('/evaluator/available')}
-              className="text-[10px] font-black text-[#1565C0] hover:underline flex items-center gap-0.5"
+              className="text-[10px] font-black text-[#189DF7] hover:underline flex items-center gap-0.5"
             >
               전체 보기 <ChevronRight className="w-3 h-3" />
             </button>
@@ -263,10 +263,10 @@ export default function ReviewerDashboard() {
                 <div
                   key={p.id}
                   onClick={() => router.push(`/evaluator/projects/${p.id}`)}
-                  className="flex items-center justify-between p-3.5 rounded-2xl bg-[#1D1C1C]/3 border border-[#1D1C1C]/5 hover:border-[#1565C0]/30 transition-all duration-300 group cursor-pointer"
+                  className="flex items-center justify-between p-3.5 rounded-2xl bg-[#1D1C1C]/3 border border-[#1D1C1C]/5 hover:border-[#189DF7]/30 transition-all duration-300 group cursor-pointer"
                 >
                   <div className="flex flex-col max-w-[340px]">
-                    <span className="text-xs font-black text-[#1D1C1C] group-hover:text-[#1565C0] transition-colors leading-snug line-clamp-1">
+                    <span className="text-xs font-black text-[#1D1C1C] group-hover:text-[#189DF7] transition-colors leading-snug line-clamp-1">
                       {p.title || p.one_liner || '(제목 없음)'}
                     </span>
                     <div className="flex items-center gap-2 mt-1.5">
@@ -276,7 +276,7 @@ export default function ReviewerDashboard() {
                     </div>
                   </div>
                   <div className="flex flex-col items-end flex-shrink-0">
-                    <span className="text-xs font-black text-[#1565C0] bg-[#1565C0]/10 px-2.5 py-1 rounded-lg">
+                    <span className="text-xs font-black text-[#189DF7] bg-[#189DF7]/10 px-2.5 py-1 rounded-lg">
                       {p.incentive_exists ? `${fmt(calcNet(p))}원` : 'EXP 적립'}
                     </span>
                     <span className="text-[9px] text-[#666] mt-1.5 flex items-center gap-0.5 font-bold">
@@ -297,12 +297,12 @@ export default function ReviewerDashboard() {
         >
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xs font-black text-[#1D1C1C] uppercase tracking-wider flex items-center gap-1.5">
-              <FileSpreadsheet className="w-4 h-4 text-[#1565C0]" />
+              <FileSpreadsheet className="w-4 h-4 text-[#189DF7]" />
               내 참여 현황
             </h3>
             <button
               onClick={() => router.push('/evaluator/reviews')}
-              className="text-[10px] font-black text-[#1565C0] hover:underline flex items-center gap-0.5"
+              className="text-[10px] font-black text-[#189DF7] hover:underline flex items-center gap-0.5"
             >
               전체 보기 <ChevronRight className="w-3 h-3" />
             </button>

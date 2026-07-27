@@ -1,6 +1,6 @@
 'use client'
 
-import { Sparkles, ArrowRight, Lightbulb, FileEdit } from 'lucide-react'
+import { Sparkles, ArrowRight, Lightbulb, FileEdit, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 interface Step0ModalProps {
@@ -38,6 +38,14 @@ export default function Step0Modal({ isOpen, onClose, onExplore, onHasItem }: St
       }}
     >
       <div className="w-full max-w-[680px] rounded-[32px] border border-[#F77019]/15 bg-white/90 p-8 md:p-10 flex flex-col items-center shadow-[0_32px_80px_rgba(247,112,25,0.08)] relative overflow-hidden">
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="닫기"
+          className="absolute top-5 right-5 z-10 w-8 h-8 rounded-full flex items-center justify-center text-[#999] hover:bg-[#1D1C1C]/5 hover:text-[#1D1C1C] transition-colors"
+        >
+          <X className="w-4 h-4" />
+        </button>
         {/* Glow effect */}
         <div className="absolute -top-24 -left-24 w-64 h-64 rounded-full bg-[#F77019]/5 blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -right-24 w-64 h-64 rounded-full bg-[#F77019]/5 blur-3xl pointer-events-none" />

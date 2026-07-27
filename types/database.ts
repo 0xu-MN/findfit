@@ -295,6 +295,40 @@ export interface Database {
         Relationships: []
       }
 
+      /* ── ad_banners (migration 033) — 크리에이터 홈/리뷰어 대시보드 히어로 배너 ── */
+      ad_banners: {
+        Row: {
+          id: string
+          placement: string
+          title: string
+          subtitle: string | null
+          badge: string | null
+          bg_gradient: string
+          image_url: string | null
+          button_text: string | null
+          button_link: string | null
+          display_order: number
+          active: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          placement: string
+          title: string
+          subtitle?: string | null
+          badge?: string | null
+          bg_gradient?: string
+          image_url?: string | null
+          button_text?: string | null
+          button_link?: string | null
+          display_order?: number
+          active?: boolean
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['ad_banners']['Insert']>
+        Relationships: []
+      }
+
       /* ── 현행: projects (migration 007 + 008) ─────────────── */
       projects: {
         Row: {

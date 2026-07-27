@@ -14,6 +14,8 @@ type UserRow = {
   created_at: string
   project_count: number
   completed_review_count: number
+  is_builder: boolean
+  is_reviewer: boolean
 }
 
 const STATUS_LABEL: Record<UserStatus, { label: string; color: string }> = {
@@ -55,7 +57,9 @@ export default function AdminUsersPage() {
 
   const filtered = useMemo(() => {
     return users.filter((u) => {
-      if (roleFilter !== 'all' && u.role !== roleFilter) return false
+      if (roleFilter === 'builder' && !u.is_builder) return false
+      if (roleFilter === 'evaluator' && !u.is_reviewer) return false
+      if (roleFilter === 'admin' && u.role !== 'admin') return false
       if (statusFilter !== 'all' && u.status !== statusFilter) return false
       if (query && !u.email.toLowerCase().includes(query.toLowerCase())) return false
       return true
@@ -160,28 +164,37 @@ export default function AdminUsersPage() {
               </thead>
               <tbody>
                 {filtered.map((u) => {
-                  const roleMeta = u.role ? ROLE_LABEL[u.role] : null
                   const statusMeta = STATUS_LABEL[u.status]
                   const isProcessing = processing === u.id
+                  const badges: { label: string; color: string }[] = []
+                  if (u.role === 'admin') badges.push(ROLE_LABEL.admin)
+                  if (u.is_builder) badges.push(ROLE_LABEL.builder)
+                  if (u.is_reviewer) badges.push(ROLE_LABEL.evaluator)
                   return (
                     <tr key={u.id} className="border-b border-[#1D1C1C]/5 last:border-0 hover:bg-[#FAFAFA]/60">
                       <td className="px-5 py-3 text-[12px] font-bold text-[#1D1C1C]">{u.email}</td>
                       <td className="px-5 py-3">
-                        {roleMeta ? (
-                          <span
-                            className="text-[9px] font-black px-2 py-0.5 rounded-full text-white"
-                            style={{ background: roleMeta.color }}
-                          >
-                            {roleMeta.label}
-                          </span>
+                        {badges.length > 0 ? (
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {badges.map((b) => (
+                              <span
+                                key={b.label}
+                                className="text-[9px] font-black px-2 py-0.5 rounded-full text-white"
+                                style={{ background: b.color }}
+                              >
+                                {b.label}
+                              </span>
+                            ))}
+                          </div>
                         ) : (
                           <span className="text-[9px] font-bold text-[#999]">미선택</span>
                         )}
                       </td>
                       <td className="px-5 py-3 text-[10px] font-bold text-[#666]">
-                        {u.role === 'builder' && `등록 프로젝트 ${u.project_count}건`}
-                        {u.role === 'evaluator' && `완료 리뷰 ${u.completed_review_count}건`}
-                        {!u.role && '—'}
+                        {[
+                          u.is_builder ? `등록 프로젝트 ${u.project_count}건` : null,
+                          u.is_reviewer ? `완료 리뷰 ${u.completed_review_count}건` : null,
+                        ].filter(Boolean).join(' · ') || '—'}
                       </td>
                       <td className="px-5 py-3">
                         <span

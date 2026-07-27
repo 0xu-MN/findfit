@@ -1,6 +1,7 @@
 'use client'
 
 import { Check, GitCompare, ListChecks, ToggleRight } from 'lucide-react'
+import Textarea from './PolishableTextarea'
 import QuestionBuilder from './QuestionBuilder'
 import { LIGHT_MAX_QUESTIONS, type LightQuestionStyle, type RequestFormData } from './types'
 
@@ -160,41 +161,6 @@ export default function Step4Light({ data, onChange }: Props) {
           />
         </div>
       )}
-    </div>
-  )
-}
-
-function Textarea({
-  label,
-  hint,
-  max,
-  rows,
-  value,
-  placeholder,
-  onChange,
-}: {
-  label: string
-  hint: string
-  max: number
-  rows: number
-  value: string
-  placeholder?: string
-  onChange: (v: string) => void
-}) {
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <label className="text-[11px] font-bold">{label}</label>
-        <span className="text-[9px] text-[#999] font-bold">{hint}</span>
-      </div>
-      <textarea
-        rows={rows}
-        maxLength={max}
-        value={value}
-        placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-xl bg-[#F5F5F5] border-none outline-none px-4 py-3 text-[11px] resize-none leading-relaxed"
-      />
     </div>
   )
 }

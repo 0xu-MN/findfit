@@ -189,7 +189,7 @@ export default function ProjectDetailPage({ projectId }: Props) {
     : []
 
   return (
-    <div className="w-full flex flex-col gap-6 text-[#1D1C1C]">
+    <div className="w-full flex flex-col gap-6 text-[#1D1C1C] px-4 sm:px-10 lg:px-[100px]">
       {/* 뒤로가기 + 헤더 */}
       <div className="flex items-start gap-4">
         <button
@@ -220,10 +220,22 @@ export default function ProjectDetailPage({ projectId }: Props) {
             )}
             <span
               className={`text-[9px] font-black px-2 py-0.5 rounded ml-auto ${
-                allDone ? 'bg-[#2E7D32]/10 text-[#2E7D32]' : 'bg-[#F77019]/10 text-[#F77019]'
+                project.status === 'pending_review'
+                  ? 'bg-[#999]/10 text-[#666]'
+                  : project.status === 'rejected'
+                  ? 'bg-red-500/10 text-red-500'
+                  : allDone
+                  ? 'bg-[#2E7D32]/10 text-[#2E7D32]'
+                  : 'bg-[#F77019]/10 text-[#F77019]'
               }`}
             >
-              {allDone ? '분석 완료' : '리뷰 진행 중'}
+              {project.status === 'pending_review'
+                ? '검수 대기중'
+                : project.status === 'rejected'
+                ? '검수 반려됨'
+                : allDone
+                ? '분석 완료'
+                : '리뷰 진행 중'}
             </span>
           </div>
           <h1 className="text-2xl font-black leading-tight">{project.title || '(제목 미작성)'}</h1>

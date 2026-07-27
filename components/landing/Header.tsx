@@ -43,7 +43,7 @@ export default function Header() {
         }}
       >
         <div
-          className="flex items-center gap-8 px-8 py-3 rounded-full"
+          className="flex items-center gap-3 sm:gap-8 px-4 sm:px-8 py-2.5 sm:py-3 rounded-full"
           style={{
             background: 'rgba(255,255,255,0.75)',
             backdropFilter: 'blur(16px)',
@@ -52,8 +52,10 @@ export default function Header() {
             boxShadow: '0 8px 32px rgba(0,0,0,0.08)',
           }}
         >
-          <img src="/logo.png" alt="FindFit" className="h-10 w-auto object-contain" />
-          <nav className="flex items-center gap-6">
+          <img src="/logo.png" alt="FindFit" className="h-8 sm:h-10 w-auto object-contain" />
+          {/* 좁은 화면에서는 nav 링크가 CTA 버튼을 화면 밖으로 밀어내던
+              문제가 있어 sm 미만에서는 숨긴다 */}
+          <nav className="hidden sm:flex items-center gap-6">
             {navLinks.map((link) => (
               <a key={link.label} href={link.href}
                 className="text-sm font-medium text-[#1D1C1C] hover:text-[#F77019] transition-colors">
@@ -61,7 +63,7 @@ export default function Header() {
               </a>
             ))}
           </nav>
-          <a href="/auth/login" onClick={handleStart} className="bg-[#F77019] hover:opacity-90 text-white text-sm font-semibold px-5 py-2.5 rounded-full transition-all">
+          <a href="/auth/login" onClick={handleStart} className="bg-[#F77019] hover:opacity-90 text-white text-xs sm:text-sm font-semibold px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-full transition-all whitespace-nowrap">
             시작하기
           </a>
         </div>
@@ -76,13 +78,13 @@ export default function Header() {
           pointerEvents: scrolled ? 'auto' : 'none',
         }}
       >
-        <div className="max-w-[1440px] mx-auto px-12 pt-0 pb-5 flex items-center justify-between">
-          <img src="/logo.png" alt="FindFit" className="h-10 w-auto object-contain" />
-          <div className="flex items-center gap-4 pt-4">
-            <a href="#reviewer" className="text-sm font-medium text-[#1D1C1C] hover:text-[#F77019] transition-colors">
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-12 pt-0 pb-5 flex items-center justify-between">
+          <img src="/logo.png" alt="FindFit" className="h-8 sm:h-10 w-auto object-contain" />
+          <div className="flex items-center gap-3 sm:gap-4 pt-4">
+            <a href="#reviewer" className="hidden sm:inline text-sm font-medium text-[#1D1C1C] hover:text-[#F77019] transition-colors">
               리뷰어 모집
             </a>
-            <a href="/auth/login" onClick={handleStart} className="bg-[#F77019] hover:opacity-90 text-white text-sm font-semibold px-5 py-2.5 rounded-full transition-all">
+            <a href="/auth/login" onClick={handleStart} className="bg-[#F77019] hover:opacity-90 text-white text-xs sm:text-sm font-semibold px-4 sm:px-5 py-2 sm:py-2.5 rounded-full transition-all whitespace-nowrap">
               시작하기
             </a>
           </div>

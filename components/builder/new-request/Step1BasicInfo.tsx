@@ -121,7 +121,7 @@ export default function Step1BasicInfo({ data, onChange }: Props) {
 
       {/* 현재 단계 */}
       <Field label="현재 단계">
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {STAGE_OPTIONS.map((s) => {
             const active = data.stage === s.value
             return (
@@ -159,7 +159,7 @@ export default function Step1BasicInfo({ data, onChange }: Props) {
             필수 · Step 4 분기 결정
           </span>
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {PROJECT_TYPE_OPTIONS.map((opt) => {
             const active = data.projectType === opt.value
             const compat = getCompatibility(data.stage, opt.value as ProjectType)

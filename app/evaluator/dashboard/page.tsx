@@ -2,6 +2,7 @@
 
 import { Loader2, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import ReviewerLayout from '@/components/reviewer/ReviewerLayout'
 import ProjectCardExpandable, { type CardMatch, type CardProject } from '@/components/evaluator/ProjectCardExpandable'
 import LiveActivityTicker from '@/components/evaluator/LiveActivityTicker'
@@ -21,30 +22,27 @@ type MatchRow = {
 const STATUS_ORDER: Record<string, number> = { accepted: 0, pending: 1, available: 2, completed: 3, dropped: 4 }
 
 // Banner Carousel Data
-const BANNERS = [
+type Banner = {
+  id: string
+  title: string
+  subtitle: string | null
+  badge: string | null
+  bg: string
+  imageUrl?: string | null
+  btnText: string | null
+  btnLink?: string | null
+}
+
+// 관리자가 /admin/banners에서 아직 아무것도 등록하지 않았거나 API가 실패해도
+// 화면이 비지 않도록 남겨두는 기본값 — 예전에 하드코딩돼 있던 문구 그대로.
+const FALLBACK_BANNERS: Banner[] = [
   {
-    id: 1,
+    id: 'fallback-1',
     title: '리뷰어 활동하고 맞춤 포트폴리오를 만들어보세요',
     subtitle: '관심 분야의 미출시 서비스를 먼저 경험하고 진짜 피드백을 전달하세요.',
     badge: '인기 이벤트',
-    bg: 'linear-gradient(135deg, #1565C0 0%, #0D47A1 50%, #1A237E 100%)',
+    bg: 'linear-gradient(135deg, #189DF7 0%, #0D47A1 50%, #1A237E 100%)',
     btnText: '관심 분야 설정하기',
-  },
-  {
-    id: 2,
-    title: '이번 주 우수 리뷰어 특별 사례금 보너스 혜택',
-    subtitle: '정성스러운 피드백을 작성해주신 50분께 추가 10,000 포인트 지급!',
-    badge: '사례금 혜택',
-    bg: 'linear-gradient(135deg, #F77019 0%, #E65100 50%, #BF360C 100%)',
-    btnText: '사례금 의뢰 보기',
-  },
-  {
-    id: 3,
-    title: 'IT/프로그래밍 & 디자인 맞춤 의뢰 대거 신규 등록',
-    subtitle: '내 아이디에 맞는 프로젝트에 참여하고 경험을 쌓아보세요.',
-    badge: 'NEW 서비스',
-    bg: 'linear-gradient(135deg, #2E7D32 0%, #1B5E20 50%, #004D40 100%)',
-    btnText: '신규 프로젝트 확인',
   },
 ]
 
@@ -79,6 +77,7 @@ const LIVE_ACTIVITIES = [
 ]
 
 export default function EvaluatorDashboardPage() {
+  const router = useRouter()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase: any = createClient()
   const [loading, setLoading] = useState(true)
@@ -90,15 +89,38 @@ export default function EvaluatorDashboardPage() {
   const [userInterests, setUserInterests] = useState<string[]>([])
   const [selectedInterestTab, setSelectedInterestTab] = useState('맞춤 추천')
 
-  // Banner carousel state
+  // Banner carousel state — 관리자가 /admin/banners에서 관리하는 배너를 불러온다
+  const [banners, setBanners] = useState<Banner[]>(FALLBACK_BANNERS)
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0)
 
   useEffect(() => {
+    fetch('/api/banners?placement=reviewer_dashboard')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.banners?.length > 0) {
+          setBanners(
+            data.banners.map((b: { id: string; title: string; subtitle: string | null; badge: string | null; bg_gradient: string; image_url: string | null; button_text: string | null; button_link: string | null }) => ({
+              id: b.id,
+              title: b.title,
+              subtitle: b.subtitle,
+              badge: b.badge,
+              bg: b.bg_gradient,
+              imageUrl: b.image_url,
+              btnText: b.button_text,
+              btnLink: b.button_link,
+            }))
+          )
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
     const timer = setInterval(() => {
-      setCurrentBannerIndex((prev) => (prev + 1) % BANNERS.length)
+      setCurrentBannerIndex((prev) => (prev + 1) % banners.length)
     }, 5000)
     return () => clearInterval(timer)
-  }, [])
+  }, [banners.length])
 
   const load = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -202,25 +224,38 @@ export default function EvaluatorDashboardPage() {
             className="flex transition-transform duration-500 ease-in-out h-full"
             style={{ transform: `translateX(-${currentBannerIndex * 100}%)` }}
           >
-            {BANNERS.map((b) => (
+            {banners.map((b) => (
               <div
                 key={b.id}
-                className="w-full shrink-0 p-8 sm:p-10 flex flex-col justify-center text-white relative"
-                style={{ background: b.bg, minHeight: '220px' }}
+                className="w-full shrink-0 p-8 sm:p-10 flex flex-col justify-center text-white relative overflow-hidden"
+                style={{ background: b.imageUrl ? undefined : b.bg, minHeight: '220px' }}
               >
+                {b.imageUrl && (
+                  <img src={b.imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                )}
+                <div className="absolute inset-0 bg-black/25" />
                 <div className="max-w-2xl relative z-10 flex flex-col items-start gap-3">
-                  <span className="text-[11px] font-black px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-white border border-white/30">
-                    {b.badge}
-                  </span>
+                  {b.badge && (
+                    <span className="text-[11px] font-black px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-white border border-white/30">
+                      {b.badge}
+                    </span>
+                  )}
                   <h2 className="text-2xl sm:text-3xl font-black leading-tight break-keep">
                     {b.title}
                   </h2>
-                  <p className="text-sm font-medium text-white/80 break-keep">
-                    {b.subtitle}
-                  </p>
-                  <button className="mt-2 px-5 py-2.5 rounded-full bg-white text-[#1565C0] text-xs font-black hover:bg-white/90 transition-all shadow-md">
-                    {b.btnText}
-                  </button>
+                  {b.subtitle && (
+                    <p className="text-sm font-medium text-white/80 break-keep">
+                      {b.subtitle}
+                    </p>
+                  )}
+                  {b.btnText && (
+                    <button
+                      onClick={() => b.btnLink && router.push(b.btnLink)}
+                      className="mt-2 px-5 py-2.5 rounded-full bg-white text-[#189DF7] text-xs font-black hover:bg-white/90 transition-all shadow-md"
+                    >
+                      {b.btnText}
+                    </button>
+                  )}
                 </div>
                 {/* Decorative visual elements */}
                 <div className="absolute right-10 bottom-0 top-0 w-1/3 opacity-20 pointer-events-none hidden md:flex items-center justify-center">
@@ -232,13 +267,13 @@ export default function EvaluatorDashboardPage() {
 
           {/* Controls */}
           <button
-            onClick={() => setCurrentBannerIndex((p) => (p === 0 ? BANNERS.length - 1 : p - 1))}
+            onClick={() => setCurrentBannerIndex((p) => (p === 0 ? banners.length - 1 : p - 1))}
             className="absolute left-4 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/20 hover:bg-black/40 text-white flex items-center justify-center backdrop-blur-sm transition-colors"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
           <button
-            onClick={() => setCurrentBannerIndex((p) => (p + 1) % BANNERS.length)}
+            onClick={() => setCurrentBannerIndex((p) => (p + 1) % banners.length)}
             className="absolute right-4 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/20 hover:bg-black/40 text-white flex items-center justify-center backdrop-blur-sm transition-colors"
           >
             <ChevronRight className="w-5 h-5" />
@@ -246,7 +281,7 @@ export default function EvaluatorDashboardPage() {
 
           {/* Indicators */}
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2">
-            {BANNERS.map((_, idx) => (
+            {banners.map((_, idx) => (
               <button
                 key={idx}
                 onClick={() => setCurrentBannerIndex(idx)}
@@ -260,8 +295,8 @@ export default function EvaluatorDashboardPage() {
         {/* 2. OOO 맞춤 프로젝트 섹션 (3번 이미지 Kmong Biz 스타일 반영) */}
         <section className="flex flex-col gap-6">
           <div className="flex flex-col gap-1">
-            <h2 className="text-2xl font-black text-[#1D1C1C] flex items-center gap-2">
-              <span className="text-[#1565C0]">{userNickname}님</span>을 위해 엄선한 맞춤 프로젝트
+            <h2 className="text-2xl font-black text-[#1D1C1C] break-keep">
+              <span className="text-[#189DF7]">{userNickname}님</span>을 위해 엄선한 맞춤 프로젝트
             </h2>
             <p className="text-xs font-medium text-[#666]">
               설정하신 관심 분야({userInterests.join(', ')})를 기반으로 딱 맞는 프로젝트를 추천해 드려요.
@@ -277,8 +312,8 @@ export default function EvaluatorDashboardPage() {
                   key={tab}
                   onClick={() => setSelectedInterestTab(tab)}
                   className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${active
-                      ? 'bg-[#1565C0] text-white shadow-sm'
-                      : 'bg-white text-[#666] border border-[#1D1C1C]/10 hover:border-[#1565C0]/40'
+                      ? 'bg-[#189DF7] text-white shadow-sm'
+                      : 'bg-white text-[#666] border border-[#1D1C1C]/10 hover:border-[#189DF7]/40'
                     }`}
                 >
                   {tab === '맞춤 추천' ? '✨ 맞춤 추천' : tab}
@@ -290,7 +325,7 @@ export default function EvaluatorDashboardPage() {
           {/* Project List */}
           {loading ? (
             <div className="flex items-center justify-center py-20">
-              <Loader2 className="w-6 h-6 text-[#1565C0] animate-spin" />
+              <Loader2 className="w-6 h-6 text-[#189DF7] animate-spin" />
             </div>
           ) : cards.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-[#1D1C1C]/15 bg-white p-16 text-center">
@@ -305,6 +340,7 @@ export default function EvaluatorDashboardPage() {
                   match={match}
                   onApplied={handleApplied}
                   onSubmitted={handleSubmitted}
+                  onCardClick={() => router.push(`/evaluator/projects/${project.id}`)}
                 />
               ))}
             </div>

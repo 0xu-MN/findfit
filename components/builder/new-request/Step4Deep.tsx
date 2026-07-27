@@ -4,6 +4,7 @@ import { getPsfPmfType } from '@/lib/utils/psfPmf'
 import { Camera, Loader2, Sparkles, Upload } from 'lucide-react'
 import { useState } from 'react'
 import PsfLockedBlock from './PsfLockedBlock'
+import Textarea from './PolishableTextarea'
 import QuestionBuilder from './QuestionBuilder'
 import { generateId } from './storage'
 import {
@@ -69,8 +70,18 @@ export default function Step4Deep({ data, onChange }: Props) {
       })
       if (res.ok) {
         const json = await res.json()
-        setSuggestions(json.suggestions ?? [])
+        const list = json.suggestions ?? []
+        setSuggestions(list)
+        if (list.length === 0) showToast('추천할 질문을 찾지 못했어요. 잠시 후 다시 시도해주세요')
+      } else if (res.status === 401) {
+        showToast('로그인이 필요해요. 로그인 후 다시 시도해주세요')
+      } else if (res.status === 429) {
+        showToast('오늘 추천 가능 횟수를 모두 사용했어요')
+      } else {
+        showToast('질문 추천을 가져오지 못했어요. 잠시 후 다시 시도해주세요')
       }
+    } catch {
+      showToast('질문 추천을 가져오지 못했어요. 잠시 후 다시 시도해주세요')
     } finally {
       setLoadingSuggest(false)
     }
@@ -338,37 +349,3 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   )
 }
 
-function Textarea({
-  label,
-  hint,
-  max,
-  rows,
-  value,
-  placeholder,
-  onChange,
-}: {
-  label: string
-  hint: string
-  max: number
-  rows: number
-  value: string
-  placeholder?: string
-  onChange: (v: string) => void
-}) {
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <label className="text-[11px] font-bold">{label}</label>
-        <span className="text-[9px] text-[#999] font-bold">{hint}</span>
-      </div>
-      <textarea
-        rows={rows}
-        maxLength={max}
-        value={value}
-        placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-xl bg-[#F5F5F5] border-none outline-none px-4 py-3 text-[11px] resize-none leading-relaxed"
-      />
-    </div>
-  )
-}

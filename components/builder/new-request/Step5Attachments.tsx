@@ -20,7 +20,11 @@ export default function Step5Attachments({ data, onChange }: Props) {
 
   const addDocs = (files: FileList | null) => {
     if (!files) return
-    const incoming = Array.from(files).map((f) => f.name)
+    // 드래그앤드롭은 파일 선택창의 accept 필터를 안 거치므로, 여기서
+    // PDF가 아닌 파일이 섞여 들어오는 걸 한 번 더 걸러낸다.
+    const incoming = Array.from(files)
+      .filter((f) => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'))
+      .map((f) => f.name)
     const next = [...data.documentNames, ...incoming].slice(0, 2)
     onChange({ documentNames: next })
   }
@@ -96,9 +100,16 @@ export default function Step5Attachments({ data, onChange }: Props) {
           <VisibilityToggle label={data.visibility.documents ? '공개' : '비공개'} on={data.visibility.documents} onClick={() => setVis('documents')} />
         </div>
 
-        <label className="flex items-center gap-3 h-12 rounded-xl border border-dashed border-[#1D1C1C]/15 bg-[#FAFAFA] px-4 cursor-pointer hover:border-[#F77019] hover:bg-[#F77019]/5 transition-colors">
+        <label
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault()
+            addDocs(e.dataTransfer.files)
+          }}
+          className="flex items-center gap-3 h-12 rounded-xl border border-dashed border-[#1D1C1C]/15 bg-[#FAFAFA] px-4 cursor-pointer hover:border-[#F77019] hover:bg-[#F77019]/5 transition-colors"
+        >
           <Upload className="w-4 h-4 text-[#999]" />
-          <span className="text-[11px] font-bold text-[#666] flex-1">PDF 최대 2개 — 클릭해서 업로드</span>
+          <span className="text-[11px] font-bold text-[#666] flex-1">PDF 최대 2개 — 클릭하거나 파일을 끌어다 놓으세요</span>
           <input type="file" multiple accept="application/pdf" className="hidden" onChange={(e) => addDocs(e.target.files)} />
         </label>
 

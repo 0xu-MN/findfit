@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Sparkles, Search, ArrowRight, X } from 'lucide-react'
 import { useAgentBubble } from '../agent/AgentBubbleContext'
 import type { RecommendedItem } from '@/app/api/agent/recommend-items/route'
+import { CATEGORIES, AGE_GROUPS } from '../builder/new-request/types'
 
 type Stage = 'searching' | 'questions' | 'loading' | 'results'
 
@@ -16,9 +17,12 @@ interface Props {
 
 const SEARCH_MESSAGES = ['유사 아이템을 찾고 있어요', '몇 가지 더 확인해볼게요']
 
+// 등록 마법사(types.ts CATEGORIES/AGE_GROUPS)와 동일한 목록을 재사용한다 —
+// 예전엔 여기서 별도로 4개짜리 카테고리/연령대를 하드코딩해서 등록 단계와
+// 완전히 다른 분류체계로 사용자를 헷갈리게 했다.
 const QUESTIONS: { key: string; label: string; options: string[] }[] = [
-  { key: '타겟 연령대', label: '주로 어떤 연령대를 타겟하시나요?', options: ['10~20대', '30~40대', '50대 이상', '전 연령'] },
-  { key: '카테고리', label: '어떤 카테고리에 가까운가요?', options: ['식품/건강', '뷰티/라이프', '테크/앱', '기타'] },
+  { key: '타겟 연령대', label: '주로 어떤 연령대를 타겟하시나요?', options: AGE_GROUPS },
+  { key: '카테고리', label: '어떤 카테고리에 가까운가요?', options: CATEGORIES },
 ]
 
 // 홈 검색 → "검증 시작" 클릭 시 뜨는 AI 추천 흐름 — ①화려한 탐색 모션
@@ -73,7 +77,10 @@ export default function ItemDiscoveryFlow({ keyword, onClose }: Props) {
 
   const exploreItem = (item: RecommendedItem) => {
     agentBubble.openWithSeed(`"${item.title}" 아이템을 검증해보고 싶어요. ${item.description}`)
-    router.push('/builder/new-request')
+    // skipIntro — 홈 화면에서 이미 "아이템 탐색부터 시작"을 고르고 여기까지
+    // 왔으므로, 마법사 진입 시 Step0Modal("어떻게 검증을 시작할까요?")을
+    // 또 띄우면 이미 끝난 선택을 다시 물어보는 꼴이 된다.
+    router.push('/builder/new-request?skipIntro=1')
     onClose()
   }
 

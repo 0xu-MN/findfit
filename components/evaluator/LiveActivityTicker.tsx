@@ -93,7 +93,7 @@ export default function LiveActivityTicker() {
     <div className="rounded-3xl bg-white border border-[#1D1C1C]/10 p-4 shadow-[0_4px_24px_rgba(0,0,0,0.03)] flex items-center gap-4 overflow-hidden relative select-none">
       {/* Label */}
       <div className="flex items-center gap-2 shrink-0 bg-[#F5F7FA] px-3.5 py-2 rounded-2xl border border-[#1D1C1C]/5 z-10">
-        <Activity className="w-4 h-4 text-[#1565C0] animate-pulse" />
+        <Activity className="w-4 h-4 text-[#189DF7] animate-pulse" />
         <span className="text-xs font-black text-[#1D1C1C] whitespace-nowrap">실시간 활동</span>
       </div>
 
@@ -103,7 +103,7 @@ export default function LiveActivityTicker() {
           {tickerContent.map((act, index) => (
             <div
               key={`${act.id}-${index}`}
-              className="flex items-center gap-3 p-2.5 px-4 rounded-2xl bg-[#F8F9FA] border border-[#1D1C1C]/5 hover:border-[#1565C0]/40 hover:bg-white transition-all shrink-0 cursor-pointer shadow-sm"
+              className="flex items-center gap-3 p-2.5 px-4 rounded-2xl bg-[#F8F9FA] border border-[#1D1C1C]/5 hover:border-[#189DF7]/40 hover:bg-white transition-all shrink-0 cursor-pointer shadow-sm"
             >
               <img src={act.img} alt="" className="w-10 h-10 rounded-xl object-cover" />
               <div className="flex flex-col gap-0.5 min-w-0">
@@ -128,7 +128,7 @@ export default function LiveActivityTicker() {
         <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
         <div className="flex flex-col">
           <span className="text-[9px] font-bold text-[#777]">현재 검증 진행 중</span>
-          <span className="text-xs font-black text-[#1565C0]">1,248건</span>
+          <span className="text-xs font-black text-[#189DF7]">1,248건</span>
         </div>
       </div>
     </div>

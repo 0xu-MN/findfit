@@ -9,7 +9,7 @@ export default function BuilderAccountPage() {
   const [saved, setSaved] = useState(false)
   return (
     <CreatorLayout>
-      <div className="flex flex-col gap-5 max-w-xl">
+      <div className="flex flex-col gap-5 max-w-xl mx-auto w-full">
         <h1 className="text-xl font-black">계정 설정</h1>
         <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-6 shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
           <ProfileForm mode="settings" onDone={() => { setSaved(true); setTimeout(() => setSaved(false), 2000) }} />

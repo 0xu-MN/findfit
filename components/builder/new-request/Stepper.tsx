@@ -50,8 +50,11 @@ export default function Stepper({ steps, currentStep, onJump }: Props) {
               </span>
             </button>
 
+            {/* 단계 라벨 — 모바일에서 5~6단계 라벨이 whitespace-nowrap으로
+                줄바꿈을 못 해 화면 밖으로 넘치던 문제가 있어, 좁은 화면에선
+                숫자 동그라미+연결선만 남기고 라벨 텍스트는 숨긴다. */}
             <span
-              className={`whitespace-nowrap transition-colors ${
+              className={`hidden sm:inline whitespace-nowrap transition-colors ${
                 active ? 'text-[#F77019] font-black' : passed ? 'text-[#F77019]/80' : 'text-[#999]'
               }`}
             >

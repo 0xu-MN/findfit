@@ -57,7 +57,7 @@ export default function ReviewerLayout({ children }: Props) {
 
   if (!mounted) return null
 
-  const accentColor = '#1565C0'
+  const accentColor = '#189DF7'
 
   return (
     <div className="min-h-screen bg-[#F8F8F8] relative text-[#1D1C1C]">
@@ -92,12 +92,12 @@ export default function ReviewerLayout({ children }: Props) {
                     <button
                       onClick={() => router.push(item.path)}
                       className={`py-1.5 whitespace-nowrap transition-all relative ${
-                        isActive ? 'text-[14px] font-black text-[#1565C0]' : 'text-[12px] font-bold text-[#999999] hover:text-[#1D1C1C]'
+                        isActive ? 'text-[14px] font-black text-[#189DF7]' : 'text-[12px] font-bold text-[#999999] hover:text-[#1D1C1C]'
                       }`}
                     >
                       {item.label}
                       {isActive && (
-                        <span className="absolute -bottom-0.5 left-0 right-0 h-[2px] rounded-full bg-[#1565C0]" />
+                        <span className="absolute -bottom-0.5 left-0 right-0 h-[2px] rounded-full bg-[#189DF7]" />
                       )}
                     </button>
                     {index < arr.length - 1 && (
@@ -142,7 +142,7 @@ export default function ReviewerLayout({ children }: Props) {
                     onClick={() => { setShowUserMenu(false); router.push('/evaluator/settings?tab=profile') }}
                     className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] font-bold text-[#333] hover:bg-[#F5F5F5] rounded-xl transition-colors text-left"
                   >
-                    <User className="w-3.5 h-3.5 text-[#1565C0]" />
+                    <User className="w-3.5 h-3.5 text-[#189DF7]" />
                     <span>프로필 설정</span>
                   </button>
                   <button
@@ -192,7 +192,7 @@ export default function ReviewerLayout({ children }: Props) {
           <div className="w-full max-w-[460px] rounded-[28px] border bg-white p-9 flex flex-col items-center text-center shadow-[0_24px_64px_rgba(0,0,0,0.08)]"
             style={{ borderColor: `${accentColor}20` }}>
             <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-5 text-white"
-              style={{ background: 'linear-gradient(135deg,#1565C0,#42A5F5)', boxShadow: `0 8px 20px ${accentColor}30` }}>
+              style={{ background: 'linear-gradient(135deg,#189DF7,#42A5F5)', boxShadow: `0 8px 20px ${accentColor}30` }}>
               <Sparkles className="w-7 h-7" />
             </div>
             <h3 className="text-lg font-black text-[#1D1C1C] mb-2.5 tracking-tight">리뷰어로 시작하시겠습니까?</h3>
@@ -203,7 +203,7 @@ export default function ReviewerLayout({ children }: Props) {
               <button
                 onClick={handleConfirmClose}
                 className="w-full py-3 rounded-full text-sm font-extrabold text-white transition-all hover:scale-[1.02] active:scale-[0.98]"
-                style={{ background: 'linear-gradient(135deg,#1565C0,#1e5bb0)', boxShadow: `0 4px 14px ${accentColor}30` }}
+                style={{ background: 'linear-gradient(135deg,#189DF7,#1e5bb0)', boxShadow: `0 4px 14px ${accentColor}30` }}
               >
                 네, 리뷰어로 계속하기
               </button>

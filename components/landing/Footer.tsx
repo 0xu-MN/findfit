@@ -29,8 +29,8 @@ const footerLinks = [
 export default function Footer() {
   return (
     <footer style={{ background: '#1D1C1C' }}>
-      <div className="max-w-[1440px] mx-auto px-16 pt-16 pb-10">
-        <div className="flex justify-between items-start mb-14">
+      <div className="max-w-[1440px] mx-auto px-6 sm:px-16 pt-12 sm:pt-16 pb-10">
+        <div className="flex flex-col sm:flex-row justify-between items-start mb-14 gap-10">
           <div className="max-w-[280px]">
             <img src="/logo.png" alt="FindFit" className="h-11 w-auto object-contain" />
             <p className="text-white/35 text-sm leading-relaxed mt-3">
@@ -38,7 +38,7 @@ export default function Footer() {
             </p>
           </div>
 
-          <div className="flex gap-16">
+          <div className="flex flex-wrap gap-x-10 gap-y-8 sm:gap-16">
             {footerLinks.map(({ category, links }) => (
               <div key={category}>
                 <p className="text-white/30 text-[11px] font-bold uppercase tracking-[0.15em] mb-4">
@@ -66,7 +66,7 @@ export default function Footer() {
 
         <div className="h-px" style={{ background: 'rgba(255,255,255,0.08)' }} />
 
-        <div className="flex items-center justify-between mt-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mt-8">
           <p className="text-xs text-white/25">© 2026 FindFit. All rights reserved.</p>
           <p className="text-xs text-white/20">아이디어를 검증하는 가장 빠른 방법</p>
         </div>

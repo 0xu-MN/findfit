@@ -9,14 +9,12 @@ import { deleteDraft, getDraft, saveDraft } from './new-request/storage'
 import { submitProject } from './new-request/submitProject'
 import {
   PROJECT_TYPE_OPTIONS,
-  PSF_STANDARD_QUESTIONS,
   REVIEWER_COMMISSION_RATE,
   SEAN_ELLIS_QUESTION,
   STAGE_OPTIONS,
   calculateCost,
   type RequestFormData,
 } from './new-request/types'
-import { getPsfPmfType } from '@/lib/utils/psfPmf'
 
 const WALLET_BALANCE = 80000
 
@@ -300,15 +298,6 @@ function CreatorView({ data }: { data: RequestFormData }) {
 function ReviewerView({ data }: { data: RequestFormData }) {
   const stage = STAGE_OPTIONS.find((s) => s.value === data.stage)
   const cost = calculateCost(data)
-  const psfPmfType = data.stage ? getPsfPmfType(data.stage) : 'psf'
-  // submitProject.ts의 buildQuestionRows와 동일한 규칙 — Standard/psf는 PSF
-  // 고정 4문항이 맨 앞에, Standard/pmf는 Sean Ellis 문항이 맨 뒤에 자동으로
-  // 붙는다. 실제 제출 시 서버가 만드는 문항 순서와 여기 미리보기가 다르면
-  // "결제 직전 화면이랑 실제 리뷰어 화면 내용이 다르다"는 문제가 생긴다.
-  const fixedLead = data.projectType === 'standard' && psfPmfType === 'psf' ? PSF_STANDARD_QUESTIONS : []
-  const includeSeanEllis = data.projectType === 'standard' && psfPmfType === 'pmf'
-  const questions = data.questions
-
   const expectedTime = data.projectType === 'standard' ? '10~15분' : '3~5분 (Light)'
 
   return (
@@ -358,47 +347,10 @@ function ReviewerView({ data }: { data: RequestFormData }) {
         </div>
       </div>
 
-      {/* 질문 목록 — 크리에이터가 작성한 문항 + 필수 고정 문항(PSF/Sean Ellis)을
-          실제 제출 순서 그대로 합쳐서 보여준다 */}
-      <div className="flex flex-col gap-3">
-        <h3 className="text-xs font-black">질문 목록</h3>
-        <ol className="flex flex-col gap-2 text-[11px]">
-          {fixedLead.map((q, i) => (
-            <li key={q.id} className="flex items-start gap-2">
-              <span className="text-[#1565C0] font-black w-6">{i + 1}.</span>
-              <div className="flex-1 flex items-start gap-2">
-                <Lock className="w-3 h-3 text-[#F77019] mt-0.5 flex-shrink-0" />
-                <span className="font-bold">{q.text}</span>
-              </div>
-            </li>
-          ))}
-          {questions.map((q, i) => (
-            <li key={q.id} className="flex items-start gap-2">
-              <span className="text-[#1565C0] font-black w-6">{fixedLead.length + i + 1}.</span>
-              <span className="font-bold flex-1">
-                {q.text || '(작성되지 않음)'}
-                {q.type === 'likert' && <span className="text-[#999] ml-1">(1~5점)</span>}
-                {q.type === 'yes_no' && <span className="text-[#999] ml-1">(예/아니오)</span>}
-                {q.type === 'ab_test' && <span className="text-[#999] ml-1">(A/B 선택)</span>}
-              </span>
-            </li>
-          ))}
-          {includeSeanEllis && (
-            <li className="flex items-start gap-2">
-              <span className="text-[#1565C0] font-black w-6">{fixedLead.length + questions.length + 1}.</span>
-              <div className="flex-1 flex items-start gap-2">
-                <Lock className="w-3 h-3 text-[#F77019] mt-0.5 flex-shrink-0" />
-                <span className="font-bold">{SEAN_ELLIS_QUESTION.text}</span>
-              </div>
-            </li>
-          )}
-        </ol>
-        {(fixedLead.length > 0 || includeSeanEllis) && (
-          <p className="text-[9px] text-[#999] font-bold flex items-center gap-1">
-            <Lock className="w-2.5 h-2.5 text-[#F77019]" /> 표시된 문항은 검증 방법론상 필수로 자동 포함되는 질문입니다
-          </p>
-        )}
-      </div>
+      {/* 질문 목록은 여기(Reviewer 프리뷰)에서는 의도적으로 숨긴다 — 실제
+          리뷰어도 지원 전(ApplyPanel)/카드 열람 단계에서는 문항을 볼 수
+          없고, 지원 수락 후 실제 리뷰 작성 화면(ReviewFormPanel)에서만
+          문항이 노출돼야 한다. 프리뷰가 그 이상을 보여주면 안 된다. */}
 
       <div className="h-[1px] bg-[#1D1C1C]/5" />
 

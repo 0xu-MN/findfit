@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import ReviewerLayout from '@/components/reviewer/ReviewerLayout'
 import ProjectCardExpandable, {
   type CardMatch,
@@ -16,19 +17,12 @@ import {
   TrendingUp,
   Sparkles,
 } from 'lucide-react'
+import { CATEGORIES } from '@/components/builder/new-request/types'
 
-const CATEGORY_TABS = [
-  '전체',
-  '식품/음료',
-  '뷰티/헬스케어',
-  'IT/프로그래밍',
-  '디자인',
-  '마케팅',
-  '반려동물',
-  '패션/의류',
-  '생활/홈',
-  '기획',
-]
+// 등록 마법사(types.ts CATEGORIES)와 다른 목록을 쓰면 project.categories에
+// 저장된 값과 필터 탭 문자열이 절대 일치하지 않아 필터가 사실상 항상
+// 빈 결과만 내는 상태였다 — 반드시 같은 소스를 재사용해야 한다.
+const CATEGORY_TABS = ['전체', ...CATEGORIES]
 
 const SORT_OPTIONS = [
   { value: 'newest', label: '최신순' },
@@ -48,6 +42,7 @@ type MatchRow = {
 }
 
 export default function EvaluatorProjectsPage() {
+  const router = useRouter()
   const supabase = createClient()
   const [loading, setLoading] = useState(true)
   const [projects, setProjects] = useState<CardProject[]>([])
@@ -148,7 +143,7 @@ export default function EvaluatorProjectsPage() {
         <div
           className="w-full rounded-[32px] p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 relative overflow-hidden"
           style={{
-            background: 'linear-gradient(135deg, #1565C0 0%, #0D47A1 70%, #1A237E 100%)',
+            background: 'linear-gradient(135deg, #189DF7 0%, #0D47A1 70%, #1A237E 100%)',
           }}
         >
           {/* Decorative glow */}
@@ -176,7 +171,7 @@ export default function EvaluatorProjectsPage() {
           {/* Search + Sort + View toggle row */}
           <div className="flex items-center gap-3 flex-wrap">
             {/* Search */}
-            <div className="flex-1 min-w-[200px] flex items-center gap-2 bg-white border border-[#1D1C1C]/10 rounded-xl px-4 py-2.5 focus-within:border-[#1565C0] transition-colors shadow-sm">
+            <div className="flex-1 min-w-[200px] flex items-center gap-2 bg-white border border-[#1D1C1C]/10 rounded-xl px-4 py-2.5 focus-within:border-[#189DF7] transition-colors shadow-sm">
               <Search className="w-4 h-4 text-[#999] flex-shrink-0" />
               <input
                 type="text"
@@ -203,8 +198,8 @@ export default function EvaluatorProjectsPage() {
               onClick={() => setShowFilters((p) => !p)}
               className={`h-10 px-3 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm ${
                 showFilters
-                  ? 'bg-[#1565C0] text-white border-[#1565C0]'
-                  : 'bg-white text-[#666] border-[#1D1C1C]/10 hover:border-[#1565C0]/40'
+                  ? 'bg-[#189DF7] text-white border-[#189DF7]'
+                  : 'bg-white text-[#666] border-[#1D1C1C]/10 hover:border-[#189DF7]/40'
               }`}
             >
               <SlidersHorizontal className="w-3.5 h-3.5" />
@@ -238,8 +233,8 @@ export default function EvaluatorProjectsPage() {
                   onClick={() => setActiveCategory(cat)}
                   className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all flex-shrink-0 ${
                     active
-                      ? 'bg-[#1565C0] text-white shadow-sm'
-                      : 'bg-white text-[#666] border border-[#1D1C1C]/10 hover:border-[#1565C0]/40 hover:text-[#1565C0]'
+                      ? 'bg-[#189DF7] text-white shadow-sm'
+                      : 'bg-white text-[#666] border border-[#1D1C1C]/10 hover:border-[#189DF7]/40 hover:text-[#189DF7]'
                   }`}
                 >
                   {cat}
@@ -253,7 +248,7 @@ export default function EvaluatorProjectsPage() {
         {!loading && (
           <div className="flex items-center justify-between">
             <p className="text-sm font-bold text-[#666]">
-              <span className="text-[#1565C0] font-black">{filtered.length}</span>개의 프로젝트
+              <span className="text-[#189DF7] font-black">{filtered.length}</span>개의 프로젝트
               {activeCategory !== '전체' && (
                 <span className="ml-1 text-[#999]">— {activeCategory}</span>
               )}
@@ -264,7 +259,7 @@ export default function EvaluatorProjectsPage() {
         {/* ── Project Cards ── */}
         {loading ? (
           <div className="flex items-center justify-center py-24">
-            <Loader2 className="w-6 h-6 text-[#1565C0] animate-spin" />
+            <Loader2 className="w-6 h-6 text-[#189DF7] animate-spin" />
           </div>
         ) : filtered.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-[#1D1C1C]/15 bg-white p-16 text-center">
@@ -291,6 +286,7 @@ export default function EvaluatorProjectsPage() {
                     : null}
                   onApplied={handleApplied}
                   onSubmitted={handleApplied}
+                  onCardClick={() => router.push(`/evaluator/projects/${project.id}`)}
                 />
               )
             })}
@@ -302,18 +298,18 @@ export default function EvaluatorProjectsPage() {
               const match = matchMap[project.id] ?? null
               const matchedStatus = match?.status ?? null
               const net = project.incentive_exists && project.incentive_budget
-                ? Math.floor(Math.floor(project.incentive_budget / project.target_count) * 0.8)
+                ? Math.floor(Math.floor(project.incentive_budget / project.target_count) * 0.85)
                 : null
               return (
                 <div
                   key={project.id}
-                  className="flex items-center justify-between bg-white border border-[#1D1C1C]/8 rounded-2xl px-5 py-4 hover:border-[#1565C0]/30 hover:shadow-sm transition-all group cursor-pointer"
-                  onClick={() => {}}
+                  className="flex items-center justify-between bg-white border border-[#1D1C1C]/8 rounded-2xl px-5 py-4 hover:border-[#189DF7]/30 hover:shadow-sm transition-all group cursor-pointer"
+                  onClick={() => router.push(`/evaluator/projects/${project.id}`)}
                 >
                   <div className="flex flex-col gap-1 min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       {project.categories?.slice(0, 2).map((c) => (
-                        <span key={c} className="text-[9px] font-bold text-[#1565C0] bg-[#1565C0]/10 px-2 py-0.5 rounded-md">{c}</span>
+                        <span key={c} className="text-[9px] font-bold text-[#189DF7] bg-[#189DF7]/10 px-2 py-0.5 rounded-md">{c}</span>
                       ))}
                       {matchedStatus && (
                         <span className={`text-[9px] font-black px-2 py-0.5 rounded-md ${
@@ -325,7 +321,7 @@ export default function EvaluatorProjectsPage() {
                         </span>
                       )}
                     </div>
-                    <h3 className="text-sm font-black text-[#1D1C1C] group-hover:text-[#1565C0] transition-colors line-clamp-1">
+                    <h3 className="text-sm font-black text-[#1D1C1C] group-hover:text-[#189DF7] transition-colors line-clamp-1">
                       {project.title || project.one_liner || '(제목 없음)'}
                     </h3>
                     <p className="text-[11px] text-[#999] font-medium">
@@ -334,7 +330,7 @@ export default function EvaluatorProjectsPage() {
                   </div>
                   <div className="flex-shrink-0 ml-4 flex flex-col items-end gap-1">
                     {net ? (
-                      <span className="text-sm font-black text-[#1565C0] bg-[#1565C0]/10 px-3 py-1.5 rounded-xl">
+                      <span className="text-sm font-black text-[#189DF7] bg-[#189DF7]/10 px-3 py-1.5 rounded-xl">
                         {net.toLocaleString('ko-KR')}원
                       </span>
                     ) : (

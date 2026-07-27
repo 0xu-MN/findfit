@@ -46,9 +46,13 @@ export default function NewRequestPage() {
       const found = getDraft(draftIdFromUrl)
       if (found) setData(found)
     } else {
-      // Only show Step0Modal on fresh creation: no draftId and no agentSession
+      // Only show Step0Modal on fresh creation: no draftId, no agentSession,
+      // and no skipIntro (호출한 쪽에서 이미 "탐색부터/아이템 있어요" 선택을
+      // 마쳤다는 뜻 — 홈 화면 Step0Modal이나 ItemDiscoveryFlow를 거쳐 왔을
+      // 때 여기서 같은 질문을 또 띄우면 순서가 뒤죽박죽으로 보인다).
       const agentSession = searchParams.get('agentSession')
-      if (!agentSession) {
+      const skipIntro = searchParams.get('skipIntro')
+      if (!agentSession && !skipIntro) {
         setIsStep0Open(true)
       }
     }
@@ -201,7 +205,7 @@ export default function NewRequestPage() {
       {/* Stepper — 동적 단계 */}
       <Stepper steps={stepperEntries} currentStep={data.currentStep} onJump={(s) => goToStep(s)} />
 
-      <div className="flex items-start gap-6 w-full">
+      <div className="flex flex-col lg:flex-row items-start gap-6 w-full">
         {/* Left Form Area */}
         <div className="flex-1 flex flex-col gap-5 min-w-0">
           {!hydrated ? (
@@ -243,8 +247,10 @@ export default function NewRequestPage() {
           )}
         </div>
 
-        {/* Right Panel */}
-        <div className="w-[260px] flex flex-col gap-4 flex-shrink-0">
+        {/* Right Panel — 질문이 길어져 왼쪽 폼이 길어져도 요약/이전·다음
+            버튼은 항상 화면에 붙어있도록 sticky 처리(데스크톱 lg+에서만 —
+            모바일에서는 폼 아래로 자연스럽게 쌓이도록 sticky 해제) */}
+        <div className="w-full lg:w-[260px] flex flex-col gap-4 flex-shrink-0 lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto">
           <RequestSummaryPanel data={data} />
 
           {nextDisabledReason && (

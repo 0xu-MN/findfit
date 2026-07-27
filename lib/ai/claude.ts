@@ -88,6 +88,13 @@ function getMockResponse(prompt: string): Record<string, unknown> | unknown[] {
       { question_text: '아래 중 이 제품을 쓰지 않을 것 같은 이유가 있다면?', question_type: 'multiple_choice', options: ['가격', '복잡한 사용법', '필요성을 못 느낌', '기타'] },
     ]
   }
+  if (prompt.includes('답변 선지 후보')) {
+    return { options: ['매우 만족', '만족', '보통', '불만족'] }
+  }
+  if (prompt.includes('[글자수 제한]')) {
+    const draftMatch = prompt.match(/\[초안\] ([\s\S]*?)\n\[글자수 제한\]/)
+    return { polished: (draftMatch?.[1] ?? '').trim() }
+  }
   if (prompt.includes('winner')) {
     return {
       winner: 'A',

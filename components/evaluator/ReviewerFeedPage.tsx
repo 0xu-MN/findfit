@@ -28,7 +28,7 @@ const REVIEWER_ROLES = [
 
 const TYPE_META: Record<string, { label: string; color: string }> = {
   light:    { label: 'Light',    color: '#1CAE66' },
-  standard: { label: 'Standard', color: '#1565C0' },
+  standard: { label: 'Standard', color: '#189DF7' },
   deep:     { label: 'Deep',     color: '#F77019' },
 }
 
@@ -84,13 +84,13 @@ export default function ReviewerFeedPage() {
             내 직군에 매칭된 추천 의뢰부터 확인하세요 — 사례금은 수수료 20% 차감 후 실수령액으로 표시됩니다.
           </p>
         </div>
-        <div className="flex items-center gap-2 px-4 py-2 rounded-2xl border border-[#1565C0]/15 bg-[#1565C0]/5">
-          <Briefcase className="w-3.5 h-3.5 text-[#1565C0]" />
+        <div className="flex items-center gap-2 px-4 py-2 rounded-2xl border border-[#189DF7]/15 bg-[#189DF7]/5">
+          <Briefcase className="w-3.5 h-3.5 text-[#189DF7]" />
           <span className="text-[10px] font-bold text-[#666]">내 직군</span>
           <select
             value={myRole}
             onChange={(e) => setMyRole(e.target.value)}
-            className="bg-transparent text-[12px] font-black text-[#1565C0] outline-none cursor-pointer"
+            className="bg-transparent text-[12px] font-black text-[#189DF7] outline-none cursor-pointer"
           >
             {REVIEWER_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
           </select>

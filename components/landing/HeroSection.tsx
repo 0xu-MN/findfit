@@ -70,12 +70,12 @@ export default function HeroSection() {
             아이디어부터 출시까지 — 실제 사람들의 반응을 미리 알기
           </p>
 
-          <div className="flex items-center gap-4 mt-10">
-            <a href="/auth/login" onClick={goToDashboard} className="flex items-center gap-2 font-semibold rounded-full bg-[#F77019] text-white px-7 py-3.5 text-[15px] shadow-[0_4px_24px_rgba(247,112,25,0.35)] hover:scale-[1.03] transition-transform">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4 mt-10">
+            <a href="/auth/login" onClick={goToDashboard} className="flex items-center gap-2 font-semibold rounded-full bg-[#F77019] text-white px-5 sm:px-7 py-3 sm:py-3.5 text-[13px] sm:text-[15px] whitespace-nowrap break-keep shadow-[0_4px_24px_rgba(247,112,25,0.35)] hover:scale-[1.03] transition-transform">
               내 아이디어 검증받기
               <ArrowRight className="w-4 h-4" />
             </a>
-            <a href="/auth/login" onClick={goToDashboard} className="font-semibold rounded-full border-[1.5px] border-[#1D1C1C] text-[#1D1C1C] px-7 py-3.5 text-[15px] hover:bg-[#F77019] hover:border-[#F77019] hover:text-white transition-all">
+            <a href="/auth/login" onClick={goToDashboard} className="font-semibold rounded-full border-[1.5px] border-[#1D1C1C] text-[#1D1C1C] px-5 sm:px-7 py-3 sm:py-3.5 text-[13px] sm:text-[15px] whitespace-nowrap break-keep hover:bg-[#F77019] hover:border-[#F77019] hover:text-white transition-all">
               평가단 참여하기
             </a>
           </div>

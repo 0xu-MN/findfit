@@ -28,8 +28,13 @@ function normalizeQuestionType(type: Question['type']): ReviewQuestionType {
 // access_method별 부가 정보 구성
 function buildAccessInfo(data: RequestFormData): AccessInfo {
   switch (data.accessMethod) {
-    case 'web_link':
-      return data.landingUrl ? { url: data.landingUrl } : {}
+    case 'web_link': {
+      const raw = data.landingUrl.trim()
+      // 프로토콜 없이 "example.com"처럼 입력되면 <a href>가 상대경로로
+      // 해석돼 링크가 깨진다 — 저장 시점에 정규화해서 원천 차단한다.
+      const url = raw && !/^https?:\/\//i.test(raw) ? `https://${raw}` : raw
+      return url ? { url } : {}
+    }
     case 'app_download':
       return {
         appStoreUrl: data.appStoreUrl || undefined,
@@ -100,7 +105,10 @@ export async function submitProject(data: RequestFormData): Promise<SubmitProjec
   // 마감일 계산 (now + deadlineDays)
   const deadline = new Date(Date.now() + data.deadlineDays * 24 * 60 * 60 * 1000).toISOString()
 
-  // 1) projects insert — 피드 노출을 위해 status='active'
+  // 1) projects insert — 관리자 검수 큐로 먼저 들어간다(pending_review).
+  // app/api/admin/requests/[id]/approve가 검수 승인 시 'active'로 전환해야
+  // 그때부터 projects_public(리뷰어 피드)에 노출된다 — 여기서 바로
+  // 'active'로 넣으면 검수 단계 자체를 완전히 건너뛰게 된다.
   const { data: inserted, error: projectError } = await supabase
     .from('projects')
     .insert({
@@ -111,7 +119,7 @@ export async function submitProject(data: RequestFormData): Promise<SubmitProjec
       stage: data.stage,
       project_type: data.projectType ?? 'standard',
       psf_pmf_type: psfPmfType,
-      status: 'active',
+      status: 'pending_review',
       problem: data.problem,
       solution: data.ourDifference,
       alternative_limit: data.alternativeAndLimit,
@@ -122,7 +130,11 @@ export async function submitProject(data: RequestFormData): Promise<SubmitProjec
       completed_count: 0,
       deadline,
       incentive_exists: data.feePerEvaluator > 0,
-      incentive_budget: data.feePerEvaluator || null,
+      // incentive_budget은 "전체 사례금 풀"(1인당 사례금 x 모집인원)이다 —
+      // 리뷰어 화면 쪽 코드 전부가 이 값을 target_count로 나눠 1인당 몫을
+      // 계산하므로, 여기서 1인당 금액을 그대로 넣으면 두 번 나눠져 절반
+      // 이하로 표시되는 버그가 있었다.
+      incentive_budget: data.feePerEvaluator > 0 ? data.feePerEvaluator * data.evaluatorCount : null,
       distribution_method: data.distributionMethod,
       access_method: data.accessMethod as AccessMethod,
       access_info: buildAccessInfo(data),

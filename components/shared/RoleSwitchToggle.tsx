@@ -17,7 +17,7 @@ export default function RoleSwitchToggle({ role }: RoleSwitchToggleProps) {
         className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full bg-white transition-all duration-300 ease-in-out ${
           isCreator
             ? 'left-1 border-2 border-[#F77019] shadow-[0_2px_6px_rgba(247,112,25,0.25)]'
-            : 'left-[calc(50%)] border-2 border-[#1565C0] shadow-[0_2px_6px_rgba(21,101,192,0.25)]'
+            : 'left-[calc(50%)] border-2 border-[#189DF7] shadow-[0_2px_6px_rgba(21,101,192,0.25)]'
         }`}
       />
 
@@ -25,7 +25,7 @@ export default function RoleSwitchToggle({ role }: RoleSwitchToggleProps) {
       <button
         type="button"
         onClick={() => !isCreator && router.push('/builder/dashboard')}
-        className={`relative z-10 px-5 py-2 rounded-full text-[13px] font-black transition-colors duration-300 leading-none ${
+        className={`relative z-10 px-5 py-2 rounded-full text-[13px] font-black transition-colors duration-300 leading-none inline-flex items-center justify-center ${
           isCreator ? 'text-[#F77019]' : 'text-[#A0A0A0] hover:text-[#666]'
         }`}
       >
@@ -36,8 +36,8 @@ export default function RoleSwitchToggle({ role }: RoleSwitchToggleProps) {
       <button
         type="button"
         onClick={() => isCreator && router.push('/evaluator/dashboard')}
-        className={`relative z-10 px-5 py-2 rounded-full text-[13px] font-black transition-colors duration-300 leading-none ${
-          !isCreator ? 'text-[#1565C0]' : 'text-[#A0A0A0] hover:text-[#666]'
+        className={`relative z-10 px-5 py-2 rounded-full text-[13px] font-black transition-colors duration-300 leading-none inline-flex items-center justify-center ${
+          !isCreator ? 'text-[#189DF7]' : 'text-[#A0A0A0] hover:text-[#666]'
         }`}
       >
         Reviewer

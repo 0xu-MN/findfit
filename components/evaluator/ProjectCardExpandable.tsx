@@ -24,6 +24,11 @@ export type CardProject = {
   categories: string[]
   project_type: 'light' | 'standard'
   problem: string | null
+  solution?: string | null
+  alternative_limit?: string | null
+  stage?: string | null
+  target_age_range?: string | null
+  target_jobs?: string[] | null
   access_method: 'web_link' | 'app_download' | 'physical_shipping' | null
   access_info: AccessInfo | null
   target_count: number
@@ -54,12 +59,12 @@ const MIN_SHORT_ANSWER_LENGTH = 5
 
 const TYPE_META: Record<string, { label: string; color: string }> = {
   light: { label: 'Light', color: '#1CAE66' },
-  standard: { label: 'Standard', color: '#1565C0' },
+  standard: { label: 'Standard', color: '#189DF7' },
 }
 
 const STATUS_BADGE: Record<string, { label: string; color: string; icon: typeof Clock }> = {
-  available: { label: '지원 가능', color: '#1565C0', icon: Users },
-  pending: { label: '승인 대기', color: '#1565C0', icon: Clock },
+  available: { label: '지원 가능', color: '#189DF7', icon: Users },
+  pending: { label: '승인 대기', color: '#189DF7', icon: Clock },
   accepted: { label: '작성 가능', color: '#F77019', icon: Clock },
   completed: { label: '완료', color: '#2E7D32', icon: CheckCircle2 },
   dropped: { label: '거절됨', color: '#999', icon: XCircle },
@@ -79,10 +84,16 @@ interface Props {
   match: CardMatch | null
   onApplied: (matchId: string, nickname: string) => void
   onSubmitted: (matchId: string) => void
+  // 목록(피드/그리드)에서는 카드를 눌러도 그 자리에서 펼쳐지지 않고 전용
+  // 상세 페이지(/evaluator/projects/[id])로 이동한다 — onCardClick이 있으면
+  // 인라인 확장 대신 이 콜백만 호출한다.
+  onCardClick?: () => void
+  // 전용 상세 페이지에서는 클릭 없이 바로 지원/리뷰 패널이 열려있어야 한다.
+  defaultExpanded?: boolean
 }
 
-export default function ProjectCardExpandable({ project, match, onApplied, onSubmitted }: Props) {
-  const [expanded, setExpanded] = useState(false)
+export default function ProjectCardExpandable({ project, match, onApplied, onSubmitted, onCardClick, defaultExpanded }: Props) {
+  const [expanded, setExpanded] = useState(Boolean(defaultExpanded))
   const status = match?.status ?? 'available'
   const badge = STATUS_BADGE[status]
   const typeMeta = TYPE_META[project.project_type] ?? { label: project.project_type, color: '#999' }
@@ -98,7 +109,11 @@ export default function ProjectCardExpandable({ project, match, onApplied, onSub
   return (
     <div className="rounded-2xl bg-white border border-[#1D1C1C]/8 shadow-[0_2px_12px_rgba(0,0,0,0.03)] overflow-hidden">
       <button
-        onClick={() => canExpand && setExpanded((p) => !p)}
+        onClick={() => {
+          if (!canExpand) return
+          if (onCardClick) onCardClick()
+          else setExpanded((p) => !p)
+        }}
         className={`w-full text-left p-5 flex flex-col gap-3 ${canExpand ? 'cursor-pointer' : 'cursor-default'}`}
       >
         <div className="flex items-start gap-2 flex-wrap">
@@ -127,10 +142,10 @@ export default function ProjectCardExpandable({ project, match, onApplied, onSub
           <div className="flex-1 flex flex-col gap-1">
             <div className="flex items-center justify-between text-[9px] font-bold text-[#666]">
               <span>참여 현황</span>
-              <span className="text-[#1565C0]">{project.completed_count}/{project.target_count}명</span>
+              <span className="text-[#189DF7]">{project.completed_count}/{project.target_count}명</span>
             </div>
             <div className="h-1.5 rounded-full bg-[#F5F5F5] overflow-hidden">
-              <div className="h-full rounded-full bg-[#1565C0] transition-all" style={{ width: `${progressPct}%` }} />
+              <div className="h-full rounded-full bg-[#189DF7] transition-all" style={{ width: `${progressPct}%` }} />
             </div>
           </div>
           {project.incentive_exists && reviewerNet > 0 ? (
@@ -143,14 +158,19 @@ export default function ProjectCardExpandable({ project, match, onApplied, onSub
           )}
         </div>
 
-        {canExpand && (
+        {canExpand && !onCardClick && (
           <div className="flex items-center justify-center text-[#999] pt-1">
             <ChevronDown className={`w-4 h-4 transition-transform ${expanded ? 'rotate-180' : ''}`} />
           </div>
         )}
+        {canExpand && onCardClick && (
+          <div className="flex items-center justify-center text-[9px] font-bold text-[#189DF7] pt-1">
+            자세히 보기 →
+          </div>
+        )}
       </button>
 
-      {expanded && (
+      {expanded && !onCardClick && (
         <div className="border-t border-[#1D1C1C]/6 p-5 bg-[#FAFAFA]">
           {status === 'available' && (
             <ApplyPanel projectId={project.id} onApplied={onApplied} />
@@ -232,7 +252,7 @@ function ApplyPanel({ projectId, onApplied }: { projectId: string; onApplied: (m
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="example@email.com"
-          className="w-full px-4 py-2.5 rounded-xl border border-[#1D1C1C]/12 bg-white text-[12px] font-bold text-[#1D1C1C] outline-none focus:border-[#1565C0] transition-colors"
+          className="w-full px-4 py-2.5 rounded-xl border border-[#1D1C1C]/12 bg-white text-[12px] font-bold text-[#1D1C1C] outline-none focus:border-[#189DF7] transition-colors"
         />
       </div>
 
@@ -246,7 +266,7 @@ function ApplyPanel({ projectId, onApplied }: { projectId: string; onApplied: (m
               key={d}
               onClick={() => toggleDomain(d)}
               className={`px-3 py-1.5 rounded-full text-[11px] font-black transition-all ${
-                domains.includes(d) ? 'bg-[#1565C0] text-white' : 'bg-white text-[#666] hover:bg-[#EBEBEB] border border-[#1D1C1C]/8'
+                domains.includes(d) ? 'bg-[#189DF7] text-white' : 'bg-white text-[#666] hover:bg-[#EBEBEB] border border-[#1D1C1C]/8'
               }`}
             >
               {d}
@@ -262,7 +282,7 @@ function ApplyPanel({ projectId, onApplied }: { projectId: string; onApplied: (m
           onChange={(e) => setIntro(e.target.value)}
           rows={2}
           placeholder="경력이나 관심 분야를 간단히 알려주세요"
-          className="w-full px-4 py-2.5 rounded-xl border border-[#1D1C1C]/12 bg-white text-[12px] font-bold text-[#1D1C1C] outline-none focus:border-[#1565C0] transition-colors resize-none"
+          className="w-full px-4 py-2.5 rounded-xl border border-[#1D1C1C]/12 bg-white text-[12px] font-bold text-[#1D1C1C] outline-none focus:border-[#189DF7] transition-colors resize-none"
         />
       </div>
 
@@ -271,7 +291,7 @@ function ApplyPanel({ projectId, onApplied }: { projectId: string; onApplied: (m
           type="checkbox"
           checked={ndaChecked}
           onChange={(e) => setNdaChecked(e.target.checked)}
-          className="mt-0.5 w-4 h-4 accent-[#1565C0] shrink-0"
+          className="mt-0.5 w-4 h-4 accent-[#189DF7] shrink-0"
         />
         <span className="text-[11px] font-bold text-[#666] leading-relaxed">
           리뷰 내용은 외부 공개하지 않기로 하는 기밀유지 서약에 동의합니다.
@@ -283,7 +303,7 @@ function ApplyPanel({ projectId, onApplied }: { projectId: string; onApplied: (m
       <button
         onClick={handleApply}
         disabled={submitting}
-        className="w-full py-3 rounded-xl bg-[#1565C0] text-white text-[12px] font-black hover:bg-[#1255a3] transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+        className="w-full py-3 rounded-xl bg-[#189DF7] text-white text-[12px] font-black hover:bg-[#1255a3] transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
       >
         {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : '지원하기'}
       </button>
@@ -335,7 +355,7 @@ function ShippingGatePanel({ matchId, shippingAddress }: { matchId: string; ship
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
-        <Package className="w-4 h-4 text-[#1565C0]" />
+        <Package className="w-4 h-4 text-[#189DF7]" />
         <span className="text-[11px] font-black text-[#1D1C1C]">제품 수령 확인</span>
       </div>
       {!shippingAddress && (
@@ -344,7 +364,7 @@ function ShippingGatePanel({ matchId, shippingAddress }: { matchId: string; ship
           onChange={(e) => setAddressInput(e.target.value)}
           placeholder="제품을 받을 주소를 입력해주세요"
           rows={2}
-          className="w-full rounded-xl border border-[#1D1C1C]/12 bg-white px-4 py-2.5 text-[11px] font-bold text-[#1D1C1C] outline-none focus:border-[#1565C0] resize-none"
+          className="w-full rounded-xl border border-[#1D1C1C]/12 bg-white px-4 py-2.5 text-[11px] font-bold text-[#1D1C1C] outline-none focus:border-[#189DF7] resize-none"
         />
       )}
       {shippingAddress && <p className="text-[11px] font-bold text-[#666]">제품이 배송 중입니다. 받으셨다면 아래 버튼을 눌러주세요.</p>}
@@ -352,7 +372,7 @@ function ShippingGatePanel({ matchId, shippingAddress }: { matchId: string; ship
       <button
         onClick={confirmReceipt}
         disabled={confirming}
-        className="h-10 rounded-xl bg-[#1565C0] text-white text-[12px] font-black hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+        className="h-10 rounded-xl bg-[#189DF7] text-white text-[12px] font-black hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
       >
         {confirming && <Loader2 className="w-4 h-4 animate-spin" />}
         {shippingAddress ? '제품을 받았어요 · 리뷰 시작' : '배송지 저장 · 제품 받으면 리뷰 시작'}
@@ -484,10 +504,10 @@ function ReviewFormPanel({
     <div className="flex flex-col gap-4">
       {accessMethod === 'web_link' && accessInfo?.url && (
         <a
-          href={accessInfo.url}
+          href={/^https?:\/\//i.test(accessInfo.url) ? accessInfo.url : `https://${accessInfo.url}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center justify-center gap-1.5 rounded-xl bg-[#1565C0]/10 text-[#1565C0] text-[11px] font-black py-2.5 hover:bg-[#1565C0]/15 transition-colors"
+          className="flex items-center justify-center gap-1.5 rounded-xl bg-[#189DF7]/10 text-[#189DF7] text-[11px] font-black py-2.5 hover:bg-[#189DF7]/15 transition-colors"
         >
           <ExternalLink className="w-3.5 h-3.5" /> 제품 체험하기
         </a>
@@ -512,7 +532,7 @@ function ReviewFormPanel({
       {(questions ?? []).map((q, i) => (
         <div key={q.id} id={`q-${q.id}`} className="rounded-xl border border-[#1D1C1C]/8 bg-white p-4 flex flex-col gap-2.5 transition-shadow">
           <p className="text-[11px] font-black text-[#1D1C1C]">
-            <span className="text-[#1565C0] mr-1">{i + 1}.</span>
+            <span className="text-[#189DF7] mr-1">{i + 1}.</span>
             {q.question_text}
             {q.question_type === 'multiple_choice' && q.allow_multiple && (
               <span className="ml-1.5 text-[9px] font-bold text-[#999]">(복수 선택 가능)</span>
@@ -529,13 +549,13 @@ function ReviewFormPanel({
                     onClick={() => toggleMultiAnswer(q.id, opt)}
                     className={`w-full text-left px-3 py-2 rounded-lg border text-[11px] font-bold transition-colors flex items-center gap-2 ${
                       selected
-                        ? 'border-[#1565C0] bg-[#1565C0]/10 text-[#1565C0] font-black'
+                        ? 'border-[#189DF7] bg-[#189DF7]/10 text-[#189DF7] font-black'
                         : 'border-[#1D1C1C]/10 hover:border-[#1D1C1C]/20 text-[#666]'
                     }`}
                   >
                     <span
                       className={`w-3.5 h-3.5 rounded flex-shrink-0 border flex items-center justify-center ${
-                        selected ? 'bg-[#1565C0] border-[#1565C0]' : 'border-[#1D1C1C]/20'
+                        selected ? 'bg-[#189DF7] border-[#189DF7]' : 'border-[#1D1C1C]/20'
                       }`}
                     >
                       {selected && <CheckCircle2 className="w-3 h-3 text-white" />}
@@ -555,7 +575,7 @@ function ReviewFormPanel({
                   onClick={() => setAnswer(q.id, opt)}
                   className={`w-full text-left px-3 py-2 rounded-lg border text-[11px] font-bold transition-colors ${
                     answers[q.id] === opt
-                      ? 'border-[#1565C0] bg-[#1565C0]/10 text-[#1565C0] font-black'
+                      ? 'border-[#189DF7] bg-[#189DF7]/10 text-[#189DF7] font-black'
                       : 'border-[#1D1C1C]/10 hover:border-[#1D1C1C]/20 text-[#666]'
                   }`}
                 >
@@ -574,7 +594,7 @@ function ReviewFormPanel({
                     onClick={() => setAnswer(q.id, String(n))}
                     title={LIKERT_LABELS[n - 1]}
                     className={`flex-1 h-8 rounded-lg border text-[11px] font-black transition-colors ${
-                      answers[q.id] === String(n) ? 'border-[#1565C0] bg-[#1565C0] text-white' : 'border-[#1D1C1C]/10 text-[#999]'
+                      answers[q.id] === String(n) ? 'border-[#189DF7] bg-[#189DF7] text-white' : 'border-[#1D1C1C]/10 text-[#999]'
                     }`}
                   >
                     {n}
@@ -608,7 +628,7 @@ function ReviewFormPanel({
               onChange={(e) => setAnswer(q.id, e.target.value)}
               placeholder="답변을 입력해주세요"
               rows={2}
-              className="w-full rounded-lg border border-[#1D1C1C]/10 px-3 py-2 text-[11px] font-bold text-[#1D1C1C] outline-none focus:border-[#1565C0] resize-none"
+              className="w-full rounded-lg border border-[#1D1C1C]/10 px-3 py-2 text-[11px] font-bold text-[#1D1C1C] outline-none focus:border-[#189DF7] resize-none"
             />
           )}
         </div>
@@ -619,7 +639,7 @@ function ReviewFormPanel({
       <button
         onClick={handleSubmit}
         disabled={submitting}
-        className="h-11 rounded-xl bg-[#1565C0] text-white text-[12px] font-black hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+        className="h-11 rounded-xl bg-[#189DF7] text-white text-[12px] font-black hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
       >
         {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
         리뷰 제출하기

@@ -141,7 +141,7 @@ function UnifiedSettingsContent() {
             <button
               onClick={() => setActiveTab('account')}
               className={`flex items-center gap-2.5 px-4 py-3 rounded-xl text-xs font-black transition-all ${
-                activeTab === 'account' ? 'bg-[#1565C0] text-white shadow-sm' : 'text-[#666] hover:bg-[#F5F5F5]'
+                activeTab === 'account' ? 'bg-[#189DF7] text-white shadow-sm' : 'text-[#666] hover:bg-[#F5F5F5]'
               }`}
             >
               <Settings className="w-4 h-4" />
@@ -150,7 +150,7 @@ function UnifiedSettingsContent() {
             <button
               onClick={() => setActiveTab('profile')}
               className={`flex items-center gap-2.5 px-4 py-3 rounded-xl text-xs font-black transition-all ${
-                activeTab === 'profile' ? 'bg-[#1565C0] text-white shadow-sm' : 'text-[#666] hover:bg-[#F5F5F5]'
+                activeTab === 'profile' ? 'bg-[#189DF7] text-white shadow-sm' : 'text-[#666] hover:bg-[#F5F5F5]'
               }`}
             >
               <UserCog className="w-4 h-4" />
@@ -159,7 +159,7 @@ function UnifiedSettingsContent() {
             <button
               onClick={() => setActiveTab('wallet')}
               className={`flex items-center gap-2.5 px-4 py-3 rounded-xl text-xs font-black transition-all ${
-                activeTab === 'wallet' ? 'bg-[#1565C0] text-white shadow-sm' : 'text-[#666] hover:bg-[#F5F5F5]'
+                activeTab === 'wallet' ? 'bg-[#189DF7] text-white shadow-sm' : 'text-[#666] hover:bg-[#F5F5F5]'
               }`}
             >
               <Wallet className="w-4 h-4" />
@@ -193,7 +193,7 @@ function UnifiedSettingsContent() {
 
                 <div className="flex flex-col gap-2 p-4 rounded-2xl bg-[#F8F9FA] border border-[#1D1C1C]/5">
                   <span className="text-[10px] font-black text-[#999] uppercase tracking-wider">평가단 등급</span>
-                  <p className="text-sm font-black text-[#1565C0]">{level === 'expert' ? '전문가 리뷰어' : '일반 리뷰어'}</p>
+                  <p className="text-sm font-black text-[#189DF7]">{level === 'expert' ? '전문가 리뷰어' : '일반 리뷰어'}</p>
                 </div>
 
                 <div className="flex flex-col gap-3">
@@ -207,7 +207,7 @@ function UnifiedSettingsContent() {
                           onClick={() => toggleTag(tag)}
                           className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all ${
                             active
-                              ? 'border-[#1565C0] bg-[#1565C0]/10 text-[#1565C0]'
+                              ? 'border-[#189DF7] bg-[#189DF7]/10 text-[#189DF7]'
                               : 'border-[#1D1C1C]/10 text-[#666] hover:border-[#1D1C1C]/30'
                           }`}
                         >
@@ -221,7 +221,7 @@ function UnifiedSettingsContent() {
                 <button
                   onClick={handleProfileSave}
                   disabled={profileSaving}
-                  className="mt-2 h-11 rounded-xl bg-[#1565C0] text-white text-xs font-black hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 self-start px-6"
+                  className="mt-2 h-11 rounded-xl bg-[#189DF7] text-white text-xs font-black hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 self-start px-6"
                 >
                   {profileSaving && <Loader2 className="w-4 h-4 animate-spin" />}
                   {profileSaved && <CheckCircle2 className="w-4 h-4 text-white" />}
@@ -240,7 +240,7 @@ function UnifiedSettingsContent() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="rounded-2xl border border-[#1D1C1C]/10 bg-[#F8F9FA] p-5">
                     <p className="text-[10px] font-bold text-[#999]">누적 정산 완료 금액</p>
-                    <p className="text-2xl font-black text-[#1565C0] mt-1">{fmt(totalEarned)}원</p>
+                    <p className="text-2xl font-black text-[#189DF7] mt-1">{fmt(totalEarned)}원</p>
                   </div>
                   <div className="rounded-2xl border border-[#1D1C1C]/10 bg-[#F8F9FA] p-5">
                     <p className="text-[10px] font-bold text-[#999]">정산 상태</p>
@@ -253,7 +253,7 @@ function UnifiedSettingsContent() {
                 {/* Account Form */}
                 <div className="flex flex-col gap-3 p-5 rounded-2xl border border-[#1D1C1C]/10 bg-white">
                   <h3 className="text-xs font-black text-[#1D1C1C] flex items-center gap-2">
-                    <Landmark className="w-4 h-4 text-[#1565C0]" /> 정산 계좌 등록 / 변경
+                    <Landmark className="w-4 h-4 text-[#189DF7]" /> 정산 계좌 등록 / 변경
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-1">
                     <select
@@ -282,7 +282,7 @@ function UnifiedSettingsContent() {
                   <button
                     onClick={handleWalletSave}
                     disabled={walletSaving || !bankName || !accountNumber}
-                    className="mt-2 h-10 rounded-xl bg-[#1565C0] text-white text-xs font-black disabled:opacity-40 self-end px-5"
+                    className="mt-2 h-10 rounded-xl bg-[#189DF7] text-white text-xs font-black disabled:opacity-40 self-end px-5"
                   >
                     {walletSaving ? '저장 중...' : walletSaved ? '저장 완료!' : '계좌 정보 저장'}
                   </button>

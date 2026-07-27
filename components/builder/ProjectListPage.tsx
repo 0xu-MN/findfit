@@ -99,15 +99,21 @@ export default function ProjectListPage() {
   return (
     <div className="w-full flex flex-col gap-6 text-[#1D1C1C]">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-black flex items-center gap-2">
+          <h1 className="text-2xl font-black">
             내 프로젝트{' '}
             <span className="text-[#999] text-sm font-bold">{hydrated ? draftCount + inProgressCount : ''}</span>
           </h1>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center bg-[#F5F5F5] rounded-lg p-1">
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={() => router.push('/builder/new-request')}
+            className="flex items-center gap-1.5 bg-[#F77019] text-white text-xs font-black px-4 py-2 rounded-lg hover:opacity-90 transition-all shadow-sm whitespace-nowrap"
+          >
+            <Plus className="w-4 h-4" /> 프로젝트 등록하기
+          </button>
+          <div className="flex items-center bg-[#F5F5F5] rounded-lg p-1 flex-shrink-0">
             <button
               onClick={() => setViewMode('board')}
               className={`p-1.5 rounded-md transition-colors ${viewMode === 'board' ? 'bg-white shadow-sm text-[#1D1C1C]' : 'text-[#999] hover:text-[#666]'}`}
@@ -121,7 +127,7 @@ export default function ProjectListPage() {
               <List className="w-4 h-4" />
             </button>
           </div>
-          <div className="flex items-center bg-white border border-[#1D1C1C]/10 rounded-lg px-3 py-1.5 w-64 shadow-sm focus-within:border-[#F77019] transition-colors">
+          <div className="flex items-center bg-white border border-[#1D1C1C]/10 rounded-lg px-3 py-1.5 w-full sm:w-64 shadow-sm focus-within:border-[#F77019] transition-colors">
             <Search className="w-4 h-4 text-[#999] mr-2" />
             <input
               type="text"
@@ -318,9 +324,19 @@ export default function ProjectListPage() {
                     <h3 className="text-xs font-extrabold group-hover:text-[#F77019] transition-colors line-clamp-1 pr-4">
                       {s.title || '(제목 미작성)'}
                     </h3>
-                    <span className="text-[10px] font-bold text-[#2E7D32] whitespace-nowrap bg-[#2E7D32]/10 px-2 py-0.5 rounded shrink-0">
-                      분석 완료
-                    </span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className="text-[10px] font-bold text-[#2E7D32] whitespace-nowrap bg-[#2E7D32]/10 px-2 py-0.5 rounded">
+                        분석 완료
+                      </span>
+                      <span
+                        onClick={(e) => handleDeleteProject(e, s.id)}
+                        role="button"
+                        title="삭제"
+                        className="p-1 rounded-md text-[#CCC] hover:text-red-500 hover:bg-red-50 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </span>
+                    </div>
                   </div>
                 </button>
               ))}

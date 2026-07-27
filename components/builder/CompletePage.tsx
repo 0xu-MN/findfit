@@ -1,6 +1,6 @@
 'use client'
 
-import { CheckCircle2, FileText, LayoutDashboard } from 'lucide-react'
+import { CheckCircle2, FileText, Home } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
@@ -115,7 +115,7 @@ export default function CompletePage() {
             onClick={() => router.push('/builder/dashboard')}
             className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl bg-[#F77019] text-white text-[12px] font-black hover:opacity-90 transition-all shadow-sm"
           >
-            <LayoutDashboard className="w-4 h-4" /> 대시보드로
+            <Home className="w-4 h-4" /> 홈으로
           </button>
         </div>
       </div>

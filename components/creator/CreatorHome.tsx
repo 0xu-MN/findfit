@@ -31,7 +31,11 @@ export default function CreatorHome() {
 
   const startValidation = () => {
     if (!keyword.trim()) return
-    setDiscoveryOpen(true)
+    // 검색어 입력 → "어떻게 검증을 시작할까요?" 모달이 항상 먼저 뜨고,
+    // 거기서 "아이템 탐색부터 시작"을 골라야 ItemDiscoveryFlow(유사 아이템
+    // 찾는 중 → 핫한 아이템)가 열린다 — 예전엔 이 모달을 완전히 건너뛰고
+    // 바로 ItemDiscoveryFlow로 가서 순서가 뒤바뀌어 보였다.
+    setStep0Open(true)
   }
 
   return (
@@ -46,8 +50,8 @@ export default function CreatorHome() {
           <span className="text-[#F77019]">실제 소비자를 듣는 것</span> 에서 시작됩니다.
         </h1>
 
-        <div className="w-full max-w-[820px] flex items-center gap-3 mt-4">
-          <div className="flex-1 flex items-center gap-3 h-16 rounded-3xl border-2 border-[#1D1C1C]/10 bg-white px-6 focus-within:border-[#F77019] transition-colors">
+        <div className="w-full max-w-[820px] flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mt-4">
+          <div className="flex-1 flex items-center gap-3 h-16 rounded-3xl border-2 border-[#1D1C1C]/10 bg-white px-6 focus-within:border-[#F77019] transition-colors min-w-0">
             <Search className="w-5 h-5 text-[#999] flex-shrink-0" />
             <input
               value={keyword}
@@ -89,12 +93,14 @@ export default function CreatorHome() {
         isOpen={step0Open}
         onClose={() => setStep0Open(false)}
         onExplore={() => {
-          agentBubble.openWithSeed(keyword)
           setStep0Open(false)
+          setDiscoveryOpen(true)
         }}
         onHasItem={() => {
           setStep0Open(false)
-          router.push('/builder/new-request')
+          // skipIntro — 이미 여기서 "아이템이 있어요"를 골랐으므로 마법사에
+          // 들어가서 같은 질문(Step0Modal)을 또 물어보지 않는다.
+          router.push('/builder/new-request?skipIntro=1')
         }}
       />
 

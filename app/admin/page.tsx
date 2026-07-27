@@ -110,6 +110,13 @@ export default async function AdminDashboardPage() {
             color="#F77019"
           />
           <NavCard
+            href="/admin/banners"
+            title="배너 광고 관리"
+            desc="크리에이터 홈 · 리뷰어 대시보드 배너 작성/교체"
+            count={0}
+            color="#8B5CF6"
+          />
+          <NavCard
             href="/admin/evaluators"
             title="유저 관리"
             desc="크리에이터·리뷰어 검색/정지/탈퇴"

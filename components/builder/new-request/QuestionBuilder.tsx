@@ -1,6 +1,7 @@
 'use client'
 
-import { Lock, Plus, Trash2 } from 'lucide-react'
+import { Lock, Plus, Sparkles, Trash2 } from 'lucide-react'
+import { useState } from 'react'
 import { SEAN_ELLIS_DESC } from '@/lib/constants/plainLanguage'
 import { generateId } from './storage'
 import type { Question, QuestionType } from './types'
@@ -36,6 +37,39 @@ const TYPE_HINTS: Record<QuestionType, string> = {
 export default function QuestionBuilder({ questions, onChange, max, allowedTypes, showFixed }: Props) {
   const writable = questions.filter((q) => !q.isFixed)
   const remaining = max - writable.length
+  // 질문 문구를 다 적고 포커스를 벗어나면(onBlur), 코드 자동완성처럼 다음에
+  // 올 선지를 옅게 placeholder로 미리 보여준다(qid → 제안 배열).
+  const [ghostOptions, setGhostOptions] = useState<Record<string, string[]>>({})
+  const [fetchingGhost, setFetchingGhost] = useState<string | null>(null)
+
+  const fetchGhostOptions = async (q: Question) => {
+    if (!q.text.trim() || !q.options) return
+    if (q.options.some((o) => o.trim())) return // 이미 뭔가 채워져 있으면 제안 안 함
+    setFetchingGhost(q.id)
+    try {
+      const res = await fetch('/api/questions/suggest-options', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ questionText: q.text, questionType: q.type, optionCount: q.options.length }),
+      })
+      if (res.ok) {
+        const body = await res.json()
+        if (body.options?.length) setGhostOptions((prev) => ({ ...prev, [q.id]: body.options }))
+      }
+    } finally {
+      setFetchingGhost(null)
+    }
+  }
+
+  const applyGhostOptions = (qid: string) => {
+    const ghosts = ghostOptions[qid]
+    if (!ghosts) return
+    const q = writable.find((x) => x.id === qid)
+    if (!q || !q.options) return
+    const next = q.options.map((o, i) => (o.trim() ? o : ghosts[i] ?? o))
+    updateQuestion(qid, { options: next })
+    setGhostOptions((prev) => { const n = { ...prev }; delete n[qid]; return n })
+  }
 
   const addQuestion = (type: QuestionType) => {
     if (remaining <= 0) return
@@ -97,14 +131,25 @@ export default function QuestionBuilder({ questions, onChange, max, allowedTypes
         </span>
       </div>
 
-      {/* 작성된 질문들 */}
-      <div className="flex flex-col gap-3">
+      {/* 작성된 질문들 — 세로로 끝없이 쌓이지 않도록 그리드로 배치 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
         {writable.map((q, i) => (
           <div key={q.id} className="rounded-xl bg-[#F5F5F5] p-4 flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-black text-[#F77019] bg-[#F77019]/10 px-2 py-0.5 rounded">Q{i + 1}</span>
                 <span className="text-[10px] font-bold text-[#666]">{TYPE_LABELS[q.type]}</span>
+                {q.type === 'multiple_choice' && (
+                  <label className="flex items-center gap-1.5 cursor-pointer select-none pl-1.5 ml-1 border-l border-[#1D1C1C]/10">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(q.allowMultiple)}
+                      onChange={(e) => updateQuestion(q.id, { allowMultiple: e.target.checked })}
+                      className="w-3.5 h-3.5 accent-[#F77019]"
+                    />
+                    <span className="text-[9px] font-bold text-[#666] whitespace-nowrap">복수 선택 허용</span>
+                  </label>
+                )}
               </div>
               <button type="button" onClick={() => removeQuestion(q.id)} className="text-[#999] hover:text-red-500">
                 <Trash2 className="w-3.5 h-3.5" />
@@ -115,6 +160,7 @@ export default function QuestionBuilder({ questions, onChange, max, allowedTypes
               type="text"
               value={q.text}
               onChange={(e) => updateQuestion(q.id, { text: e.target.value })}
+              onBlur={() => fetchGhostOptions(q)}
               placeholder="질문을 입력하세요"
               className="w-full h-9 rounded-lg bg-white border-none outline-none px-3 text-[11px]"
             />
@@ -122,6 +168,20 @@ export default function QuestionBuilder({ questions, onChange, max, allowedTypes
             {/* 객관식 / A/B / 키워드: 선택지 입력 */}
             {(q.type === 'multiple_choice' || q.type === 'ab_test' || q.type === 'keyword') && q.options && (
               <div className="flex flex-col gap-2 pl-2">
+                {fetchingGhost === q.id && (
+                  <span className="text-[9px] font-bold text-[#999] flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 animate-pulse" /> AI가 선지를 준비하고 있어요...
+                  </span>
+                )}
+                {ghostOptions[q.id] && (
+                  <button
+                    type="button"
+                    onClick={() => applyGhostOptions(q.id)}
+                    className="self-start flex items-center gap-1 text-[9px] font-black text-[#F77019] bg-[#F77019]/8 px-2 py-1 rounded-lg hover:bg-[#F77019]/15 transition-colors"
+                  >
+                    <Sparkles className="w-3 h-3" /> AI 제안 선지로 채우기 (Tab으로 하나씩도 가능)
+                  </button>
+                )}
                 {q.options.map((opt, idx) => (
                   <div key={idx} className="flex items-center gap-2">
                     <span className="text-[10px] font-bold text-[#999] w-4">{idx + 1}.</span>
@@ -134,6 +194,12 @@ export default function QuestionBuilder({ questions, onChange, max, allowedTypes
                         // Enter on the last option row adds (and jumps into) a
                         // new one, so typing several options in a row doesn't
                         // need a mouse click on "+ 옵션 추가" between each one.
+                        if (e.key === 'Tab' && !opt.trim() && ghostOptions[q.id]?.[idx]) {
+                          e.preventDefault()
+                          updateOption(q.id, idx, ghostOptions[q.id][idx])
+                          document.getElementById(`opt-${q.id}-${idx + 1}`)?.focus()
+                          return
+                        }
                         if (e.key !== 'Enter' || e.nativeEvent.isComposing) return
                         e.preventDefault()
                         const isLast = idx === q.options!.length - 1
@@ -144,7 +210,8 @@ export default function QuestionBuilder({ questions, onChange, max, allowedTypes
                         }
                       }}
                       placeholder={
-                        q.type === 'ab_test' ? `옵션 ${idx + 1}` : q.type === 'keyword' ? `키워드 ${idx + 1}` : `선택지 ${idx + 1}`
+                        ghostOptions[q.id]?.[idx] ??
+                        (q.type === 'ab_test' ? `옵션 ${idx + 1}` : q.type === 'keyword' ? `키워드 ${idx + 1}` : `선택지 ${idx + 1}`)
                       }
                       className="flex-1 h-8 rounded-lg bg-white border-none outline-none px-3 text-[11px]"
                     />
@@ -164,21 +231,6 @@ export default function QuestionBuilder({ questions, onChange, max, allowedTypes
                   >
                     + {q.type === 'keyword' ? '키워드' : '선택지'} 추가
                   </button>
-                )}
-
-                {/* 객관식만 — 복수 선택 허용 여부 */}
-                {q.type === 'multiple_choice' && (
-                  <label className="flex items-center gap-2 mt-1 ml-6 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(q.allowMultiple)}
-                      onChange={(e) => updateQuestion(q.id, { allowMultiple: e.target.checked })}
-                      className="w-3.5 h-3.5 accent-[#F77019]"
-                    />
-                    <span className="text-[10px] font-bold text-[#666]">
-                      복수 선택 허용 (체크박스로 여러 개 고를 수 있게)
-                    </span>
-                  </label>
                 )}
               </div>
             )}

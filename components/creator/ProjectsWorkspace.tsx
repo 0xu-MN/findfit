@@ -87,10 +87,12 @@ export default function ProjectsWorkspace() {
   const totalReviewers = projects.reduce((s, p) => s + p.completed_count, 0)
 
   return (
-    <div className="w-full flex gap-6 text-[#1D1C1C]">
-      {/* ── 좌측 미니 메뉴 — 프로젝트/리포트, 라우팅 없이 전환 ── */}
-      <div className="w-[180px] flex-shrink-0 flex flex-col gap-1 pt-1">
-        <span className="text-[10px] font-black text-[#999] uppercase tracking-wider px-2 mb-1">카테고리</span>
+    <div className="w-full flex flex-col md:flex-row gap-6 text-[#1D1C1C]">
+      {/* ── 좌측 미니 메뉴 — 프로젝트/리포트, 라우팅 없이 전환.
+          모바일에서는 세로 사이드바가 본문을 좁혀 글자가 한 칸씩 줄바꿈
+          되던 문제가 있어 md 미만에서는 상단 가로 탭으로 전환한다. ── */}
+      <div className="flex flex-row md:flex-col gap-1 md:w-[180px] md:flex-shrink-0 md:pt-1 overflow-x-auto">
+        <span className="hidden md:block text-[10px] font-black text-[#999] uppercase tracking-wider px-2 mb-1">카테고리</span>
         {[
           { key: 'projects' as const, label: '프로젝트', icon: FolderKanban },
           { key: 'reports' as const, label: '리포트', icon: FileTextIcon },
@@ -98,7 +100,7 @@ export default function ProjectsWorkspace() {
           <button
             key={item.key}
             onClick={() => setView(item.key)}
-            className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-[12px] font-bold transition-colors text-left ${
+            className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-[12px] font-bold transition-colors text-left whitespace-nowrap flex-shrink-0 ${
               view === item.key ? 'bg-[#F77019]/10 text-[#F77019]' : 'text-[#666] hover:bg-[#1D1C1C]/5'
             }`}
           >
@@ -119,7 +121,7 @@ export default function ProjectsWorkspace() {
             {/* "새 프로젝트 등록하기" 진입점은 아래 프로젝트 목록(ProjectListPage)
                 자체 버튼으로 충분해서 여기 중복 버튼은 뺐다 */}
             <h2 className="text-lg font-black text-[#1D1C1C]">한눈에 보기</h2>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <OverviewCard
                 donutSegments={donutSegments}
                 donutTotal={donutTotal}

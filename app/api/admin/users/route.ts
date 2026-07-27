@@ -11,10 +11,11 @@ export async function GET() {
 
   const admin = createAdminClient()
 
-  const [{ data: users, error }, { data: projectCounts }, { data: reviewCounts }] = await Promise.all([
+  const [{ data: users, error }, { data: projectCounts }, { data: reviewCounts }, { data: allMatches }] = await Promise.all([
     admin.from('users').select('id, email, role, status, created_at').order('created_at', { ascending: false }),
     admin.from('projects').select('creator_id'),
     admin.from('project_matches').select('reviewer_id').eq('status', 'completed'),
+    admin.from('project_matches').select('reviewer_id'),
   ])
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -29,11 +30,21 @@ export async function GET() {
     if (!r.reviewer_id) continue
     reviewCountByUser.set(r.reviewer_id, (reviewCountByUser.get(r.reviewer_id) ?? 0) + 1)
   }
+  // role 컬럼은 최초 가입 시 한 번 고정되는 값이라, 크리에이터로 시작한
+  // 유저가 나중에 리뷰어로도 활동해도 role은 그대로 'builder'로 남는다.
+  // 관리자 목록에서 "리뷰어" 필터에 안 뜨는 버그의 원인 — 실제 활동
+  // 이력(project_matches 존재 여부)으로 역할을 별도 파생시켜 함께 내려준다.
+  const anyMatchByUser = new Set<string>()
+  for (const r of allMatches ?? []) {
+    if (r.reviewer_id) anyMatchByUser.add(r.reviewer_id)
+  }
 
   const enriched = (users ?? []).map((u) => ({
     ...u,
     project_count: projectCountByUser.get(u.id) ?? 0,
     completed_review_count: reviewCountByUser.get(u.id) ?? 0,
+    is_builder: (projectCountByUser.get(u.id) ?? 0) > 0 || u.role === 'builder',
+    is_reviewer: anyMatchByUser.has(u.id) || u.role === 'evaluator',
   }))
 
   return NextResponse.json({ users: enriched })
