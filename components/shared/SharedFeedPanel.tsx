@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Clock, Loader2, User } from 'lucide-react'
+import { Clock, Loader2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useRightPanel } from './RightPanelContext'
 
@@ -36,6 +36,18 @@ function readTime(body: string): string {
 
 function fmtDate(iso: string): string {
   return new Date(iso).toLocaleDateString('ko-KR')
+}
+
+// 인사이트는 관리자만 작성 가능해서, 개인 닉네임(post.author) 대신 항상
+// FindFit 브랜드 표기로 통일한다 — 작성자 필드는 DB/관리자 폼엔 남아있지만
+// 공개 화면 렌더링에서는 안 쓴다.
+function BrandByline({ compact }: { compact?: boolean }) {
+  return (
+    <span className={`flex items-center gap-1 font-black text-[#1D1C1C] ${compact ? 'text-[9px]' : ''}`}>
+      <img src="/logo.png" alt="FindFit" className={compact ? 'h-2.5 w-auto' : 'h-3 w-auto'} />
+      FindFit
+    </span>
+  )
 }
 
 interface Props {
@@ -89,10 +101,12 @@ export default function SharedFeedPanel({ basePath }: Props) {
   const isNarrow = !isExpanded // 축소 모드일 때 반응형 적용
 
   const heroPost = feedPosts[0] ?? null
-  const restPosts = feedPosts.slice(1)
+  // 최신 글도 그리드 목록에 같이 나오게 한다 — 히어로는 "크게 보여주는 것"일
+  // 뿐 목록에서 빼는 게 아니다(예전엔 slice(1)이라 최신 글이 그리드엔 아예
+  // 안 보여서 사용자가 "안 보인다"고 지적한 부분).
   const filtered = activeFilter === '전체'
-    ? restPosts
-    : restPosts.filter(p => p.category === activeFilter)
+    ? feedPosts
+    : feedPosts.filter(p => p.category === activeFilter)
 
   const goToDetail = (post: InsightPost) => router.push(`/${basePath}/feed/${post.id}`)
 
@@ -135,7 +149,7 @@ export default function SharedFeedPanel({ basePath }: Props) {
                 {heroPost.body}
               </p>
               <div className="flex items-center gap-3 text-[10px] text-[#999] font-medium flex-wrap">
-                <span className="flex items-center gap-1"><User className="w-3 h-3" />{heroPost.author}</span>
+                <BrandByline />
                 <span>{fmtDate(heroPost.created_at)}</span>
                 <span className="flex items-center gap-1"><Clock className="w-3 h-3" />읽기 {readTime(heroPost.body)}</span>
               </div>
@@ -272,7 +286,7 @@ function FeedCard({ post, horizontal, onClick }: { post: InsightPost; horizontal
           </h3>
           <p className="text-[10px] text-[#888] leading-relaxed line-clamp-2">{post.body}</p>
           <div className="flex items-center justify-between mt-0.5 text-[9px] text-[#999] font-medium">
-            <span>{post.author}</span>
+            <BrandByline compact />
             <span className="flex items-center gap-0.5"><Clock className="w-2.5 h-2.5" />{readTime(post.body)}</span>
           </div>
         </div>
@@ -304,12 +318,7 @@ function FeedCard({ post, horizontal, onClick }: { post: InsightPost; horizontal
         </h3>
         <p className="text-[10px] text-[#888] leading-relaxed line-clamp-2">{post.body}</p>
         <div className="flex items-center justify-between mt-1">
-          <div className="flex items-center gap-1.5">
-            <div className="w-4 h-4 rounded-full bg-[#1D1C1C]/10 flex items-center justify-center text-[8px] font-black text-[#666]">
-              {post.author[0]}
-            </div>
-            <span className="text-[9px] text-[#999] font-medium">{post.author}</span>
-          </div>
+          <BrandByline compact />
           <span className="text-[9px] text-[#BBB] font-medium flex items-center gap-0.5">
             <Clock className="w-2.5 h-2.5" />{readTime(post.body)}
           </span>

@@ -6,6 +6,7 @@ import {
   FolderKanban,
   Info,
   Loader2,
+  PlusCircle,
   FileText as FileTextIcon,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -108,6 +109,13 @@ export default function ProjectsWorkspace() {
             {item.label}
           </button>
         ))}
+        <button
+          onClick={() => router.push('/builder/new-request')}
+          className="hidden md:flex items-center justify-center gap-1.5 mt-4 py-3 rounded-xl text-white text-[12px] font-black hover:scale-[1.02] active:scale-[0.98] transition-all"
+          style={{ background: 'linear-gradient(135deg,#F77019,#FF8F45)', boxShadow: '0 6px 16px rgba(247,112,25,0.28)' }}
+        >
+          <PlusCircle className="w-4 h-4" />새 프로젝트 등록하기
+        </button>
       </div>
 
       {/* ── 메인 ── */}
@@ -118,9 +126,16 @@ export default function ProjectsWorkspace() {
           </div>
         ) : (
           <>
-            {/* "새 프로젝트 등록하기" 진입점은 아래 프로젝트 목록(ProjectListPage)
-                자체 버튼으로 충분해서 여기 중복 버튼은 뺐다 */}
-            <h2 className="text-lg font-black text-[#1D1C1C]">한눈에 보기</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-black text-[#1D1C1C]">한눈에 보기</h2>
+              <button
+                onClick={() => router.push('/builder/new-request')}
+                className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-white text-[12px] font-black hover:scale-[1.02] active:scale-[0.98] transition-all"
+                style={{ background: 'linear-gradient(135deg,#F77019,#FF8F45)', boxShadow: '0 6px 16px rgba(247,112,25,0.28)' }}
+              >
+                <PlusCircle className="w-4 h-4" />새 프로젝트 등록하기
+              </button>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <OverviewCard
                 donutSegments={donutSegments}

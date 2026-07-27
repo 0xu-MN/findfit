@@ -62,9 +62,9 @@ export default function PolishableTextarea({ label, hint, max, rows, value, plac
             type="button"
             onClick={polish}
             disabled={polishing}
-            className="flex items-center gap-1 text-[9px] font-black text-[#F77019] hover:underline disabled:opacity-40"
+            className="flex items-center gap-1.5 text-[11px] font-black text-white bg-[#F77019] hover:bg-[#e0621a] px-3 py-1.5 rounded-full shadow-sm transition-colors disabled:opacity-40"
           >
-            {polishing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+            {polishing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
             AI로 다듬기
           </button>
           <span className="text-[9px] text-[#999] font-bold">{hint}</span>

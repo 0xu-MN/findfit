@@ -1,6 +1,6 @@
 'use client'
 
-import { Loader2, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react'
+import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import ReviewerLayout from '@/components/reviewer/ReviewerLayout'
@@ -256,10 +256,6 @@ export default function EvaluatorDashboardPage() {
                       {b.btnText}
                     </button>
                   )}
-                </div>
-                {/* Decorative visual elements */}
-                <div className="absolute right-10 bottom-0 top-0 w-1/3 opacity-20 pointer-events-none hidden md:flex items-center justify-center">
-                  <Sparkles className="w-48 h-48 text-white" />
                 </div>
               </div>
             ))}

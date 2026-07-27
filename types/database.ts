@@ -28,7 +28,7 @@ export type ProjectType = 'light' | 'standard' | 'deep'
 export type PsfPmfType = 'psf' | 'pmf'
 // projects.status — 피드 노출은 'active'. pending_review/rejected는 검수
 // 기능 자체는 구현되어 있으나 이번 라운드는 강제 적용하지 않음(계획 참고).
-export type ProjectStatus = 'draft' | 'pending_review' | 'active' | 'rejected' | 'completed' | 'cancelled'
+export type ProjectStatus = 'draft' | 'pending_review' | 'active' | 'reviewing' | 'rejected' | 'completed' | 'cancelled'
 // projects.access_method (migration 008)
 export type AccessMethod = 'web_link' | 'app_download' | 'physical_shipping'
 // project_matches.status

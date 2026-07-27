@@ -58,6 +58,37 @@ function extractJson(text: string): string {
 
 function getMockResponse(prompt: string): Record<string, unknown> | unknown[] {
   if (prompt.includes('창업 아이디어 상담 에이전트')) {
+    // ANTHROPIC_API_KEY가 없을 때 대화가 여기서 막히는 문제(특히 phase 2
+    // "타겟이 뭐예요?"를 계속 되묻는 버그) — mock도 phase별로 최소한 앞으로
+    // 나아가도록 프롬프트 안의 phase 마커 텍스트(buildAgentUnderstandingPrompt의
+    // phaseInstruction)로 지금 몇 단계인지 판별하고, 사용자의 새 발화를
+    // 그대로 반영해서 실제 Claude를 흉내낸다(진짜 이해는 아니지만 최소한
+    // 같은 응답만 반복하지는 않는다).
+    const userInputMatch = prompt.match(/\[사용자의 새 발화\]\n([\s\S]*?)\n\n\[요청\]/)
+    const userInput = (userInputMatch?.[1] ?? '').trim()
+    const isLowEffort = userInput.length < 2 || /^(몰라|모름|글쎄|음+)\.?요?$/.test(userInput)
+
+    if (prompt.includes('타겟 고객이 누구인지 파악하세요')) {
+      // phase 2
+      if (isLowEffort) {
+        return {
+          reply: '괜찮아요, 천천히 생각해봐도 좋아요. 대략 어떤 사람들이 이 문제를 겪고 있을 것 같으세요?',
+          category: null, stage: null, item_summary: null, target_customer: null, ready_for_cta: false,
+        }
+      }
+      return {
+        reply: `"${userInput}" 좋네요. 그럼 이제 실제로 이 타겟이 관심 있어 하는지 검증해볼까요?`,
+        category: null, stage: null, item_summary: null, target_customer: userInput, ready_for_cta: false,
+      }
+    }
+    if (prompt.includes('지금까지 파악한 아이디어/단계/타겟을 짧게 요약')) {
+      // phase 3+
+      return {
+        reply: '좋아요, 지금까지 얘기해주신 내용이면 검증을 시작하기에 충분해 보여요. 바로 등록해볼까요?',
+        category: null, stage: null, item_summary: null, target_customer: null, ready_for_cta: true,
+      }
+    }
+    // phase 0/1
     return {
       reply: '흥미로운 아이디어네요! 지금은 아이디어 단계인가요, 만들고 계신가요, 아니면 이미 출시하셨나요?',
       category: null,
@@ -72,10 +103,15 @@ function getMockResponse(prompt: string): Record<string, unknown> | unknown[] {
     return { answer: '리포트 기준으로는 문제 공감도와 솔루션 수용도가 높게 나타났어요. 실제 키가 연결되면 더 정확한 답변을 드릴 수 있어요.' }
   }
   if (prompt.includes('창업 아이템 추천 에이전트')) {
+    // ANTHROPIC_API_KEY 없을 때도 "입력이 뭐든 매번 똑같은 3개"로 보이지
+    // 않도록, 최소한 사용자가 입력한 키워드를 제목/설명에 반영한다(진짜
+    // AI 추천은 아니지만 완전 고정값보다는 낫다).
+    const keywordMatch = prompt.match(/\[사용자 입력 키워드\]\n([\s\S]*?)\n\n/)
+    const keyword = (keywordMatch?.[1] ?? '').trim() || '아이템'
     return [
-      { title: '저당 간식 정기구독 키트', description: '당 섭취를 관리하는 2030 소비자를 위한 월간 저당 간식 큐레이션', reason: '건강 관리 트렌드와 정기구독 모델 수요가 동시에 늘고 있어요' },
-      { title: '반려동물 맞춤 영양 간식', description: '견종·연령별 맞춤 레시피를 제공하는 프리미엄 펫 간식', reason: '반려동물 헬스케어 시장이 꾸준히 성장 중이에요' },
-      { title: '1인 가구용 소분 밀키트', description: '조리 부담을 줄인 1~2인분 단위의 간편식 밀키트', reason: '1인 가구 증가와 함께 소용량 식품 수요가 커지고 있어요' },
+      { title: `${keyword} 정기구독 키트`, description: `${keyword}에 관심 있는 소비자를 위한 월간 큐레이션 서비스`, reason: '정기구독 모델 수요가 꾸준히 늘고 있어요' },
+      { title: `프리미엄 ${keyword}`, description: `기존 ${keyword} 대비 품질/경험을 한 단계 높인 버전`, reason: '프리미엄 세그먼트가 빠르게 성장 중이에요' },
+      { title: `1인 가구용 ${keyword}`, description: `혼자 쓰기 부담 없는 소용량/맞춤형 ${keyword}`, reason: '1인 가구 증가와 함께 소용량 수요가 커지고 있어요' },
     ]
   }
   if (prompt.includes('관심사 키워드')) {

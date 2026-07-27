@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  AlertTriangle,
   ArrowLeft,
   BarChart3,
   Check,
@@ -72,6 +73,8 @@ export default function ProjectDetailPage({ projectId }: Props) {
   const [questions, setQuestions] = useState<QuestionRow[]>([])
   const [matches, setMatches] = useState<MatchRow[]>([])
   const [hydrated, setHydrated] = useState(false)
+  const [closeMode, setCloseMode] = useState<'proceed_short' | 'early_close' | null>(null)
+  const [closing, setClosing] = useState(false)
 
   const load = useCallback(async () => {
     const supabase = createClient()
@@ -130,23 +133,22 @@ export default function ProjectDetailPage({ projectId }: Props) {
     })
   }
 
-  const [processingId, setProcessingId] = useState<string | null>(null)
-
-  const respondToApplicant = async (matchId: string, action: 'accept' | 'reject') => {
-    setProcessingId(matchId)
-    if (action === 'reject') {
-      setMatches((prev) => prev.map((m) => (m.id === matchId ? { ...m, status: 'dropped' } : m)))
-    } else {
-      setMatches((prev) =>
-        prev.map((m) =>
-          m.id === matchId
-            ? { ...m, status: 'accepted', shipping_status: isShipping ? 'pending' : m.shipping_status }
-            : m
-        )
-      )
+  const confirmCloseRecruitment = async () => {
+    if (!project || !closeMode) return
+    setClosing(true)
+    try {
+      const res = await fetch(`/api/projects/${project.id}/close-recruitment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: closeMode }),
+      })
+      if (res.ok) {
+        setProject((prev) => (prev ? { ...prev, status: 'reviewing' } : prev))
+        setCloseMode(null)
+      }
+    } finally {
+      setClosing(false)
     }
-    await fetch(`/api/builder/matches/${matchId}/${action}`, { method: 'POST' })
-    setProcessingId(null)
   }
 
   if (!hydrated) {
@@ -271,10 +273,66 @@ export default function ProjectDetailPage({ projectId }: Props) {
           />
         </div>
 
+        {/* 모집 인원 미달/조기 마감 선택권 — 크리에이터가 개별 리뷰어를
+            승인/거절하는 대신, 프로젝트를 지금 리뷰 단계로 넘길지 말지를
+            직접 결정한다(active → reviewing). */}
+        {project.status === 'active' && completedCount < targetCount && completedCount > 0 && (
+          <div className="flex flex-col sm:flex-row gap-2">
+            <button
+              onClick={() => setCloseMode('proceed_short')}
+              className="flex-1 py-2.5 rounded-xl border border-[#1D1C1C]/15 text-[#666] text-[11px] font-black hover:bg-[#1D1C1C]/5 transition-colors"
+            >
+              모집인원 미달이어도 진행하기
+            </button>
+            <button
+              onClick={() => setCloseMode('early_close')}
+              className="flex-1 py-2.5 rounded-xl border border-[#1D1C1C]/15 text-[#666] text-[11px] font-black hover:bg-[#1D1C1C]/5 transition-colors"
+            >
+              모집 조기 마감하고 바로 리뷰 시작
+            </button>
+          </div>
+        )}
+
+        {closeMode && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6" style={{ background: 'rgba(29,28,28,0.4)' }}>
+            <div className="w-full max-w-[420px] rounded-3xl bg-white p-6 flex flex-col gap-4">
+              <div className="flex items-center gap-2 text-[#F77019]">
+                <AlertTriangle className="w-5 h-5" />
+                <span className="text-[13px] font-black">정말 진행할까요?</span>
+              </div>
+              <p className="text-[12px] font-bold text-[#666] leading-relaxed">
+                {closeMode === 'proceed_short'
+                  ? `현재 ${completedCount}명만 참여한 상태로 진행합니다. 남은 모집은 종료돼요.`
+                  : '예상보다 일찍 목표 인원이 채워져 모집을 마감하고 바로 리뷰 단계로 넘어갑니다.'}
+              </p>
+              <p className="text-[11px] font-black text-red-500 bg-red-50 rounded-xl px-3 py-2.5 leading-relaxed">
+                이미 모집된 리뷰어 사례금은 환불되지 않습니다.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setCloseMode(null)}
+                  className="flex-1 py-2.5 rounded-xl bg-[#F5F5F5] text-[#666] text-[12px] font-black hover:bg-[#EBEBEB] transition-colors"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={confirmCloseRecruitment}
+                  disabled={closing}
+                  className="flex-1 py-2.5 rounded-xl bg-[#F77019] text-white text-[12px] font-black hover:opacity-90 transition-opacity disabled:opacity-60"
+                >
+                  {closing ? '처리 중...' : '확인, 진행합니다'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 지원 승인/거절은 관리자 전용으로 이전됐다(/admin/applications) —
+            크리에이터는 진행 상황만 읽기 전용으로 확인한다. */}
         {pendingMatches.length > 0 && (
           <div className="flex flex-col gap-2">
             <span className="text-[10px] font-black text-[#F77019]">
-              지원 승인 대기 ({pendingMatches.length}명)
+              지원 검토 중 ({pendingMatches.length}명) — 관리자가 승인/거절을 처리합니다
             </span>
             {pendingMatches.map((r) => (
               <div
@@ -282,22 +340,7 @@ export default function ProjectDetailPage({ projectId }: Props) {
                 className="flex items-center gap-2 rounded-xl bg-[#F77019]/5 border border-[#F77019]/20 px-3 py-2"
               >
                 <span className="text-[10px] font-bold text-[#666]">{r.nickname ?? '익명 리뷰어'}</span>
-                <div className="flex items-center gap-1.5 ml-auto">
-                  <button
-                    onClick={() => respondToApplicant(r.id, 'accept')}
-                    disabled={processingId === r.id}
-                    className="flex items-center gap-1 text-[9px] font-black px-2.5 py-1 rounded-lg bg-[#2E7D32] text-white hover:opacity-90 disabled:opacity-40"
-                  >
-                    <Check className="w-3 h-3" /> 수락
-                  </button>
-                  <button
-                    onClick={() => respondToApplicant(r.id, 'reject')}
-                    disabled={processingId === r.id}
-                    className="flex items-center gap-1 text-[9px] font-black px-2.5 py-1 rounded-lg border border-[#1D1C1C]/15 text-[#666] hover:bg-[#1D1C1C]/5 disabled:opacity-40"
-                  >
-                    <X className="w-3 h-3" /> 거절
-                  </button>
-                </div>
+                <span className="ml-auto text-[9px] font-black text-[#F77019]">검토 대기</span>
               </div>
             ))}
           </div>

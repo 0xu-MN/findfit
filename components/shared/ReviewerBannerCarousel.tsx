@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 type Banner = {
@@ -92,9 +92,6 @@ export default function ReviewerBannerCarousel() {
                   {b.button_text}
                 </button>
               )}
-            </div>
-            <div className="absolute right-8 bottom-0 top-0 w-1/3 opacity-20 pointer-events-none hidden md:flex items-center justify-center">
-              <Sparkles className="w-36 h-36 text-white" />
             </div>
           </div>
         ))}

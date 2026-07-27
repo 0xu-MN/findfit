@@ -1,19 +1,12 @@
 'use client'
 
-import { ArrowLeft, Bookmark, Loader2, MessageSquare, Share2, ThumbsUp, User } from 'lucide-react'
+import { ArrowLeft, Bookmark, Loader2, MessageSquare, Share2, ThumbsUp } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import type { InsightPost } from './SharedFeedPanel'
 
 interface Props {
   postId: string
-}
-
-const AVATAR_PALETTE = ['#F77019', '#8B5CF6', '#1565C0', '#2E7D32', '#E91E63', '#FF8F00']
-function avatarColorFor(label: string): string {
-  let hash = 0
-  for (let i = 0; i < label.length; i++) hash = (hash * 31 + label.charCodeAt(i)) >>> 0
-  return AVATAR_PALETTE[hash % AVATAR_PALETTE.length]
 }
 
 // 인사이트(구 "피드") 상세 — 노트폴리오 포트폴리오 상세 페이지 참고: 좌측에
@@ -63,8 +56,6 @@ export default function InsightDetailView({ postId }: Props) {
     )
   }
 
-  const avatarColor = avatarColorFor(post.author)
-
   return (
     <div className="w-full max-w-[1080px] mx-auto py-8">
       <button
@@ -78,16 +69,13 @@ export default function InsightDetailView({ postId }: Props) {
       <div className="rounded-[28px] border border-[#1D1C1C]/8 bg-white shadow-[0_8px_40px_rgba(0,0,0,0.05)] overflow-hidden flex">
         {/* 본문 컬럼 */}
         <div className="flex-1 min-w-0 flex flex-col gap-6 p-8 md:p-10">
-          {/* 작성자 배지 */}
+          {/* 작성자 배지 — 관리자 전용 글이라 개인 닉네임 대신 FindFit 브랜드로 표기 */}
           <div className="flex items-center gap-3">
-            <div
-              className="w-11 h-11 rounded-full flex items-center justify-center text-white font-black text-sm flex-shrink-0"
-              style={{ background: avatarColor }}
-            >
-              {post.author[0]}
+            <div className="w-11 h-11 rounded-2xl bg-[#F5F5F5] flex items-center justify-center flex-shrink-0">
+              <img src="/logo.png" alt="FindFit" className="h-5 w-auto" />
             </div>
             <div className="flex flex-col">
-              <span className="text-[13px] font-black text-[#1D1C1C]">{post.author}</span>
+              <span className="text-[13px] font-black text-[#1D1C1C]">FindFit</span>
               <span className="text-[10px] font-bold text-[#999]">
                 {post.category ?? (post.type === 'newsroom' ? '뉴스룸' : '인사이트')}
               </span>
@@ -102,7 +90,9 @@ export default function InsightDetailView({ postId }: Props) {
           <h1 className="text-[24px] md:text-[28px] font-black text-[#1D1C1C] leading-snug">{post.title}</h1>
 
           <div className="flex items-center gap-2 text-[10px] font-bold text-[#999]">
-            <span className="flex items-center gap-1"><User className="w-3 h-3" />{post.author}</span>
+            <span className="flex items-center gap-1">
+              <img src="/logo.png" alt="" className="h-3 w-auto" />FindFit
+            </span>
             <span>·</span>
             <span>{new Date(post.created_at).toLocaleDateString('ko-KR')}</span>
           </div>

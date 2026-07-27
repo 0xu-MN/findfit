@@ -11,7 +11,7 @@ export default function RoleSwitchToggle({ role }: RoleSwitchToggleProps) {
   const isCreator = role === 'creator'
 
   return (
-    <div className="relative inline-flex items-center p-1 rounded-full bg-[#EAEAEA] border border-[#DDD] shadow-inner select-none cursor-pointer transition-all duration-300">
+    <div className="relative inline-flex items-center h-11 p-1 rounded-full bg-[#EAEAEA] border border-[#DDD] shadow-inner select-none cursor-pointer transition-all duration-300">
       {/* Active Indicator Sliding Background */}
       <div
         className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full bg-white transition-all duration-300 ease-in-out ${
@@ -21,11 +21,13 @@ export default function RoleSwitchToggle({ role }: RoleSwitchToggleProps) {
         }`}
       />
 
-      {/* Creator Button */}
+      {/* Creator Button — h-full로 인디케이터(top-1 bottom-1)와 픽셀 단위로 높이를 맞춰야
+          텍스트가 정확히 중앙에 온다(패딩만으로 높이를 암묵적으로 정하면 서브픽셀
+          단위로 어긋나 보일 수 있었음) */}
       <button
         type="button"
         onClick={() => !isCreator && router.push('/builder/dashboard')}
-        className={`relative z-10 px-5 py-2 rounded-full text-[13px] font-black transition-colors duration-300 leading-none inline-flex items-center justify-center ${
+        className={`relative z-10 h-full px-5 rounded-full text-[13px] font-black transition-colors duration-300 leading-none inline-flex items-center justify-center ${
           isCreator ? 'text-[#F77019]' : 'text-[#A0A0A0] hover:text-[#666]'
         }`}
       >
@@ -36,7 +38,7 @@ export default function RoleSwitchToggle({ role }: RoleSwitchToggleProps) {
       <button
         type="button"
         onClick={() => isCreator && router.push('/evaluator/dashboard')}
-        className={`relative z-10 px-5 py-2 rounded-full text-[13px] font-black transition-colors duration-300 leading-none inline-flex items-center justify-center ${
+        className={`relative z-10 h-full px-5 rounded-full text-[13px] font-black transition-colors duration-300 leading-none inline-flex items-center justify-center ${
           !isCreator ? 'text-[#189DF7]' : 'text-[#A0A0A0] hover:text-[#666]'
         }`}
       >
