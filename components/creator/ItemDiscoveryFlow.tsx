@@ -19,9 +19,13 @@ const SEARCH_MESSAGES = ['유사 아이템을 찾고 있어요', '몇 가지 더
 
 // 등록 마법사(types.ts CATEGORIES/AGE_GROUPS)와 동일한 목록을 재사용한다 —
 // 예전엔 여기서 별도로 4개짜리 카테고리/연령대를 하드코딩해서 등록 단계와
-// 완전히 다른 분류체계로 사용자를 헷갈리게 했다.
-const QUESTIONS: { key: string; label: string; options: string[] }[] = [
-  { key: '타겟 연령대', label: '주로 어떤 연령대를 타겟하시나요?', options: AGE_GROUPS },
+// 완전히 다른 분류체계로 사용자를 헷갈리게 했다. 연령대는 여러 개를 동시에
+// 타겟할 수 있어서 복수선택(multi), 성별은 신규 추가.
+const GENDER_OPTIONS = ['여성', '남성', '전 성별']
+
+const QUESTIONS: { key: string; label: string; options: string[]; multi?: boolean }[] = [
+  { key: '타겟 연령대', label: '주로 어떤 연령대를 타겟하시나요? (복수 선택 가능)', options: AGE_GROUPS, multi: true },
+  { key: '타겟 성별', label: '주로 어떤 성별을 타겟하시나요?', options: GENDER_OPTIONS },
   { key: '카테고리', label: '어떤 카테고리에 가까운가요?', options: CATEGORIES },
 ]
 
@@ -34,7 +38,11 @@ export default function ItemDiscoveryFlow({ keyword, onClose }: Props) {
   const agentBubble = useAgentBubble()
   const [stage, setStage] = useState<Stage>('searching')
   const [msgIndex, setMsgIndex] = useState(0)
-  const [answers, setAnswers] = useState<Record<string, string>>({})
+  const [answers, setAnswers] = useState<Record<string, string[]>>({})
+  // 몇 번째 질문인지 별도 인덱스로 관리한다 — "answers에 키가 있으면 다음
+  // 질문"으로 판단하면, 복수선택 질문은 첫 항목을 고르자마자 키가 생겨서
+  // "다음" 버튼 없이 바로 넘어가버리는 버그가 있었다.
+  const [questionStep, setQuestionStep] = useState(0)
   const [items, setItems] = useState<RecommendedItem[]>([])
 
   useEffect(() => {
@@ -47,22 +55,41 @@ export default function ItemDiscoveryFlow({ keyword, onClose }: Props) {
     return () => clearTimeout(t)
   }, [stage, msgIndex])
 
-  const answerQuestion = (qKey: string, option: string) => {
-    const next = { ...answers, [qKey]: option }
-    setAnswers(next)
-    const qIndex = QUESTIONS.findIndex((q) => q.key === qKey)
-    if (qIndex === QUESTIONS.length - 1) {
-      void fetchRecommendations(next)
+  // 단일 선택 질문(성별/카테고리)은 클릭하면 바로 다음으로 넘어가고,
+  // 복수 선택 질문(연령대)은 토글만 하고 "다음" 버튼을 눌러야 넘어간다.
+  const toggleOption = (qKey: string, option: string, multi?: boolean) => {
+    setAnswers((prev) => {
+      const current = prev[qKey] ?? []
+      if (!multi) return { ...prev, [qKey]: [option] }
+      const already = current.includes(option)
+      return { ...prev, [qKey]: already ? current.filter((o) => o !== option) : [...current, option] }
+    })
+  }
+
+  const goNext = (finishedAnswers: Record<string, string[]>) => {
+    if (questionStep + 1 >= QUESTIONS.length) {
+      void fetchRecommendations(finishedAnswers)
+    } else {
+      setQuestionStep((s) => s + 1)
     }
   }
 
-  const fetchRecommendations = async (finalAnswers: Record<string, string>) => {
+  const answerSingle = (qKey: string, option: string) => {
+    const next = { ...answers, [qKey]: [option] }
+    setAnswers(next)
+    goNext(next)
+  }
+
+  const fetchRecommendations = async (finalAnswers: Record<string, string[]>) => {
     setStage('loading')
     try {
+      const flatAnswers = Object.fromEntries(
+        Object.entries(finalAnswers).map(([k, v]) => [k, v.join(', ')])
+      )
       const res = await fetch('/api/agent/recommend-items', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ keyword, answers: finalAnswers }),
+        body: JSON.stringify({ keyword, answers: flatAnswers }),
       })
       const body = await res.json()
       setItems(body.items ?? [])
@@ -73,7 +100,8 @@ export default function ItemDiscoveryFlow({ keyword, onClose }: Props) {
     }
   }
 
-  const currentQuestion = QUESTIONS.find((q) => !(q.key in answers))
+  const currentQuestion = QUESTIONS[questionStep]
+  const currentSelection = currentQuestion ? answers[currentQuestion.key] ?? [] : []
 
   const exploreItem = (item: RecommendedItem) => {
     agentBubble.openWithSeed(`"${item.title}" 아이템을 검증해보고 싶어요. ${item.description}`)
@@ -139,16 +167,36 @@ export default function ItemDiscoveryFlow({ keyword, onClose }: Props) {
             >
               <h3 className="text-xl font-black text-[#1D1C1C] text-center">{currentQuestion.label}</h3>
               <div className="grid grid-cols-2 gap-3 w-full max-w-[480px]">
-                {currentQuestion.options.map((opt) => (
-                  <button
-                    key={opt}
-                    onClick={() => answerQuestion(currentQuestion.key, opt)}
-                    className="px-5 py-3.5 rounded-2xl border border-[#1D1C1C]/10 bg-white text-[13px] font-bold text-[#1D1C1C] hover:border-[#F77019] hover:text-[#F77019] hover:bg-[#F77019]/5 transition-all"
-                  >
-                    {opt}
-                  </button>
-                ))}
+                {currentQuestion.options.map((opt) => {
+                  const selected = currentSelection.includes(opt)
+                  return (
+                    <button
+                      key={opt}
+                      onClick={() =>
+                        currentQuestion.multi
+                          ? toggleOption(currentQuestion.key, opt, true)
+                          : answerSingle(currentQuestion.key, opt)
+                      }
+                      className={`px-5 py-3.5 rounded-2xl border text-[13px] font-bold transition-all ${
+                        selected
+                          ? 'border-[#F77019] text-[#F77019] bg-[#F77019]/5'
+                          : 'border-[#1D1C1C]/10 bg-white text-[#1D1C1C] hover:border-[#F77019] hover:text-[#F77019] hover:bg-[#F77019]/5'
+                      }`}
+                    >
+                      {opt}
+                    </button>
+                  )
+                })}
               </div>
+              {currentQuestion.multi && (
+                <button
+                  onClick={() => goNext(answers)}
+                  disabled={currentSelection.length === 0}
+                  className="px-6 py-2.5 rounded-full bg-[#1D1C1C] text-white text-[12px] font-black disabled:opacity-30 hover:opacity-90 transition-opacity"
+                >
+                  다음
+                </button>
+              )}
             </motion.div>
           )}
 

@@ -275,8 +275,12 @@ export default function ProjectDetailPage({ projectId }: Props) {
 
         {/* 모집 인원 미달/조기 마감 선택권 — 크리에이터가 개별 리뷰어를
             승인/거절하는 대신, 프로젝트를 지금 리뷰 단계로 넘길지 말지를
-            직접 결정한다(active → reviewing). */}
-        {project.status === 'active' && completedCount < targetCount && completedCount > 0 && (
+            직접 결정한다(active → reviewing). 모집 중(active)이기만 하면
+            항상 보인다 — 미달 상태든, 이미 목표 인원이 다 찼든 둘 다
+            해당하는 선택이라 completedCount로 좁혀서 숨기면 안 된다
+            (이전엔 completedCount>0 && <targetCount로 좁혀놔서, 0명일 때나
+            이미 다 찼을 때는 아예 버튼 자체가 안 보이던 버그가 있었다). */}
+        {project.status === 'active' && (
           <div className="flex flex-col sm:flex-row gap-2">
             <button
               onClick={() => setCloseMode('proceed_short')}
