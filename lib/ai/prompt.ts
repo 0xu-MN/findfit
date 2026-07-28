@@ -83,7 +83,11 @@ export function buildAgentUnderstandingPrompt(userInput: string, context: AgentC
 
   const phaseInstruction =
     phase <= 1
-      ? `1. 단계를 아직 모르면 — 지금 아이디어 단계인지 / 만들고 있는지 / 이미 출시했는지
+      ? context.targetCustomer
+        ? `1. 단계를 아직 모르면 — 지금 아이디어 단계인지 / 만들고 있는지 / 이미 출시했는지
+2. 타겟 고객(${context.targetCustomer})은 이미 파악돼 있으니 다시 묻지 말고, 검증에 대한
+관심을 자연스럽게 끌어보세요.`
+        : `1. 단계를 아직 모르면 — 지금 아이디어 단계인지 / 만들고 있는지 / 이미 출시했는지
 2. 단계를 이미 안다면 — 타겟 고객이 누구인지`
       : phase === 2
         ? `타겟 고객이 누구인지 파악하세요. 이미 답했다면(또는 "모르겠다"고 하면) 그 내용을

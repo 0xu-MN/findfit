@@ -106,7 +106,7 @@ function getMockResponse(prompt: string): Record<string, unknown> | unknown[] {
     // ANTHROPIC_API_KEY 없을 때도 "입력이 뭐든 매번 똑같은 3개"로 보이지
     // 않도록, 최소한 사용자가 입력한 키워드를 제목/설명에 반영한다(진짜
     // AI 추천은 아니지만 완전 고정값보다는 낫다).
-    const keywordMatch = prompt.match(/\[사용자 입력 키워드\]\n([\s\S]*?)\n\n/)
+    const keywordMatch = prompt.match(/\[사용자 입력 키워드\][\s\S]*?\n([^\n]+)\n\n/)
     const keyword = (keywordMatch?.[1] ?? '').trim() || '아이템'
     return [
       { title: `${keyword} 정기구독 키트`, description: `${keyword}에 관심 있는 소비자를 위한 월간 큐레이션 서비스`, reason: '정기구독 모델 수요가 꾸준히 늘고 있어요' },

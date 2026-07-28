@@ -15,7 +15,7 @@ const HIDDEN_PREFIXES = ['/builder/lounge', '/builder/feed']
 // 전혀 안 건드리고, "열림/닫힘"만 CSS로 토글한다.
 export default function FloatingAgentBubble() {
   const pathname = usePathname()
-  const { isOpen, reportProjectId, seedMessage, activeReportProjectId, open, openForReport, close } = useAgentBubble()
+  const { isOpen, reportProjectId, seedMessage, seedTargetCustomer, activeReportProjectId, open, openForReport, close } = useAgentBubble()
 
   if (HIDDEN_PREFIXES.some((p) => pathname?.startsWith(p))) return null
 
@@ -45,7 +45,7 @@ export default function FloatingAgentBubble() {
         className="fixed bottom-24 right-6 z-40 w-[380px] max-w-[calc(100vw-32px)] h-[560px] max-h-[calc(100vh-160px)] rounded-3xl bg-white shadow-[0_16px_48px_rgba(0,0,0,0.18)] border border-[#1D1C1C]/8 overflow-hidden flex flex-col"
         style={{ display: isOpen ? 'flex' : 'none' }}
       >
-        <AgentPanel isExpanded={false} reportProjectIdOverride={reportProjectId} initialSeedMessage={seedMessage} onClose={close} />
+        <AgentPanel isExpanded={false} reportProjectIdOverride={reportProjectId} initialSeedMessage={seedMessage} initialTargetCustomer={seedTargetCustomer} onClose={close} />
       </div>
     </>
   )

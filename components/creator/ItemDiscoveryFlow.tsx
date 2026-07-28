@@ -104,7 +104,16 @@ export default function ItemDiscoveryFlow({ keyword, onClose }: Props) {
   const currentSelection = currentQuestion ? answers[currentQuestion.key] ?? [] : []
 
   const exploreItem = (item: RecommendedItem) => {
-    agentBubble.openWithSeed(`"${item.title}" 아이템을 검증해보고 싶어요. ${item.description}`)
+    // 이 퀴즈에서 이미 연령대/성별을 답했으므로, Agent 대화에 그대로 넘겨서
+    // "타겟이 누구예요?"를 다시 묻지 않게 한다.
+    const ageAnswer = answers['타겟 연령대']?.join(', ')
+    const genderAnswer = answers['타겟 성별']?.[0]
+    const targetCustomer = [ageAnswer, genderAnswer].filter(Boolean).join(' ') || undefined
+
+    agentBubble.openWithSeed(
+      `"${item.title}" 아이템을 검증해보고 싶어요. ${item.description}`,
+      targetCustomer
+    )
     // skipIntro — 홈 화면에서 이미 "아이템 탐색부터 시작"을 고르고 여기까지
     // 왔으므로, 마법사 진입 시 Step0Modal("어떻게 검증을 시작할까요?")을
     // 또 띄우면 이미 끝난 선택을 다시 물어보는 꼴이 된다.

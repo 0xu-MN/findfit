@@ -9,6 +9,9 @@ type AgentBubbleState = {
   isOpen: boolean
   reportProjectId: string | null
   seedMessage: string | null
+  // 홈 화면 아이템 탐색 퀴즈(연령대/성별)에서 이미 답한 타겟 정보 — 있으면
+  // Agent가 Phase 2에서 같은 질문을 또 하지 않고 바로 넘어간다.
+  seedTargetCustomer: string | null
   // 사용자가 명시적으로 "이 리포트에 대해 대화하기"를 요청한 게 아니라,
   // 그냥 지금 화면에 그 리포트가 떠 있다는 사실만 기록하는 값. 리포트
   // 상세 페이지가 마운트/언마운트될 때만 갱신되고, 그 자체로는 버블을
@@ -20,7 +23,7 @@ type AgentBubbleState = {
   open: () => void
   close: () => void
   openForReport: (projectId: string) => void
-  openWithSeed: (text: string) => void
+  openWithSeed: (text: string, targetCustomer?: string) => void
   setActiveReportProjectId: (projectId: string | null) => void
 }
 
@@ -30,6 +33,7 @@ export function AgentBubbleProvider({ children }: { children: React.ReactNode })
   const [isOpen, setIsOpen] = useState(false)
   const [reportProjectId, setReportProjectId] = useState<string | null>(null)
   const [seedMessage, setSeedMessage] = useState<string | null>(null)
+  const [seedTargetCustomer, setSeedTargetCustomer] = useState<string | null>(null)
   const [activeReportProjectId, setActiveReportProjectId] = useState<string | null>(null)
 
   const open = useCallback(() => setIsOpen(true), [])
@@ -39,9 +43,10 @@ export function AgentBubbleProvider({ children }: { children: React.ReactNode })
     setSeedMessage(null)
     setIsOpen(true)
   }, [])
-  const openWithSeed = useCallback((text: string) => {
+  const openWithSeed = useCallback((text: string, targetCustomer?: string) => {
     setReportProjectId(null)
     setSeedMessage(text)
+    setSeedTargetCustomer(targetCustomer ?? null)
     setIsOpen(true)
   }, [])
 
@@ -61,6 +66,7 @@ export function AgentBubbleProvider({ children }: { children: React.ReactNode })
         isOpen,
         reportProjectId,
         seedMessage,
+        seedTargetCustomer,
         activeReportProjectId,
         open,
         close,

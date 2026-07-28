@@ -17,7 +17,7 @@ async function getAdminStats() {
   ] = await Promise.all([
     supabase.from('project_matches').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
     supabase.from('distributions').select('id', { count: 'exact', head: true }).neq('status', 'completed'),
-    supabase.from('projects').select('id', { count: 'exact', head: true }).eq('status', 'active'),
+    supabase.from('projects').select('id', { count: 'exact', head: true }).in('status', ['active', 'reviewing']),
     supabase.from('projects').select('id', { count: 'exact', head: true }).eq('status', 'pending_review'),
   ])
 

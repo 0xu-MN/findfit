@@ -196,6 +196,28 @@ export function generatePhaseResponse(
       stage === 'launched' ? '이미 출시하셨군요 🚀'        :
       `**${stage}** 단계시군요`
 
+    // 타겟이 이미 알려져 있으면(예: 홈 화면 아이템 탐색 퀴즈에서 연령대/성별을
+    // 이미 답하고 넘어온 경우) 똑같은 질문을 또 하지 않고 바로 트렌드+CTA로
+    // 넘어간다 — Phase 2 질문을 건너뛰는 것뿐, Phase 자체는 그대로 3으로 전이.
+    if (context.targetCustomer) {
+      const categoryKey = context.category ?? 'default'
+      const trendText = realTrendLine ?? TREND_TEXTS[categoryKey] ?? TREND_TEXTS.default
+      return {
+        message: {
+          id: genId(),
+          role: 'assistant',
+          content:
+            `${stageMsg}\n\n` +
+            `**${context.targetCustomer}** 타겟으로 이미 좁혀두셨네요!\n\n` +
+            `📈 ${trendText}\n\n` +
+            `실제 사용자들이 이 서비스를 어떻게 느끼는지,\n진짜 반응이 궁금하지 않으세요?`,
+          timestamp: new Date().toISOString(),
+          showCTA: true,
+        },
+        updatedContext: { ...context, phase: 3, stage, psf },
+      }
+    }
+
     return {
       message: {
         id: genId(),
@@ -341,7 +363,15 @@ export function applyUnderstanding(
   // ── Phase 0/1: 아이디어/단계 파악 (기존 로직 그대로) ──
   // 이번 발화에서 단계가 확인됐으면 phase 2로 전이 — 이후 AgentPanel의
   // 기존 phase===2 트렌드 조회/타겟 질문 흐름을 그대로 태운다(건드리지 않음).
+  // 단, 타겟이 이미 알려져 있으면(홈 화면 아이템 탐색 퀴즈에서 이미 답한
+  // 경우) Phase 2 질문을 건너뛰고 바로 Phase 3으로 전이한다.
   if (result.stage && VALID_STAGES.includes(result.stage)) {
+    if (context.targetCustomer) {
+      return {
+        message: { id: genId(), role: 'assistant', content: result.reply, timestamp: new Date().toISOString(), showCTA: true },
+        updatedContext: { ...context, phase: 3, stage: result.stage, psf: result.stage !== 'launched', ideaSummary, category },
+      }
+    }
     return {
       message: {
         id: genId(),

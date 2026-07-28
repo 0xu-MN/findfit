@@ -23,6 +23,9 @@ interface AgentPanelProps {
   // 홈 화면 "아이템 탐색부터 시작" → 모달에서 입력한 첫 문장을 마운트 직후
   // 자동으로 보내기 위한 시드 메시지. 없으면 기존과 동일하게 인사말만 뜬다.
   initialSeedMessage?: string | null
+  // 홈 화면 아이템 탐색 퀴즈(연령대/성별)에서 이미 답한 타겟 정보. 있으면
+  // Phase 1→2에서 같은 질문("타겟이 누구예요?")을 또 하지 않고 바로 넘어간다.
+  initialTargetCustomer?: string | null
   // 있으면 축소 모드 헤더 안에 닫기 버튼을 같이 그린다(플로팅 버블 전용) —
   // 카드 위에 별도로 떠 있던 닫기 버튼을 헤더 한 줄로 합치기 위함.
   onClose?: () => void
@@ -33,7 +36,7 @@ const PHASE_LABELS = ['대화 시작', '아이디어 파악', '단계 파악', '
 // 축소/확장 모드 진행 dots 레이블
 const DOT_LABELS = ['아이디어', '단계', '타겟', '완료'] as const
 
-export default function AgentPanel({ isExpanded = false, reportProjectIdOverride, initialSeedMessage, onClose }: AgentPanelProps) {
+export default function AgentPanel({ isExpanded = false, reportProjectIdOverride, initialSeedMessage, initialTargetCustomer, onClose }: AgentPanelProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const isExploreMode = searchParams.get('agent') === 'explore'
@@ -47,7 +50,10 @@ export default function AgentPanel({ isExpanded = false, reportProjectIdOverride
   const [messages, setMessages] = useState<AgentMessage[]>([])
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
-  const [context, setContext] = useState<AgentContext>(createEmptyContext())
+  const [context, setContext] = useState<AgentContext>(() => ({
+    ...createEmptyContext(),
+    ...(initialTargetCustomer ? { targetCustomer: initialTargetCustomer } : {}),
+  }))
   const [initialized, setInitialized] = useState(false)
   const [reportModeStatus, setReportModeStatus] = useState<'checking' | 'denied' | 'ready' | null>(
     reportProjectId ? 'checking' : null
@@ -189,7 +195,7 @@ export default function AgentPanel({ isExpanded = false, reportProjectIdOverride
         // Phase 2에서만 실제 트렌드 데이터가 필요하다(기획서 5.3) — Claude
         // 프롬프트에 참고자료로 실어준다.
         let realTrendLine: string | undefined
-        if (context.phase === 2) {
+        if (context.phase === 2 || (context.phase <= 1 && !!context.targetCustomer)) {
           try {
             const trendRes = await fetch('/api/agent/trend', {
               method: 'POST',
@@ -262,7 +268,7 @@ export default function AgentPanel({ isExpanded = false, reportProjectIdOverride
       // Phase 2 "실시간 데이터 수집"). 이 요청 하나만 fetch로 보내고 나머지
       // phase는 그대로 동기 로직.
       let realTrendLine: string | undefined
-      if (context.phase === 2) {
+      if (context.phase === 2 || (context.phase === 1 && !!context.targetCustomer)) {
         try {
           const res = await fetch('/api/agent/trend', {
             method: 'POST',
