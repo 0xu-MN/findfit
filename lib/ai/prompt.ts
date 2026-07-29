@@ -260,6 +260,12 @@ function buildLightPrompt(reviews: Review[], _project: ProjectForReport): string
 [${reviews.length}건의 응답]
 ${JSON.stringify(reviews.map((r) => r.answers))}
 
+[중요] Light 티어는 설계상 소수 응답(보통 2~5명)으로 빠른 방향성만 확인하는
+용도입니다. "표본이 적다", "통계적으로 유의하지 않다", "n=30 이상 추가로
+확보해야 한다" 같은 통계적 유의성 경고는 절대 넣지 마세요 — 이건 Light 티어의
+정상적인 사용 범위이지 결함이 아닙니다. 대신 이 소수의 응답에서 실제로 관찰된
+방향성(선호/의견이 갈렸는지 일치했는지)만 담백하게 설명하세요.
+
 아래 JSON 형식으로만 반환하세요:
 {
   "winner": "A" 또는 "B" 또는 null,

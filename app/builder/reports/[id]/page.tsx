@@ -363,7 +363,18 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
                   Standard 검증으로 전환하면 PSF/PMF 점수, 핵심 인사이트, 액션 플랜까지 받을 수 있어요.
                 </p>
                 <button
-                  onClick={() => router.push('/builder/new-request')}
+                  onClick={() => {
+                    // 예전엔 그냥 /builder/new-request로 보내서, 방금 본
+                    // 리포트/프로젝트 맥락은 다 버리고 "어떻게 검증을
+                    // 시작할까요?"(Step0Modal)부터 다시 시작해야 했다 —
+                    // 이 프로젝트를 이어서 Standard로 심화 검증하고 싶다는
+                    // 맥락을 Agent에게 넘겨서, 대화로 다음 단계를 같이
+                    // 설계하도록 한다(아이템 탐색 seed와 동일한 메커니즘).
+                    agentBubble.openWithSeed(
+                      `"${project?.title ?? '이 프로젝트'}"를 Light로 검증해봤는데, 이제 Standard로 더 깊게 검증하고 싶어요. PSF/PMF 점수랑 액션 플랜까지 받아보려면 어떻게 준비하면 좋을까요?`
+                    )
+                    router.push('/builder/new-request?skipIntro=1')
+                  }}
                   className="self-start px-4 py-2 rounded-xl bg-[#1565C0] text-white text-[11px] font-black hover:bg-[#1255a3] transition-colors"
                 >
                   Standard 검증 시작하기

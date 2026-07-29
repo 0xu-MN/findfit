@@ -389,7 +389,13 @@ export default function NewRequestPage() {
         </div>
       </div>
 
-      <CoachTour steps={WIZARD_COACH_STEPS} storageKey="findfit_coach_seen_wizard" accentColor="#F77019" />
+      {/* Step0Modal("어떻게 검증을 시작할까요?")이 열려 있는 동안 코치마크가
+          같이 시작되면, 실제 강조 대상(임시저장 버튼 등)이 모달 뒤에 가려져
+          있어서 스포트라이트가 엉뚱한 곳(모달 밑 실제 DOM 좌표)을 가리키는
+          것처럼 보였다 — 모달이 완전히 닫힌 뒤에만 코치마크를 시작한다. */}
+      {!isStep0Open && (
+        <CoachTour steps={WIZARD_COACH_STEPS} storageKey="findfit_coach_seen_wizard" accentColor="#F77019" />
+      )}
     </div>
   )
 }
