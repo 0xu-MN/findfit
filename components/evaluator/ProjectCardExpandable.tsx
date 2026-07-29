@@ -696,14 +696,20 @@ function ReviewFormPanel({
 
           {/* keyword — 해당하는 키워드를 여러 개 고를 수 있는 태그 선택형.
               이것도 yes_no/ab_test와 같은 이유로 답변 UI 자체가 없었다. */}
+          {/* allow_multiple이 false면(대부분 이 케이스) 단일 선택이어야
+              하는데, 예전엔 무조건 toggleMultiAnswer(다중 선택)를 써서
+              "5시간 이하, 5~10시간, 10시간 이상"처럼 3개가 한꺼번에 답변에
+              담기는 버그가 있었다 — multiple_choice와 같은 패턴으로 수정. */}
           {q.question_type === 'keyword' && q.options && (
             <div className="flex flex-wrap gap-2">
               {q.options.map((opt) => {
-                const selected = (answers[q.id]?.split(', ') ?? []).includes(opt)
+                const selected = q.allow_multiple
+                  ? (answers[q.id]?.split(', ') ?? []).includes(opt)
+                  : answers[q.id] === opt
                 return (
                   <button
                     key={opt}
-                    onClick={() => toggleMultiAnswer(q.id, opt)}
+                    onClick={() => (q.allow_multiple ? toggleMultiAnswer(q.id, opt) : setAnswer(q.id, opt))}
                     className={`px-3 py-1.5 rounded-full border text-[11px] font-bold transition-colors ${
                       selected
                         ? 'border-[#189DF7] bg-[#189DF7] text-white'

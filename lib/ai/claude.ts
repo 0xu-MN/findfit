@@ -36,8 +36,27 @@ export async function callClaude(
   if (data.type === 'error') {
     throw new Error(`Claude API error: ${data.error?.message ?? 'unknown'}`)
   }
-  const text: string = data.content?.[0]?.text ?? ''
-  return JSON.parse(extractJson(text))
+  // content[0]이 항상 text 블록이라고 가정했는데, sonnet이 복잡한 프롬프트
+  // (리포트 생성처럼 긴 구조화 출력)에서 확장 사고(thinking) 블록을 먼저
+  // 반환하는 경우가 있어 content[0]이 thinking이면 text가 빈 문자열이 되고
+  // JSON.parse('')가 "Unexpected end of JSON input"만 던져서 원인을 알 수
+  // 없었다 — 실제 text 타입 블록을 찾아서 쓴다.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const textBlock = data.content?.find((c: any) => c.type === 'text')
+  const text: string = textBlock?.text ?? ''
+  try {
+    return JSON.parse(extractJson(text))
+  } catch (parseErr) {
+    // max_tokens에 걸려 응답이 중간에 잘리면 JSON.parse가 "Unexpected end of
+    // JSON input"만 던져서 원인을 알 수 없었다 — stop_reason을 함께 노출해
+    // 다음에 같은 문제가 생기면 바로 원인(토큰 부족)을 알 수 있게 한다.
+    const truncated = data.stop_reason === 'max_tokens'
+    throw new Error(
+      truncated
+        ? `Claude 응답이 max_tokens(${options?.maxTokens ?? 2000})에서 잘려 JSON을 완성하지 못했습니다`
+        : `Claude 응답 JSON 파싱 실패: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`
+    )
+  }
 }
 
 // Gemini와 달리 Claude Messages API는 강제 JSON 모드가 없어서, 프롬프트에서

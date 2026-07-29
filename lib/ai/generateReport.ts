@@ -120,7 +120,12 @@ export async function generateAndSaveReport(projectId: string, supabase: any) {
   // report prompts always ask for an object shape (never the question-suggest
   // array shape), so this narrowing is safe. sonnet 등급 — 리포트 품질이
   // 중요한 무거운 작업.
-  const aiResult = (await callClaude(prompt, 'sonnet')) as Record<string, unknown>
+  // 리포트 JSON은 key_insights/action_plan/market_size/positioning_map/
+  // unit_economics/gtm_strategies/scaleup_roadmap/competitor_references 등
+  // 필드가 많아 기본 max_tokens(2000)로는 중간에 잘려서 "Unexpected end of
+  // JSON input" 파싱 에러가 났다 — 리포트 생성이 실제로 500으로 실패하던
+  // 원인. 여유 있게 늘린다.
+  const aiResult = (await callClaude(prompt, 'sonnet', { maxTokens: 8000 })) as Record<string, unknown>
 
   // 무료 티어에 노출되는 문항별 응답 요약 — AI가 아니라 review_answers를
   // 직접 집계한 값(객관식/리커트류만 대상. 서술형은 막대그래프로 요약할 수
