@@ -41,12 +41,14 @@ export async function POST(req: Request) {
 
     await sendVerificationSms(normalized, code)
 
-    // 개발 환경 + SOLAPI 키 미발급(mock 발송) 상태에서는 서버 터미널
-    // console.log로만 코드가 남아서, 브라우저에서 테스트하는 사람은 실제로
-    // 인증할 방법이 없었다 — 로컬 개발 편의를 위해 이 조건에서만 코드를
-    // 응답에 함께 실어 화면에 보여준다. 운영 환경(NODE_ENV=production)
-    // 또는 실제 SOLAPI 키가 있으면 절대 노출하지 않는다.
-    const devCode = process.env.NODE_ENV !== 'production' && !process.env.SOLAPI_API_KEY ? code : undefined
+    // SOLAPI 키가 없으면 실제 SMS는 어차피 안 나가고 서버 로그에만 코드가
+    // 남는다 — Vercel 배포본은 팀원들이 함께 쓰는 테스트 환경이라 서버 로그에
+    // 접근할 수 없는 사람은 아예 인증을 완료할 방법이 없었다(NODE_ENV로만
+    // 판단했더니 Vercel=production이라 여기서도 막혀버린 게 원인). 실제
+    // SMS가 안 나가는 상태에서는 어느 환경이든 이 코드를 화면에 보여주는게
+    // 안전하다 — 진짜 SOLAPI 키가 생기는 순간(실제 SMS 발송) 자동으로
+    // 노출이 꺼진다.
+    const devCode = !process.env.SOLAPI_API_KEY ? code : undefined
 
     return NextResponse.json({ success: true, devCode })
   } catch (err) {

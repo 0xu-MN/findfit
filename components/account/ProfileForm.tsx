@@ -75,8 +75,8 @@ export default function ProfileForm({
       const body = await res.json()
       if (!res.ok) { setPhoneError(body.error ?? '인증코드 발송에 실패했어요'); return }
       setOtpSent(true)
-      // 개발 환경(SMS mock)에서만 서버가 코드를 함께 내려준다 — 실제
-      // SOLAPI 연동/운영 환경에서는 devCode 자체가 없다.
+      // SOLAPI 실연동 전(SMS mock)까지는 환경(로컬/Vercel 상관없이) 서버가
+      // 코드를 함께 내려준다 — 실제 SOLAPI 연동되면 devCode 자체가 안 온다.
       setDevCode(body.devCode ?? null)
     } finally {
       setSendingCode(false)
@@ -251,7 +251,7 @@ export default function ProfileForm({
 
         {otpSent && !isPhoneVerified && devCode && (
           <span className="text-[10px] font-bold text-blue-600">
-            개발 환경 임시 코드(실제 SMS 미연동): {devCode}
+            임시 인증코드(실제 SMS 미연동): {devCode}
           </span>
         )}
 
