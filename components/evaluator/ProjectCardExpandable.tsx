@@ -13,6 +13,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 export type AccessInfo = { url?: string; appStoreUrl?: string; playStoreUrl?: string }
@@ -33,8 +34,20 @@ export type CardProject = {
   access_info: AccessInfo | null
   target_count: number
   completed_count: number
+  // 실제 자리를 차지한 지원(pending+accepted+completed) 수 — 모집 마감
+  // 여부는 이 값으로 판단해야 한다(완료된 리뷰 수인 completed_count는
+  // 모집 중엔 항상 0이라 마감 여부 판단에 쓸 수 없다). 없으면(구 API
+  // 응답 등) completed_count로 안전하게 폴백.
+  occupied_count?: number
   incentive_exists: boolean
   incentive_budget: number | null
+  // 크리에이터가 모집을 마감하고 "리뷰 시작"을 명시적으로 선언하기 전까지는
+  // (status === 'reviewing') 지원이 수락됐어도 실제로 리뷰를 작성할 수
+  // 없어야 한다 — 이전까지는 이 값 자체를 안 가져와서 프론트가 항상
+  // 리뷰 폼을 보여주고 있었다(백엔드 제출 API는 이미 막고 있었지만, 폼을
+  // 다 채우고 제출 버튼을 눌러야만 그 사실을 알 수 있었음).
+  status?: string
+  review_deadline?: string | null
 }
 
 export type CardMatch = {
@@ -49,7 +62,7 @@ export type CardMatch = {
 type Question = {
   id: string
   question_text: string
-  question_type: 'multiple_choice' | 'short_answer' | 'likert' | 'likert_5' | 'sean_ellis'
+  question_type: 'multiple_choice' | 'short_answer' | 'likert' | 'likert_5' | 'sean_ellis' | 'yes_no' | 'ab_test' | 'keyword'
   options: string[] | null
   allow_multiple: boolean | null
 }
@@ -97,8 +110,8 @@ export default function ProjectCardExpandable({ project, match, onApplied, onSub
   const status = match?.status ?? 'available'
   const badge = STATUS_BADGE[status]
   const typeMeta = TYPE_META[project.project_type] ?? { label: project.project_type, color: '#999' }
-  const progressPct = project.target_count > 0 ? Math.round((project.completed_count / project.target_count) * 100) : 0
-  const isFull = project.completed_count >= project.target_count
+  const occupiedPct = project.target_count > 0 ? Math.round(((project.occupied_count ?? project.completed_count) / project.target_count) * 100) : 0
+  const isFull = (project.occupied_count ?? project.completed_count) >= project.target_count
   const reviewerGross = project.incentive_exists && project.incentive_budget && project.target_count > 0
     ? Math.floor(project.incentive_budget / project.target_count)
     : 0
@@ -142,10 +155,10 @@ export default function ProjectCardExpandable({ project, match, onApplied, onSub
           <div className="flex-1 flex flex-col gap-1">
             <div className="flex items-center justify-between text-[9px] font-bold text-[#666]">
               <span>참여 현황</span>
-              <span className="text-[#189DF7]">{project.completed_count}/{project.target_count}명</span>
+              <span className="text-[#189DF7]">{project.occupied_count ?? project.completed_count}/{project.target_count}명</span>
             </div>
             <div className="h-1.5 rounded-full bg-[#F5F5F5] overflow-hidden">
-              <div className="h-full rounded-full bg-[#189DF7] transition-all" style={{ width: `${progressPct}%` }} />
+              <div className="h-full rounded-full bg-[#189DF7] transition-all" style={{ width: `${occupiedPct}%` }} />
             </div>
           </div>
           {project.incentive_exists && reviewerNet > 0 ? (
@@ -179,13 +192,50 @@ export default function ProjectCardExpandable({ project, match, onApplied, onSub
             <ShippingGatePanel matchId={match.id} shippingAddress={match.shipping_address} />
           )}
           {status === 'accepted' && match && !(project.access_method === 'physical_shipping' && !match.received_confirmed_at) && (
-            <ReviewFormPanel projectId={project.id} matchId={match.id} accessMethod={project.access_method} accessInfo={project.access_info} onSubmitted={() => onSubmitted(match.id)} />
+            project.status === 'reviewing' ? (
+              <ReviewFormPanel projectId={project.id} matchId={match.id} accessMethod={project.access_method} accessInfo={project.access_info} onSubmitted={() => onSubmitted(match.id)} />
+            ) : project.status === 'rejected' || project.status === 'cancelled' ? (
+              <ClosedProjectPanel status={project.status} />
+            ) : (
+              <WaitingForReviewStartPanel />
+            )
           )}
           {status === 'completed' && match && (
             <ResultPanel projectId={project.id} />
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+/* ─────────────────────────────────────────────────────── */
+/*  지원 수락됨 — 크리에이터가 아직 "리뷰 시작"을 선언하지 않은 상태        */
+/* ─────────────────────────────────────────────────────── */
+
+function ClosedProjectPanel({ status }: { status: 'rejected' | 'cancelled' }) {
+  return (
+    <div className="flex flex-col items-center gap-2 py-6 text-center">
+      <Clock className="w-6 h-6 text-[#EF4444]" />
+      <p className="text-[12px] font-black text-[#1D1C1C]">
+        {status === 'rejected' ? '이 프로젝트는 반려됐어요' : '이 프로젝트는 취소됐어요'}
+      </p>
+      <p className="text-[11px] font-medium text-[#666] leading-relaxed max-w-[280px]">
+        더 이상 리뷰를 작성할 수 없어요. 다른 프로젝트를 찾아보세요.
+      </p>
+    </div>
+  )
+}
+
+function WaitingForReviewStartPanel() {
+  return (
+    <div className="flex flex-col items-center gap-2 py-6 text-center">
+      <Clock className="w-6 h-6 text-[#999]" />
+      <p className="text-[12px] font-black text-[#1D1C1C]">지원이 수락됐어요!</p>
+      <p className="text-[11px] font-medium text-[#666] leading-relaxed max-w-[280px]">
+        크리에이터가 모집을 마감하고 리뷰를 시작하면 알림으로 알려드려요.
+        아직은 답변을 작성할 수 없어요.
+      </p>
     </div>
   )
 }
@@ -398,6 +448,7 @@ function ReviewFormPanel({
   accessInfo: AccessInfo | null
   onSubmitted: () => void
 }) {
+  const router = useRouter()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase: any = createClient()
   const [questions, setQuestions] = useState<Question[] | null>(null)
@@ -585,6 +636,68 @@ function ReviewFormPanel({
             </div>
           )}
 
+          {/* yes_no/ab_test는 그동안 답변 UI 자체가 없어서 크리에이터가
+              이 유형으로 질문을 만들면 리뷰어가 절대 답할 수 없이 "모든
+              질문에 답변해주세요"만 반복되던 버그 — 답변 버튼 추가 */}
+          {q.question_type === 'yes_no' && (
+            <div className="flex gap-2">
+              {['예', '아니오'].map((opt) => (
+                <button
+                  key={opt}
+                  onClick={() => setAnswer(q.id, opt)}
+                  className={`flex-1 py-2 rounded-lg border text-[11px] font-black transition-colors ${
+                    answers[q.id] === opt
+                      ? 'border-[#189DF7] bg-[#189DF7] text-white'
+                      : 'border-[#1D1C1C]/10 text-[#666] hover:border-[#1D1C1C]/20'
+                  }`}
+                >
+                  {opt}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {q.question_type === 'ab_test' && q.options && (
+            <div className="grid grid-cols-2 gap-2">
+              {q.options.map((opt, idx) => (
+                <button
+                  key={opt}
+                  onClick={() => setAnswer(q.id, opt)}
+                  className={`py-3 rounded-lg border text-[11px] font-black transition-colors ${
+                    answers[q.id] === opt
+                      ? 'border-[#189DF7] bg-[#189DF7]/10 text-[#189DF7]'
+                      : 'border-[#1D1C1C]/10 text-[#666] hover:border-[#1D1C1C]/20'
+                  }`}
+                >
+                  {String.fromCharCode(65 + idx)}. {opt}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* keyword — 해당하는 키워드를 여러 개 고를 수 있는 태그 선택형.
+              이것도 yes_no/ab_test와 같은 이유로 답변 UI 자체가 없었다. */}
+          {q.question_type === 'keyword' && q.options && (
+            <div className="flex flex-wrap gap-2">
+              {q.options.map((opt) => {
+                const selected = (answers[q.id]?.split(', ') ?? []).includes(opt)
+                return (
+                  <button
+                    key={opt}
+                    onClick={() => toggleMultiAnswer(q.id, opt)}
+                    className={`px-3 py-1.5 rounded-full border text-[11px] font-bold transition-colors ${
+                      selected
+                        ? 'border-[#189DF7] bg-[#189DF7] text-white'
+                        : 'border-[#1D1C1C]/10 text-[#666] hover:border-[#1D1C1C]/20'
+                    }`}
+                  >
+                    {opt}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
           {(q.question_type === 'likert_5' || q.question_type === 'likert') && (
             <div className="flex flex-col gap-1.5">
               <div className="flex gap-2">
@@ -634,7 +747,20 @@ function ReviewFormPanel({
         </div>
       ))}
 
-      {error && <p className="text-[11px] font-bold text-red-500 text-center">{error}</p>}
+      {error && (
+        <div className="flex flex-col items-center gap-1.5">
+          <p className="text-[11px] font-bold text-red-500 text-center">{error}</p>
+          {error.includes('휴대폰 인증') && (
+            <button
+              type="button"
+              onClick={() => router.push('/evaluator/settings')}
+              className="text-[11px] font-black text-[#189DF7] hover:underline"
+            >
+              지금 바로 인증하러 가기 →
+            </button>
+          )}
+        </div>
+      )}
 
       <button
         onClick={handleSubmit}

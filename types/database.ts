@@ -73,6 +73,7 @@ export interface Database {
           email: string
           role: UserRole | null
           status: UserStatus
+          last_active_role: 'builder' | 'evaluator' | null
           nickname: string | null
           real_name: string | null
           phone: string | null
@@ -86,6 +87,7 @@ export interface Database {
           email: string
           role?: UserRole | null
           status?: UserStatus
+          last_active_role?: 'builder' | 'evaluator' | null
           nickname?: string | null
           real_name?: string | null
           phone?: string | null
@@ -96,6 +98,7 @@ export interface Database {
         }
         Update: {
           role?: UserRole | null
+          last_active_role?: 'builder' | 'evaluator' | null
           // status, is_admin: DB에서 authenticated 롤의 UPDATE 권한이
           // REVOKE되어 있어(본인 스스로 정지 해제/관리자 승격 불가) 브라우저
           // 클라이언트로는 실제로 안 먹는다 — 타입만 허용해두고, 실질 차단은
@@ -164,6 +167,15 @@ export interface Database {
       }
 
       /* ── 현행: report_chat_logs / report_regenerate_logs (migration 025) ── */
+      /* ── 현행: agent_conversation_logs (migration 036) ────── */
+      agent_conversation_logs: {
+        Row: { project_id: string; creator_id: string; messages: unknown; created_at: string }
+        Insert: { project_id: string; creator_id: string; messages: unknown; created_at?: string }
+        Update: Partial<Database['public']['Tables']['agent_conversation_logs']['Insert']>
+
+        Relationships: []
+      }
+
       report_chat_logs: {
         Row: { project_id: string; date: string; count: number }
         Insert: { project_id: string; date: string; count?: number }
@@ -350,6 +362,7 @@ export interface Database {
           target_count: number
           completed_count: number
           deadline: string | null
+          review_deadline: string | null
           incentive_exists: boolean
           incentive_budget: number | null
           distribution_method: string | null
@@ -379,6 +392,7 @@ export interface Database {
           target_count?: number
           completed_count?: number
           deadline?: string | null
+          review_deadline?: string | null
           incentive_exists?: boolean
           incentive_budget?: number | null
           distribution_method?: string | null
@@ -884,6 +898,7 @@ export interface Database {
           target_count: number
           completed_count: number
           deadline: string | null
+          review_deadline: string | null
           incentive_exists: boolean
           incentive_budget: number | null
           distribution_method: string | null

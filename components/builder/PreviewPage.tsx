@@ -87,6 +87,9 @@ export default function PreviewPage() {
     try {
       const { projectId } = await submitProject(data)
       deleteDraft(data.id)
+      // 등록이 끝난 대화는 agent_conversation_logs로 이관 완료 — 다음에
+      // 새 대화를 시작할 때 이 프로젝트의 옛 대화가 다시 뜨지 않게 정리.
+      localStorage.removeItem('findfit_agent_active_conversation')
       router.push(`/builder/new-request/preview/complete?id=${projectId}`)
     } catch (err) {
       setSubmitting(false)

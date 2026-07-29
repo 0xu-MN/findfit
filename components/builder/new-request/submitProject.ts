@@ -191,5 +191,22 @@ export async function submitProject(data: RequestFormData): Promise<SubmitProjec
     }
   }
 
+  // 3) Agent 대화 전문을 프로젝트에 연결 — 나중에 리포트 모드에서 같은
+  // 대화를 이어갈 수 있게 한다. 실패해도 등록 자체는 막지 않는다(부가 기능).
+  if (data.agentSessionId) {
+    try {
+      const rawMessages = sessionStorage.getItem(`agent_messages_${data.agentSessionId}`)
+      if (rawMessages) {
+        await supabase.from('agent_conversation_logs').insert({
+          project_id: projectId,
+          creator_id: user.id,
+          messages: JSON.parse(rawMessages),
+        })
+      }
+    } catch (err) {
+      console.error('Failed to save agent conversation log', err)
+    }
+  }
+
   return { projectId }
 }

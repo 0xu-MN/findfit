@@ -8,6 +8,26 @@ import ProjectCardExpandable, { type CardMatch, type CardProject } from '@/compo
 import LiveActivityTicker from '@/components/evaluator/LiveActivityTicker'
 import HappeningSection from '@/components/shared/HappeningSection'
 import { createClient } from '@/lib/supabase/client'
+import CoachTour from '@/components/onboarding/CoachTour'
+
+const REVIEWER_COACH_STEPS = [
+  {
+    target: '[data-coach="interest-tabs"]',
+    title: '관심 분야를 골라보세요',
+    text: '관심 있는 분야를 선택하면 딱 맞는 프로젝트만 추려서 보여드려요.',
+  },
+  {
+    target: '[data-coach="project-cards"]',
+    title: '여기서 프로젝트에 지원해요',
+    text: '카드를 누르면 상세 설명을 보고 바로 지원할 수 있어요. 지원 후 승인되면 리뷰를 작성하고 사례금을 받아요.',
+  },
+  {
+    target: '[data-coach="role-toggle"]',
+    title: '크리에이터 모드로도 전환 가능해요',
+    text: '내 아이디어를 검증하고 싶을 땐 언제든 여기서 크리에이터로 전환할 수 있어요.',
+    placement: 'bottom' as const,
+  },
+]
 
 type MatchRow = {
   id: string
@@ -300,7 +320,7 @@ export default function EvaluatorDashboardPage() {
           </div>
 
           {/* Interest Filter Tabs (Kmong Biz Style Pill Tabs) */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          <div data-coach="interest-tabs" className="flex items-center gap-2 overflow-x-auto pb-1">
             {interestTabs.map((tab) => {
               const active = selectedInterestTab === tab
               return (
@@ -328,7 +348,7 @@ export default function EvaluatorDashboardPage() {
               <p className="text-sm font-black text-[#999]">해당 조건의 참여 가능한 의뢰가 없습니다</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div data-coach="project-cards" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {cards.map(({ project, match }) => (
                 <ProjectCardExpandable
                   key={project.id}
@@ -348,6 +368,8 @@ export default function EvaluatorDashboardPage() {
           <HappeningSection basePath="evaluator" activityTicker={<LiveActivityTicker />} />
         </section>
       </div>
+
+      <CoachTour steps={REVIEWER_COACH_STEPS} storageKey="findfit_coach_seen_reviewer" accentColor="#189DF7" />
     </ReviewerLayout>
   )
 }

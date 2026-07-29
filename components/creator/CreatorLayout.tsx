@@ -9,6 +9,11 @@ import RoleSwitchToggle from '../shared/RoleSwitchToggle'
 import Footer from '../landing/Footer'
 
 const DISMISS_KEY = 'findfit_creator_confirm_dismissed'
+// 세션(탭) 단위로 한 번 봤으면 같은 세션 안에서는 다시 안 물어본다 — 예전엔
+// CreatorLayout을 쓰는 페이지를 새로 마운트할 때마다(예: 홈에서 검색→
+// 아이템탐색→마법사로 넘어가는 것처럼 같은 세션 안에서 여러 페이지를
+// 옮겨다닐 때도) 매번 떴었다.
+const SESSION_SEEN_KEY = 'findfit_creator_confirm_seen_session'
 
 interface Props {
   children: React.ReactNode
@@ -29,8 +34,9 @@ export default function CreatorLayout({ children }: Props) {
 
   useEffect(() => {
     setMounted(true)
-    if (localStorage.getItem(DISMISS_KEY) !== 'true') {
+    if (localStorage.getItem(DISMISS_KEY) !== 'true' && sessionStorage.getItem(SESSION_SEEN_KEY) !== 'true') {
       setShowConfirm(true)
+      sessionStorage.setItem(SESSION_SEEN_KEY, 'true')
     }
   }, [])
 
@@ -42,6 +48,12 @@ export default function CreatorLayout({ children }: Props) {
         setNickname(data?.nickname ?? null)
       })
     })
+    // 관리자 패널에서 "지금 어느 모드로 쓰고 있는지" 실시간으로 보여주기 위한 기록
+    fetch('/api/users/set-active-role', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: 'builder' }),
+    }).catch(() => {})
   }, [])
 
   const handleLogout = async () => {
@@ -108,7 +120,9 @@ export default function CreatorLayout({ children }: Props) {
 
           <div className="flex items-center gap-4 flex-shrink-0">
             {/* 역할 스위처 — 2번 이미지 디자인 적용(ReviewerLayout과 동일 컴포넌트) */}
-            <RoleSwitchToggle role="creator" />
+            <div data-coach="role-toggle">
+              <RoleSwitchToggle role="creator" />
+            </div>
 
             {/* Profile Dropdown Menu */}
             <div className="relative">

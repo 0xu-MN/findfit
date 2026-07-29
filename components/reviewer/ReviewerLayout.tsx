@@ -9,6 +9,7 @@ import RoleSwitchToggle from '../shared/RoleSwitchToggle'
 import Footer from '../landing/Footer'
 
 const DISMISS_KEY = 'findfit_reviewer_confirm_dismissed'
+const SESSION_SEEN_KEY = 'findfit_reviewer_confirm_seen_session'
 
 interface Props {
   children: React.ReactNode
@@ -29,8 +30,9 @@ export default function ReviewerLayout({ children }: Props) {
 
   useEffect(() => {
     setMounted(true)
-    if (localStorage.getItem(DISMISS_KEY) !== 'true') {
+    if (localStorage.getItem(DISMISS_KEY) !== 'true' && sessionStorage.getItem(SESSION_SEEN_KEY) !== 'true') {
       setShowConfirm(true)
+      sessionStorage.setItem(SESSION_SEEN_KEY, 'true')
     }
   }, [])
 
@@ -42,6 +44,12 @@ export default function ReviewerLayout({ children }: Props) {
         setNickname(data?.nickname ?? null)
       })
     })
+    // 관리자 패널에서 "지금 어느 모드로 쓰고 있는지" 실시간으로 보여주기 위한 기록
+    fetch('/api/users/set-active-role', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: 'evaluator' }),
+    }).catch(() => {})
   }, [])
 
   const handleLogout = async () => {
@@ -111,7 +119,9 @@ export default function ReviewerLayout({ children }: Props) {
 
           <div className="flex items-center gap-4 flex-shrink-0">
             {/* 역할 스위처 — 2번 이미지 디자인 적용 */}
-            <RoleSwitchToggle role="reviewer" />
+            <div data-coach="role-toggle">
+              <RoleSwitchToggle role="reviewer" />
+            </div>
 
             {/* Profile Dropdown Menu */}
             <div className="relative">

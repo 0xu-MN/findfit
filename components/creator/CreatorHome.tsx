@@ -8,6 +8,31 @@ import HappeningSection from '../shared/HappeningSection'
 import ReviewerBannerCarousel from '../shared/ReviewerBannerCarousel'
 import ItemDiscoveryFlow from './ItemDiscoveryFlow'
 import { useAgentBubble } from '../agent/AgentBubbleContext'
+import CoachTour from '../onboarding/CoachTour'
+
+const CREATOR_COACH_STEPS = [
+  {
+    target: '[data-coach="creator-search"]',
+    title: '아이디어를 검색해보세요',
+    text: '검증하고 싶은 제품·서비스 키워드를 입력하면, 비슷한 아이템을 찾아 등록까지 이어줘요.',
+  },
+  {
+    target: '[data-coach="creator-trend"]',
+    title: '요즘 뜨는 아이템도 확인해요',
+    text: '실제 검색 트렌드를 참고해 어떤 아이디어가 요즘 주목받는지 미리 볼 수 있어요.',
+  },
+  {
+    target: '[data-coach="role-toggle"]',
+    title: '리뷰어로도 전환할 수 있어요',
+    text: '다른 크리에이터의 아이디어를 체험하고 리뷰를 남기고 싶을 땐 여기서 리뷰어로 전환하세요.',
+  },
+  {
+    target: '[data-coach="agent-bubble"]',
+    title: 'FindFit Agent에게 물어보세요',
+    text: '아이디어가 막연해도 괜찮아요. Agent와 대화하면서 하나씩 구체화하고 등록까지 도와드려요.',
+    placement: 'top' as const,
+  },
+]
 
 const TREND_CHIP = '강아지 간식'
 
@@ -51,7 +76,7 @@ export default function CreatorHome() {
         </h1>
 
         <div className="w-full max-w-[820px] flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mt-4">
-          <div className="flex-1 flex items-center gap-3 h-16 rounded-3xl border-2 border-[#1D1C1C]/10 bg-white px-6 focus-within:border-[#F77019] transition-colors min-w-0">
+          <div data-coach="creator-search" className="flex-1 flex items-center gap-3 h-16 rounded-3xl border-2 border-[#1D1C1C]/10 bg-white px-6 focus-within:border-[#F77019] transition-colors min-w-0">
             <Search className="w-5 h-5 text-[#999] flex-shrink-0" />
             <input
               value={keyword}
@@ -69,6 +94,7 @@ export default function CreatorHome() {
             </button>
           </div>
           <button
+            data-coach="creator-trend"
             onClick={() => { setKeyword(TREND_CHIP); setStep0Open(true) }}
             className="h-16 px-5 rounded-3xl border-2 border-[#1565C0]/20 bg-[#1565C0]/5 flex items-center gap-2 flex-shrink-0 hover:bg-[#1565C0]/10 transition-colors"
           >
@@ -107,6 +133,8 @@ export default function CreatorHome() {
       {discoveryOpen && (
         <ItemDiscoveryFlow keyword={keyword} onClose={() => setDiscoveryOpen(false)} />
       )}
+
+      <CoachTour steps={CREATOR_COACH_STEPS} storageKey="findfit_coach_seen_creator" accentColor="#F77019" />
     </div>
   )
 }

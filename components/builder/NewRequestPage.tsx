@@ -1,6 +1,6 @@
 'use client'
 
-import { Check, ChevronLeft, ChevronRight, Send } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, Send, Sparkles } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 
@@ -25,8 +25,28 @@ import {
 } from './new-request/types'
 import Step0Modal from './new-request/Step0Modal'
 import { useAgentBubble } from '../agent/AgentBubbleContext'
+import CoachTour from '../onboarding/CoachTour'
 
 const WALLET_BALANCE = 80000 // 임시: 추후 Supabase wallet 테이블에서 조회
+
+const WIZARD_COACH_STEPS = [
+  {
+    target: '[data-coach="wizard-stepper"]',
+    title: '단계별로 하나씩 채워가요',
+    text: '기본정보부터 비용 확인까지 순서대로 진행돼요. 이미 지난 단계는 눌러서 바로 돌아갈 수 있어요.',
+  },
+  {
+    target: '[data-coach="wizard-summary"]',
+    title: '입력한 내용을 한눈에 확인해요',
+    text: '지금까지 채운 내용이 여기 요약돼서 보여요. 빠진 항목이 있으면 바로 알 수 있어요.',
+  },
+  {
+    target: '[data-coach="wizard-save-draft"]',
+    title: '중간에 저장하고 나가도 괜찮아요',
+    text: '임시 저장을 누르면 나중에 이어서 작성할 수 있어요. 프로젝트 목록에서 다시 열 수 있어요.',
+    placement: 'top' as const,
+  },
+]
 
 export default function NewRequestPage() {
   const router = useRouter()
@@ -36,6 +56,9 @@ export default function NewRequestPage() {
 
   const [data, setData] = useState<RequestFormData>(() => createEmptyDraft())
   const [hydrated, setHydrated] = useState(false)
+  // Agent와의 대화로 프로젝트 타입(Light/Standard)을 미리 선택해줬을 때만
+  // "Agent 추천이에요" 배지를 보여준다 — 사용자가 직접 고른 경우엔 안 뜸.
+  const [agentSuggestedType, setAgentSuggestedType] = useState(false)
   const [savedFlash, setSavedFlash] = useState(false)
   const [saving, setSaving] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -60,6 +83,14 @@ export default function NewRequestPage() {
   }, [draftIdFromUrl, searchParams])
 
   // Agent 대화 컨텍스트에서 정보 자동 기입
+  //
+  // ⚠️ 예전 버전은 AgentContext에 존재한 적도 없는 context.keywords 필드를
+  // 참조하고 있었다 — 항상 undefined라 이 분기가 절대 실행되지 않았고,
+  // 결과적으로 대화에서 실제로 파악한 아이디어 요약(ideaSummary)/타겟
+  // (targetCustomer)이 마법사로 전혀 안 넘어오고 있었다(카테고리 추정만
+  // 겨우 반영됨). 그래서 사용자 입장에선 Agent가 "파악했다"고 해놓고 정작
+  // 등록 화면엔 아무 내용도 안 채워진 것처럼 보였다 — 실제 필드(ideaSummary,
+  // targetCustomer)를 기준으로 다시 연결한다.
   useEffect(() => {
     const agentSession = searchParams.get('agentSession')
     if (agentSession && hydrated) {
@@ -68,15 +99,35 @@ export default function NewRequestPage() {
         if (rawContext) {
           const context = JSON.parse(rawContext)
           setData(prev => {
-            const patch: Partial<RequestFormData> = {}
+            const patch: Partial<RequestFormData> = { agentSessionId: agentSession }
             if (context.category) {
-              const matchedCat = CATEGORIES.find(c => c.toLowerCase() === context.category.toLowerCase()) || '기타'
+              const matchedCat = CATEGORIES.find((c) => c.toLowerCase() === context.category.toLowerCase()) || '기타'
               patch.categories = [matchedCat]
             }
-            if (context.keywords && context.keywords.length > 0) {
-              patch.interests = context.keywords
-              patch.oneLineDesc = `${context.keywords.join(', ')} 관련 서비스`
-              patch.problem = `${context.keywords.join(', ')} 분야에서 새로운 기회를 창출하고자 합니다.`
+            if (context.ideaSummary) {
+              if (!prev.productName) patch.productName = context.ideaSummary.slice(0, 40)
+              patch.oneLineDesc = context.ideaSummary
+            }
+            if (context.targetCustomer) {
+              patch.targetContext = context.targetCustomer
+            }
+            // 단계/타입은 여기서 그친 게 아니라, 대화에서 파악한 내용을
+            // 근거로 "이게 좋을 것 같아요" 정도의 추천까지 미리 선택해준다
+            // — 사용자가 원하면 자유롭게 바꿀 수 있으므로 강제는 아니다.
+            if (context.stage && !prev.stage) {
+              const stageMap: Record<string, RequestFormData['stage']> = {
+                idea: 'idea',
+                building: 'prototype',
+                launched: 'launched',
+              }
+              patch.stage = stageMap[context.stage] ?? undefined
+            }
+            if (!prev.projectType) {
+              // 아직 아이디어 단계거나 만들고 있는 중이면 빠르게 방향성만
+              // 확인하는 Light를, 이미 출시해서 구체적인 가설이 있으면
+              // 심층 설문인 Standard를 추천한다.
+              patch.projectType = context.stage === 'launched' ? 'standard' : 'light'
+              setAgentSuggestedType(true)
             }
             return { ...prev, ...patch }
           })
@@ -97,6 +148,21 @@ export default function NewRequestPage() {
     step: i + 1,
     label: STEP_KEY_LABELS[key],
   }))
+
+  // Agent가 "이 부분 어떻게 쓰면 좋을까?" 질문을 받았을 때 지금 마법사가
+  // 몇 단계인지 몰라서 검증 문항 설계 안내와 헷갈려 엉뚱한 답을 하던 문제
+  // 수정 — 현재 단계를 버블 컨텍스트에 실시간으로 알려준다.
+  useEffect(() => {
+    const fieldsHint =
+      currentKey === 'basic' ? `제품명: ${data.productName || '(비어있음)'} / 한줄소개: ${data.oneLineDesc || '(비어있음)'}` :
+      currentKey === 'problem' ? `문제: ${data.problem || '(비어있음)'} / 기존 대안·한계: ${data.alternativeAndLimit || '(비어있음)'} / 우리 차별점: ${data.ourDifference || '(비어있음)'}` :
+      currentKey === 'target' ? `타겟 맥락: ${data.targetContext || '(비어있음)'}` :
+      currentKey === 'cost' ? `검증 목표: ${data.validationGoal || '(비어있음)'} / 가설: ${data.hypothesis || '(비어있음)'}` :
+      undefined
+    agentBubble.setActiveWizardStep({ stepKey: currentKey, stepLabel: STEP_KEY_LABELS[currentKey], fieldsHint })
+    return () => agentBubble.setActiveWizardStep(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentKey, data.productName, data.oneLineDesc, data.problem, data.alternativeAndLimit, data.ourDifference, data.targetContext, data.validationGoal, data.hypothesis])
 
   const updateData = (patch: Partial<RequestFormData>) => {
     setData((prev) => ({ ...prev, ...patch }))
@@ -203,7 +269,9 @@ export default function NewRequestPage() {
       </div>
 
       {/* Stepper — 동적 단계 */}
-      <Stepper steps={stepperEntries} currentStep={data.currentStep} onJump={(s) => goToStep(s)} />
+      <div data-coach="wizard-stepper">
+        <Stepper steps={stepperEntries} currentStep={data.currentStep} onJump={(s) => goToStep(s)} />
+      </div>
 
       <div className="flex flex-col lg:flex-row items-start gap-6 w-full">
         {/* Left Form Area */}
@@ -212,6 +280,14 @@ export default function NewRequestPage() {
             <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 h-64 animate-pulse" />
           ) : (
             <>
+              {currentKey === 'basic' && agentSuggestedType && (
+                <div className="rounded-xl bg-[#F77019]/5 border border-[#F77019]/20 px-4 py-3 flex items-center gap-2">
+                  <Sparkles className="w-3.5 h-3.5 text-[#F77019] flex-shrink-0" />
+                  <p className="text-[11px] font-bold text-[#1D1C1C]">
+                    Agent와의 대화를 참고해서 <strong className="text-[#F77019]">{data.projectType === 'standard' ? 'Standard' : 'Light'}</strong> 타입과 단계를 미리 골라뒀어요. 마음에 안 들면 자유롭게 바꾸세요.
+                  </p>
+                </div>
+              )}
               {currentKey === 'basic' && <Step1BasicInfo data={data} onChange={updateData} />}
               {currentKey === 'problem' && <Step2Problem data={data} onChange={updateData} />}
               {currentKey === 'target' && <Step3Target data={data} onChange={updateData} />}
@@ -251,7 +327,9 @@ export default function NewRequestPage() {
             버튼은 항상 화면에 붙어있도록 sticky 처리(데스크톱 lg+에서만 —
             모바일에서는 폼 아래로 자연스럽게 쌓이도록 sticky 해제) */}
         <div className="w-full lg:w-[260px] flex flex-col gap-4 flex-shrink-0 lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto">
-          <RequestSummaryPanel data={data} />
+          <div data-coach="wizard-summary">
+            <RequestSummaryPanel data={data} />
+          </div>
 
           {nextDisabledReason && (
             <div className="rounded-xl bg-[#F77019]/5 border border-[#F77019]/20 p-3">
@@ -294,6 +372,7 @@ export default function NewRequestPage() {
             </div>
             <button
               type="button"
+              data-coach="wizard-save-draft"
               onClick={handleSaveDraft}
               disabled={saving || submitting}
               className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-[#1D1C1C]/10 text-[11px] font-bold text-[#999] hover:text-[#1D1C1C] hover:border-[#1D1C1C]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
@@ -309,6 +388,8 @@ export default function NewRequestPage() {
           </div>
         </div>
       </div>
+
+      <CoachTour steps={WIZARD_COACH_STEPS} storageKey="findfit_coach_seen_wizard" accentColor="#F77019" />
     </div>
   )
 }

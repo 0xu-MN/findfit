@@ -28,7 +28,20 @@ export async function POST(req: Request) {
 
     if (!project) return jsonError('프로젝트를 찾을 수 없습니다', 404)
     if (project.status !== 'active') return jsonError('현재 지원할 수 없는 프로젝트입니다', 400)
-    if (project.completed_count >= project.target_count) return jsonError('모집이 마감된 프로젝트입니다', 400)
+
+    // ⚠️ completed_count는 "리뷰 제출 완료" 수라서 모집 중(active)엔 항상
+    // 0이다 — 이 값으로 모집 마감을 판단하면 target_count를 훨씬 넘겨서
+    // 지원이 계속 들어와도 절대 막히지 않는다. 실제로 자리를 차지하고
+    // 있는 지원(수락 대기 pending + 이미 수락된 accepted/completed) 수를
+    // 따로 세서 target_count와 비교해야 한다.
+    const { count: occupiedCount } = await supabase
+      .from('project_matches')
+      .select('id', { count: 'exact', head: true })
+      .eq('project_id', projectId)
+      .in('status', ['pending', 'accepted', 'completed'])
+    if ((occupiedCount ?? 0) >= project.target_count) {
+      return jsonError('모집 인원이 모두 찼습니다', 400)
+    }
 
     // projects_public 뷰는 creator_id를 노출하지 않으므로(privacy) 서비스 롤로
     // 별도 확인 — 크리에이터가 자기 프로젝트에 리뷰어로 지원하는 것을 방지.

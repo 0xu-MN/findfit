@@ -12,7 +12,7 @@ export async function GET() {
   const admin = createAdminClient()
 
   const [{ data: users, error }, { data: projectCounts }, { data: reviewCounts }, { data: allMatches }] = await Promise.all([
-    admin.from('users').select('id, email, role, status, created_at').order('created_at', { ascending: false }),
+    admin.from('users').select('id, email, role, status, last_active_role, created_at').order('created_at', { ascending: false }),
     admin.from('projects').select('creator_id'),
     admin.from('project_matches').select('reviewer_id').eq('status', 'completed'),
     admin.from('project_matches').select('reviewer_id'),

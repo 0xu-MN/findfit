@@ -27,6 +27,7 @@ export default function FloatingAgentBubble() {
           시작한다(자동 연계). 일반 문의 챗봇과 헷갈리지 않도록 로봇 아이콘
           대신 Sparkles + 은은한 글로우 링으로 "AI 에이전트"라는 인상을 준다. */}
       <button
+        data-coach="agent-bubble"
         onClick={() => (isOpen ? close() : (activeReportProjectId ? openForReport(activeReportProjectId) : open()))}
         className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full flex items-center justify-center text-white shadow-[0_8px_24px_rgba(247,112,25,0.35)] hover:scale-105 active:scale-95 transition-transform"
         style={{ background: 'linear-gradient(135deg, #F77019, #FF8F45)' }}

@@ -3,7 +3,7 @@
 import { CheckCircle2, Clock, Loader2, XCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-type ProjectStatus = 'draft' | 'pending_review' | 'active' | 'rejected' | 'completed' | 'cancelled'
+type ProjectStatus = 'draft' | 'pending_review' | 'active' | 'reviewing' | 'rejected' | 'completed' | 'cancelled'
 
 type ProjectRow = {
   id: string
@@ -23,6 +23,7 @@ const STATUS_LABEL: Record<ProjectStatus, { label: string; color: string }> = {
   draft: { label: '작성중', color: '#999' },
   pending_review: { label: '검수 대기', color: '#1565C0' },
   active: { label: '진행중(노출)', color: '#2E7D32' },
+  reviewing: { label: '리뷰 진행중', color: '#7B1FA2' },
   rejected: { label: '반려됨', color: '#EF4444' },
   completed: { label: '완료', color: '#666' },
   cancelled: { label: '취소됨', color: '#999' },
@@ -31,6 +32,7 @@ const STATUS_LABEL: Record<ProjectStatus, { label: string; color: string }> = {
 const TABS: { key: ProjectStatus | 'all'; label: string }[] = [
   { key: 'pending_review', label: '검수 대기' },
   { key: 'active', label: '진행중' },
+  { key: 'reviewing', label: '리뷰 진행중' },
   { key: 'rejected', label: '반려됨' },
   { key: 'all', label: '전체' },
 ]

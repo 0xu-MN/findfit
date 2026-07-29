@@ -27,7 +27,17 @@ export async function POST(
 
     if (!project) return jsonError('프로젝트를 찾을 수 없습니다', 404)
     if (project.status !== 'active') return jsonError('현재 참여할 수 없는 프로젝트입니다', 400)
-    if (project.completed_count >= project.target_count) return jsonError('모집이 마감된 프로젝트입니다', 400)
+
+    // completed_count(리뷰 제출 완료 수)는 모집 중엔 항상 0이라 이걸로
+    // 마감을 판단하면 절대 안 막힌다 — 실제 자리를 차지한 지원 수로 비교.
+    const { count: occupiedCount } = await supabase
+      .from('project_matches')
+      .select('id', { count: 'exact', head: true })
+      .eq('project_id', id)
+      .in('status', ['pending', 'accepted', 'completed'])
+    if ((occupiedCount ?? 0) >= project.target_count) {
+      return jsonError('모집이 마감된 프로젝트입니다', 400)
+    }
 
     // 이미 참여 중인지 확인
     const { data: existing } = await supabase

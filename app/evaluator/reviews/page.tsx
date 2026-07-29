@@ -12,7 +12,7 @@ type MyReview = {
   appliedAt: string | null
   acceptedAt: string | null
   submittedAt: string | null
-  project: { id: string; title: string; one_liner: string | null; target_count: number; completed_count: number } | null
+  project: { id: string; title: string; one_liner: string | null; target_count: number; completed_count: number; status: string } | null
   payout: { status: string; paidAt: string | null; amount: number } | null
 }
 
@@ -113,7 +113,17 @@ export default function MyReviewsPage() {
                   </div>
                 </div>
                 <div className="flex-shrink-0">
-                  {tab === 'done' ? <PayoutBadge payout={r.payout} /> : (
+                  {/* 관리자가 프로젝트를 반려/취소하면 project_matches.status는
+                      그대로 accepted/pending이라도, 실제로는 리뷰를 쓸 수 없는
+                      상태다(백엔드도 project.status==='reviewing'이 아니면
+                      제출 자체를 막음) — 그런데 이 화면은 project.status를
+                      전혀 안 봐서 "리뷰 작성하기" 버튼이 그대로 활성화된
+                      것처럼 보였다. 여기서 실제 프로젝트 상태를 먼저 확인. */}
+                  {r.project?.status === 'rejected' || r.project?.status === 'cancelled' ? (
+                    <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-[#EF4444]/10 text-[#EF4444]">
+                      {r.project.status === 'rejected' ? '반려된 프로젝트예요' : '취소된 프로젝트예요'}
+                    </span>
+                  ) : tab === 'done' ? <PayoutBadge payout={r.payout} /> : (
                     <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-[#189DF7]/10 text-[#189DF7]">
                       {r.status === 'pending' ? '승인 대기 중' : '리뷰 작성하기 →'}
                     </span>

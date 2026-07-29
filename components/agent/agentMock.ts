@@ -46,6 +46,10 @@ export type AgentContext = {
   psf?: boolean           // true = PSF (아이디어 검증), false = PMF (시장 반응)
   // 리포트용 풀 레퍼런스 — 채팅에서는 절대 렌더링 안 함
   references?: ReferenceData[]
+  // 이미 추천 칩으로 보여준 질문들 — buildSuggestedQuestions가 매번 같은
+  // 4개만 반복해서 보여주던 버그 수정을 위해, 이미 보여준 건 다음 번엔
+  // 같은 카테고리의 다른 문구로 교체한다. 최근 8개만 유지(무한 누적 방지).
+  shownSuggestions?: string[]
 }
 
 export type AgentMessage = {
@@ -62,6 +66,11 @@ export type AgentMessage = {
   // Phase 4 경쟁사 한 줄 허용 여부 플래그
   lightReferences?: LightReference[]
   showCTA?: boolean
+  // 등록 CTA 직전에 보여주는 "추천 다음 질문" 칩 — toastOptions와 달리
+  // 규칙기반으로 빠지지 않고 실제 자유 텍스트 입력처럼 처리돼서(Claude
+  // 연동 시 진짜 대화가 이어짐), 그냥 "사례가 궁금해요" 버튼 하나로
+  // 끝나는 게 아니라 진짜 티키타카가 가능하다.
+  suggestedQuestions?: string[]
 }
 
 // ─── 단계 선택지 (Phase 1 → 2) ─────────────────────────────
@@ -77,6 +86,55 @@ const STAGE_OPTIONS: ToastOption[] = [
 const TARGET_SKIP_OPTION: ToastOption[] = [
   { id: 'skip', label: '아직 모르겠어요', emoji: '🤷', value: 'skip' },
 ]
+
+// ─── 등록 CTA 직전 — "무조건 등록하기"만 있으면 거부감이 든다는 피드백 반영.
+// 최종 CTA 버튼은 그대로 두고, 그 위에 실제로 이어서 물어볼 만한 질문
+// 예시 4개를 칩으로 보여준다. toastOptions(규칙기반 전용, Claude를 안 탐)와
+// 달리 이 칩을 누르면 진짜 자유 텍스트 입력처럼 처리돼서(isToastSelection
+// false) Claude 연동 시 실제 맥락 있는 답변으로 대화가 이어진다 — 그냥
+// "사례가 궁금해요" 버튼 하나로 끝나던 것과 다르게 진짜 티키타카가 된다.
+// 카테고리별 후보 풀 — 매번 같은 4개만 반복해서 보여준다는 피드백 반영.
+// 이미 보여준 문구는 context.shownSuggestions에 쌓아두고, 다음 번엔 각
+// 카테고리에서 아직 안 보여준 문구를 우선 골라 반복을 줄인다.
+function trendPool(trendLine?: string): string[] {
+  return trendLine
+    ? ['방금 알려준 트렌드 좀 더 자세히 알려줘', '이 트렌드가 내 아이디어랑 어떻게 연결돼?']
+    : ['요즘 이 분야 트렌드가 궁금해', '최근에 뜨는 비슷한 서비스 있어?']
+}
+function casePool(): string[] {
+  return ['비슷한 서비스들은 어떻게 시작했어?', '이 아이디어랑 비슷한 실패 사례도 있어?', '초기에 다들 뭐부터 검증했어?']
+}
+function targetPool(hasTarget: boolean): string[] {
+  return hasTarget
+    ? ['이 타겟이 진짜 관심있는지 어떻게 확인해?', '타겟을 더 좁혀야 할까?']
+    : ['타겟을 어떻게 좁히면 좋을까?', '이 아이디어는 누구한테 제일 필요할까?']
+}
+function pricePool(): string[] {
+  return ['가격은 어떻게 정하면 좋을까?', '무료로 먼저 시작하는 게 나을까?', '경쟁 서비스 가격대는 어때?']
+}
+
+function pickFresh(pool: string[], shown: string[]): string {
+  const fresh = pool.find((q) => !shown.includes(q))
+  return fresh ?? pool[0]
+}
+
+function buildSuggestedQuestions(context: AgentContext, trendLine?: string): string[] {
+  const shown = context.shownSuggestions ?? []
+  return [
+    pickFresh(trendPool(trendLine), shown),
+    pickFresh(casePool(), shown),
+    pickFresh(targetPool(Boolean(context.targetCustomer)), shown),
+    pickFresh(pricePool(), shown),
+  ]
+}
+
+// buildSuggestedQuestions로 뽑은 문구를 context.shownSuggestions에 누적한다
+// (최근 8개만 유지) — 호출부는 updatedContext에 이 값을 함께 반영해야 다음
+// 호출에서 실제로 다른 문구가 나온다.
+function withShownSuggestions(context: AgentContext, questions: string[]): string[] {
+  const merged = [...(context.shownSuggestions ?? []), ...questions]
+  return merged.slice(-8)
+}
 
 // ─── 트렌드 한 줄 (Phase 3) — 경쟁사 이름 절대 포함 안 함 ─────
 
@@ -202,6 +260,7 @@ export function generatePhaseResponse(
     if (context.targetCustomer) {
       const categoryKey = context.category ?? 'default'
       const trendText = realTrendLine ?? TREND_TEXTS[categoryKey] ?? TREND_TEXTS.default
+      const suggested = buildSuggestedQuestions(context, realTrendLine)
       return {
         message: {
           id: genId(),
@@ -212,9 +271,10 @@ export function generatePhaseResponse(
             `📈 ${trendText}\n\n` +
             `실제 사용자들이 이 서비스를 어떻게 느끼는지,\n진짜 반응이 궁금하지 않으세요?`,
           timestamp: new Date().toISOString(),
+          suggestedQuestions: suggested,
           showCTA: true,
         },
-        updatedContext: { ...context, phase: 3, stage, psf },
+        updatedContext: { ...context, phase: 3, stage, psf, shownSuggestions: withShownSuggestions(context, suggested) },
       }
     }
 
@@ -250,6 +310,7 @@ export function generatePhaseResponse(
       ? '그것도 검증하면서 찾아가면 돼요! 🙌\n\n'
       : `**${targetCustomer}** 타겟이군요!\n\n`
 
+    const suggestedP2 = buildSuggestedQuestions(context, realTrendLine)
     return {
       message: {
         id: genId(),
@@ -259,9 +320,10 @@ export function generatePhaseResponse(
           `📈 ${trendText}\n\n` +
           `실제 사용자들이 이 서비스를 어떻게 느끼는지,\n진짜 반응이 궁금하지 않으세요?`,
         timestamp: new Date().toISOString(),
+        suggestedQuestions: suggestedP2,
         showCTA: true,
       },
-      updatedContext: { ...context, phase: 3, targetCustomer },
+      updatedContext: { ...context, phase: 3, targetCustomer, shownSuggestions: withShownSuggestions(context, suggestedP2) },
     }
   }
 
@@ -269,6 +331,7 @@ export function generatePhaseResponse(
   if (phase === 3) {
     const idea = context.ideaSummary ?? '아이디어'
     const target = context.targetCustomer ? ` **${context.targetCustomer}** 타겟으로,` : ''
+    const suggestedP3 = buildSuggestedQuestions(context, realTrendLine)
 
     return {
       message: {
@@ -280,13 +343,15 @@ export function generatePhaseResponse(
           `FindFit 리뷰어들이 직접 써보고 솔직한 피드백을 드려요 📋\n\n` +
           `비슷한 방향의 서비스들도 있지만,\n실제 사용자 반응은 직접 받아봐야 알 수 있어요.`,
         timestamp: new Date().toISOString(),
+        suggestedQuestions: suggestedP3,
         showCTA: true,
       },
-      updatedContext: { ...context, phase: 4 },
+      updatedContext: { ...context, phase: 4, shownSuggestions: withShownSuggestions(context, suggestedP3) },
     }
   }
 
   // ── Phase 4+: CTA 반복 ──
+  const suggestedP4 = buildSuggestedQuestions(context, realTrendLine)
   return {
     message: {
       id: genId(),
@@ -295,9 +360,10 @@ export function generatePhaseResponse(
         `등록하면 72시간 안에 실제 리뷰어들의 솔직한 피드백을 받아볼 수 있어요 🚀\n\n` +
         `지금이 딱 좋은 타이밍이에요!`,
       timestamp: new Date().toISOString(),
+      suggestedQuestions: suggestedP4,
       showCTA: true,
     },
-    updatedContext: { ...context, phase: 4 },
+    updatedContext: { ...context, phase: 4, shownSuggestions: withShownSuggestions(context, suggestedP4) },
   }
 }
 
@@ -330,20 +396,32 @@ const VALID_STAGES = ['idea', 'building', 'launched']
 export function applyUnderstanding(
   context: AgentContext,
   result: UnderstandingResult,
+  userInput?: string,
 ): { message: AgentMessage; updatedContext: AgentContext } {
   const category = result.category ?? context.category
   const ideaSummary = result.item_summary ?? context.ideaSummary
   const phase = context.phase
 
   // ── Phase 2: 타겟 고객 확인 중 ──
-  // Claude가 실제로 타겟을 확인했을 때만 phase 3으로 전이한다(입력값과
-  // 무관하게 매번 다음 단계로 넘어가던 예전 규칙기반 버그를 여기서도
-  // 반복하지 않기 위함) — 확인 안 됐으면 phase 2 유지, 재질문.
+  // Claude가 target_customer를 못 뽑아내도, 사용자가 의미 있는 답을
+  // 했다면(짧은 성의없는 답/모르겠다는 답이 아니라면) 그 발화 자체를
+  // 타겟으로 채택해 phase 3으로 진행한다 — 토스트 "아직 모르겠어요"
+  // 버튼을 눌러야만 다음 단계로 넘어가던 버그 수정(대화만으로도 똑같이
+  // 진행돼야 함).
   if (phase === 2) {
-    if (result.target_customer) {
+    const isWeakAnswer =
+      !userInput ||
+      userInput.includes('모르') ||
+      userInput.includes('글쎄') ||
+      userInput.trim().length < 3
+    const fallbackTarget = !isWeakAnswer ? userInput : undefined
+    const targetCustomer = result.target_customer ?? fallbackTarget
+
+    if (targetCustomer) {
+      const suggestedU2 = buildSuggestedQuestions(context)
       return {
-        message: { id: genId(), role: 'assistant', content: result.reply, timestamp: new Date().toISOString(), showCTA: true },
-        updatedContext: { ...context, phase: 3, targetCustomer: result.target_customer, ideaSummary, category },
+        message: { id: genId(), role: 'assistant', content: result.reply, timestamp: new Date().toISOString(), suggestedQuestions: suggestedU2, showCTA: true },
+        updatedContext: { ...context, phase: 3, targetCustomer, ideaSummary, category, shownSuggestions: withShownSuggestions(context, suggestedU2) },
       }
     }
     return {
@@ -354,9 +432,10 @@ export function applyUnderstanding(
 
   // ── Phase 3+: 요약 확인 → 등록 준비됐다고 Claude가 판단하면 CTA ──
   if (phase >= 3) {
+    const suggestedU3 = buildSuggestedQuestions(context)
     return {
-      message: { id: genId(), role: 'assistant', content: result.reply, timestamp: new Date().toISOString(), showCTA: true },
-      updatedContext: { ...context, phase: result.ready_for_cta ? 4 : phase, ideaSummary, category },
+      message: { id: genId(), role: 'assistant', content: result.reply, timestamp: new Date().toISOString(), suggestedQuestions: suggestedU3, showCTA: true },
+      updatedContext: { ...context, phase: result.ready_for_cta ? 4 : phase, ideaSummary, category, shownSuggestions: withShownSuggestions(context, suggestedU3) },
     }
   }
 
@@ -367,9 +446,10 @@ export function applyUnderstanding(
   // 경우) Phase 2 질문을 건너뛰고 바로 Phase 3으로 전이한다.
   if (result.stage && VALID_STAGES.includes(result.stage)) {
     if (context.targetCustomer) {
+      const suggestedU1 = buildSuggestedQuestions(context)
       return {
-        message: { id: genId(), role: 'assistant', content: result.reply, timestamp: new Date().toISOString(), showCTA: true },
-        updatedContext: { ...context, phase: 3, stage: result.stage, psf: result.stage !== 'launched', ideaSummary, category },
+        message: { id: genId(), role: 'assistant', content: result.reply, timestamp: new Date().toISOString(), suggestedQuestions: suggestedU1, showCTA: true },
+        updatedContext: { ...context, phase: 3, stage: result.stage, psf: result.stage !== 'launched', ideaSummary, category, shownSuggestions: withShownSuggestions(context, suggestedU1) },
       }
     }
     return {

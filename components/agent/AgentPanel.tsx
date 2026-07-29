@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { ArrowRight, Sparkles, FileText, X } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { AgentMessageBubble, TypingIndicator } from './AgentComponents'
+import { useAgentBubble } from './AgentBubbleContext'
 import { createClient } from '@/lib/supabase/client'
 import {
   getGreeting,
@@ -36,8 +37,35 @@ const PHASE_LABELS = ['대화 시작', '아이디어 파악', '단계 파악', '
 // 축소/확장 모드 진행 dots 레이블
 const DOT_LABELS = ['아이디어', '단계', '타겟', '완료'] as const
 
+// 리포트 모드가 아닌 일반 대화(등록 전 아이템 탐색~등록 준비)를 새로고침
+// 후에도 이어갈 수 있게 하는 저장 키 — 새로고침하면 대화가 통째로 사라지던
+// 버그 수정. 새 아이템 탐색을 시작하면(진짜 새 seed) 이 값도 함께 리셋해서
+// 이전 대화와 섞이지 않게 한다.
+const ACTIVE_CONVO_KEY = 'findfit_agent_active_conversation'
+
+type StoredConversation = { messages: AgentMessage[]; context: AgentContext }
+
+function loadStoredConversation(): StoredConversation | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = localStorage.getItem(ACTIVE_CONVO_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (Array.isArray(parsed?.messages) && parsed?.context) return parsed as StoredConversation
+  } catch {
+    // 손상된 값이면 그냥 무시하고 새 대화로 시작
+  }
+  return null
+}
+
+function clearStoredConversation() {
+  if (typeof window === 'undefined') return
+  localStorage.removeItem(ACTIVE_CONVO_KEY)
+}
+
 export default function AgentPanel({ isExpanded = false, reportProjectIdOverride, initialSeedMessage, initialTargetCustomer, onClose }: AgentPanelProps) {
   const router = useRouter()
+  const agentBubble = useAgentBubble()
   const searchParams = useSearchParams()
   const isExploreMode = searchParams.get('agent') === 'explore'
   const fromNewProject = searchParams.get('from') === 'new_project'
@@ -67,10 +95,13 @@ export default function AgentPanel({ isExpanded = false, reportProjectIdOverride
   }
 
   const scrollRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
 
   const enterReportMode = useCallback((projectId: string) => {
     setReportModeStatus('checking')
+    // 리포트 모드는 agent_conversation_logs(DB) 기준으로 다시 그려지므로
+    // 일반 대화 저장분과 섞이면 안 된다.
+    clearStoredConversation()
     // 결제 게이트 유지 — 심층 리포트 구매자(captured 또는 테스트 기간
     // waived_test)만 리포트 모드 진입 가능. ENABLE_PAYMENT_GATE=false인
     // 지금은 등록 시 자동으로 waived_test가 기록되므로 사실상 전원 통과.
@@ -86,15 +117,27 @@ export default function AgentPanel({ isExpanded = false, reportProjectIdOverride
         .limit(1)
       if (data && data.length > 0) {
         setReportModeStatus('ready')
-        // 리포트 모드는 항상 그 리포트에 대한 새 대화로 취급한다 — 이전에
-        // 쌓여 있던 일반 인사말/대화(플로팅 버블은 언마운트되지 않으므로
-        // 남아있을 수 있음)를 지우고 리포트 안내만 단독으로 보여준다.
-        setTimeout(() => setMessages([{
+        // 이 프로젝트를 등록할 때 Agent와 나눈 대화가 저장돼 있으면(등록
+        // 전 대화 → CTA → 등록 시점에 agent_conversation_logs로 이관됨)
+        // 새 인사말로 지우지 않고 그 대화를 이어서 보여준다 — 없으면
+        // 기존처럼 리포트 전용 인사말만 단독으로 보여준다.
+        const { data: log } = await supabase
+          .from('agent_conversation_logs')
+          .select('messages')
+          .eq('project_id', projectId)
+          .maybeSingle()
+
+        const reportGreeting: AgentMessage = {
           id: `report-mode-greeting-${projectId}`,
           role: 'assistant',
-          content: '이 프로젝트 리포트에 대해 궁금한 점을 물어보세요. 검증 결과를 바탕으로 다음 프로젝트도 함께 정해볼 수 있어요 📊',
+          content: log?.messages
+            ? '이 프로젝트를 등록할 때 나눈 대화예요. 이어서 리포트에 대해 궁금한 점을 물어보세요. 검증 결과를 바탕으로 다음 프로젝트도 함께 정해볼 수 있어요 📊'
+            : '이 프로젝트 리포트에 대해 궁금한 점을 물어보세요. 검증 결과를 바탕으로 다음 프로젝트도 함께 정해볼 수 있어요 📊',
           timestamp: new Date().toISOString(),
-        }]), 400)
+        }
+
+        const restoredMessages = Array.isArray(log?.messages) ? (log.messages as AgentMessage[]) : []
+        setTimeout(() => setMessages([...restoredMessages, reportGreeting]), 400)
       } else {
         setReportModeStatus('denied')
         setMessages([{
@@ -116,9 +159,33 @@ export default function AgentPanel({ isExpanded = false, reportProjectIdOverride
       return
     }
 
+    // 새로고침 후 다시 열렸을 때, 저장해둔 일반 대화가 있고 지금 새로
+    // 보낼 seed 메시지가 없으면(즉 진짜 새 아이템 탐색이 아니면) 그 대화를
+    // 그대로 복원한다 — 여기서 복원 안 하면 새로고침마다 대화가 통째로
+    // 사라지던 버그가 그대로 남는다.
+    const stored = !initialSeedMessage ? loadStoredConversation() : null
+    if (stored) {
+      setMessages(stored.messages)
+      setContext(stored.context)
+      return
+    }
+
     const greeting = getGreeting(isExploreMode && fromNewProject)
     setTimeout(() => setMessages([greeting]), 500)
-  }, [initialized, isExploreMode, fromNewProject, reportProjectId, enterReportMode])
+  }, [initialized, isExploreMode, fromNewProject, reportProjectId, enterReportMode, initialSeedMessage])
+
+  // 일반 대화(리포트 모드 아님) 상태는 바뀔 때마다 저장 — 새로고침해도
+  // 이어갈 수 있게 한다. 리포트 모드는 항상 DB(agent_conversation_logs)
+  // 기준으로 다시 불러오므로 여기서 저장하지 않는다.
+  useEffect(() => {
+    if (reportProjectId || !initialized) return
+    if (messages.length === 0) return
+    try {
+      localStorage.setItem(ACTIVE_CONVO_KEY, JSON.stringify({ messages, context }))
+    } catch {
+      // 저장 실패해도 대화 자체는 계속 진행 — 새로고침 복원만 못 할 뿐
+    }
+  }, [messages, context, reportProjectId, initialized])
 
   // 플로팅 버블은 언마운트 없이 계속 살아있으므로, 이미 초기화된 뒤에
   // reportProjectIdOverride가 새로 들어오면(리포트 상세에서 "Agent에게
@@ -192,10 +259,12 @@ export default function AgentPanel({ isExpanded = false, reportProjectIdOverride
       // 그대로 — 여기서 건드리지 않는다. Claude 실패/캡초과 시엔 기존
       // generatePhaseResponse(원래 엔진)가 안전망으로 동작 — 회귀 없음.
       if (!isToastSelection) {
-        // Phase 2에서만 실제 트렌드 데이터가 필요하다(기획서 5.3) — Claude
-        // 프롬프트에 참고자료로 실어준다.
+        // Phase 2, 또는 등록 CTA 직전 추천 질문 칩("트렌드 좀 더 자세히
+        // 알려줘" 등)을 눌러 자유 텍스트로 다시 물어보는 경우에도 실제
+        // 트렌드 데이터가 필요하다 — phase>=1에서 카테고리가 이미 파악돼
+        // 있으면 매번 새로 가져와서 Claude가 실제 데이터로 답하게 한다.
         let realTrendLine: string | undefined
-        if (context.phase === 2 || (context.phase <= 1 && !!context.targetCustomer)) {
+        if (context.phase >= 1 && (context.category || context.targetCustomer)) {
           try {
             const trendRes = await fetch('/api/agent/trend', {
               method: 'POST',
@@ -226,6 +295,7 @@ export default function AgentPanel({ isExpanded = false, reportProjectIdOverride
                 phase: context.phase,
                 trendLine: realTrendLine,
                 recentMessages,
+                wizardStep: agentBubble.activeWizardStep,
               },
               sessionId: sessionIdRef.current,
             }),
@@ -247,7 +317,7 @@ export default function AgentPanel({ isExpanded = false, reportProjectIdOverride
               showCTA: true,
             }])
           } else {
-            const { message, updatedContext } = applyUnderstanding(context, body)
+            const { message, updatedContext } = applyUnderstanding(context, body, value)
             setMessages(prev => [...prev, message])
             setContext(updatedContext)
           }
@@ -292,19 +362,53 @@ export default function AgentPanel({ isExpanded = false, reportProjectIdOverride
     const trimmed = input.trim()
     if (!trimmed) return
     processInput(trimmed, false)
+    // textarea가 여러 줄로 늘어나 있었을 수 있으니 전송 후 원래 높이로 복원
+    if (inputRef.current) inputRef.current.style.height = 'auto'
   }, [input, processInput])
 
+  // 한 줄 입력창이던 <input>을 여러 줄 <textarea>로 바꾸면서, 입력한 만큼
+  // 자연스럽게 높이가 늘어나도록(최대 높이는 className의 max-h로 제한) —
+  // 예전엔 텍스트가 길어지면 옆으로만 계속 길어지고 안 보였다.
+  const autoResizeInput = (el: HTMLTextAreaElement) => {
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }
+
   // 홈 화면에서 "아이템 탐색부터 시작"으로 들어올 때, 이미 입력해둔 첫
-  // 문장을 인사말 뜬 직후 자동으로 한 번만 보낸다. prop이 없으면 기존과
-  // 동일하게 인사말만 뜨고 끝(회귀 없음).
-  const seedSentRef = useRef(false)
+  // 문장을 인사말 뜬 직후 자동으로 한 번만 보낸다.
+  //
+  // ⚠️ 버그였던 부분: FloatingAgentBubble의 AgentPanel은 크리에이터 화면
+  // 진입 시 곧바로(사용자가 아직 아무것도 안 골랐을 때) 마운트되므로,
+  // 그 시점엔 initialTargetCustomer가 항상 null이다. 그런데 context는
+  // useState(() => ...) 초기값으로만 한 번 설정돼서, 이후 사용자가 실제로
+  // 아이템 탐색 퀴즈를 마치고 openWithSeed(text, targetCustomer)를 호출해도
+  // 이미 마운트가 끝난 뒤라 context.targetCustomer가 절대 갱신되지 않았다.
+  // 게다가 seedSentRef가 "한 번이라도 보냈으면 true"로 영구 고정되는
+  // boolean이라, 세션 중 두 번째 이후의 시드 메시지는 아예 무시됐다(값
+  // 자체를 비교하는 게 아니라 존재 여부만 봤기 때문).
+  //
+  // 수정: seedSentRef에 "마지막으로 보낸 시드 문자열"을 저장해서 진짜 새
+  // 시드가 왔을 때만 재전송하고, 그 시점에 targetCustomer도 context에
+  // 반영한다.
+  const lastSentSeedRef = useRef<string | null>(null)
   useEffect(() => {
-    if (!initialSeedMessage || seedSentRef.current || !initialized || reportProjectId) return
-    seedSentRef.current = true
+    if (!initialSeedMessage || !initialized || reportProjectId) return
+    if (lastSentSeedRef.current === initialSeedMessage) return
+    lastSentSeedRef.current = initialSeedMessage
+    // 진짜 새 아이템 탐색이 시작된 것 — 이전 대화가 그대로 남아있으면
+    // 새 seed가 옛 대화 뒤에 이어붙어서 서로 다른 아이템 탐색 대화가
+    // 섞여 보이던 버그가 있었다. 새 seed가 올 때는 대화 자체를 새로
+    // 시작한다(이전 대화 저장분도 함께 비운다).
+    clearStoredConversation()
+    setMessages([])
+    setContext({
+      ...createEmptyContext(),
+      ...(initialTargetCustomer ? { targetCustomer: initialTargetCustomer } : {}),
+    })
     const t = setTimeout(() => processInput(initialSeedMessage, false), 900)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialSeedMessage, initialized, reportProjectId])
+  }, [initialSeedMessage, initialTargetCustomer, initialized, reportProjectId])
 
   const handleToastSelect = useCallback((value: string | string[]) => {
     const displayValue = Array.isArray(value) ? value.join(', ') : value
@@ -315,8 +419,15 @@ export default function AgentPanel({ isExpanded = false, reportProjectIdOverride
     const sessionId = `agent-${Date.now()}`
     // 대화에서 파악한 카테고리·단계·타겟을 wizard로 전달
     sessionStorage.setItem(`agent_context_${sessionId}`, JSON.stringify(context))
+    // 대화 전문도 함께 넘겨둔다 — 등록이 성공하면 submitProject가 이걸
+    // 프로젝트에 연결해 저장해서, 나중에 리포트 모드에서 같은 대화를
+    // 이어갈 수 있게 한다.
+    sessionStorage.setItem(`agent_messages_${sessionId}`, JSON.stringify(messages))
+    // ACTIVE_CONVO_KEY(localStorage)는 여기서 지우지 않는다 — 등록 마법사로
+    // 넘어간 뒤 임시저장하고 새로고침해도 같은 대화가 이어지게 하려면
+    // (버그 리포트 #4) 최종 제출 전까지는 계속 남아있어야 한다.
     router.push(`/builder/new-request?agentSession=${sessionId}`)
-  }, [context, router])
+  }, [context, messages, router])
 
   const lastAssistantIndex = [...messages].reverse().findIndex(m => m.role === 'assistant')
   const latestAssistantId = lastAssistantIndex >= 0
@@ -432,6 +543,7 @@ export default function AgentPanel({ isExpanded = false, reportProjectIdOverride
               message={msg}
               onCTAClick={handleCTA}
               onToastSelect={handleToastSelect}
+              onSuggestedClick={(q) => processInput(q, false)}
               isLatest={msg.id === latestAssistantId}
             />
           ))}
@@ -444,15 +556,17 @@ export default function AgentPanel({ isExpanded = false, reportProjectIdOverride
             className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl transition-all focus-within:shadow-[0_0_0_2px_rgba(247,112,25,0.18)]"
             style={{ background: '#FFFFFF', border: '1.5px solid rgba(29,28,28,0.1)' }}
           >
-            <Sparkles className="w-3.5 h-3.5 text-[#F77019] flex-shrink-0" />
-            <input
+            <Sparkles className="w-3.5 h-3.5 text-[#F77019] flex-shrink-0 mt-1" />
+            <textarea
               ref={inputRef}
-              type="text"
+              rows={1}
               value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSend()}
+              onChange={e => { setInput(e.target.value); autoResizeInput(e.target) }}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
+              }}
               placeholder={reportProjectId ? '이 리포트에 대해 궁금한 점을 물어보세요' : '아이디어를 자유롭게 말씀해주세요'}
-              className="flex-1 bg-transparent text-[12px] font-medium text-[#1D1C1C] placeholder-[#BBB] outline-none min-w-0"
+              className="flex-1 bg-transparent text-[12px] font-medium text-[#1D1C1C] placeholder-[#BBB] outline-none min-w-0 resize-none leading-relaxed py-1 max-h-24 overflow-y-auto"
             />
             <button
               onClick={handleSend}
@@ -509,6 +623,7 @@ export default function AgentPanel({ isExpanded = false, reportProjectIdOverride
                 message={msg}
                 onCTAClick={handleCTA}
                 onToastSelect={handleToastSelect}
+                onSuggestedClick={(q) => processInput(q, false)}
                 isLatest={msg.id === latestAssistantId}
               />
             ))}
@@ -521,15 +636,17 @@ export default function AgentPanel({ isExpanded = false, reportProjectIdOverride
               className="flex items-center gap-3 px-4 py-3 rounded-2xl transition-all focus-within:shadow-[0_0_0_2px_rgba(247,112,25,0.15)]"
               style={{ background: '#FFFFFF', border: '2px solid #1D1C1C' }}
             >
-              <Sparkles className="w-4 h-4 text-[#F77019] flex-shrink-0" />
-              <input
+              <Sparkles className="w-4 h-4 text-[#F77019] flex-shrink-0 mt-1.5" />
+              <textarea
                 ref={inputRef}
-                type="text"
+                rows={1}
                 value={input}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleSend()}
+                onChange={e => { setInput(e.target.value); autoResizeInput(e.target) }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
+                }}
                 placeholder={reportProjectId ? '이 리포트에 대해 궁금한 점을 물어보세요' : '예) 20대 여성을 위한 단백질 쉐이크 구독 서비스를 만들려고 해요'}
-                className="flex-1 bg-transparent text-[13px] font-medium text-[#1D1C1C] placeholder-[#C0C0C0] outline-none min-w-0"
+                className="flex-1 bg-transparent text-[13px] font-medium text-[#1D1C1C] placeholder-[#C0C0C0] outline-none min-w-0 resize-none leading-relaxed py-1.5 max-h-28 overflow-y-auto"
               />
               <button
                 onClick={handleSend}

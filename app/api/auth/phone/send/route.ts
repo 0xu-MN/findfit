@@ -41,7 +41,14 @@ export async function POST(req: Request) {
 
     await sendVerificationSms(normalized, code)
 
-    return NextResponse.json({ success: true })
+    // 개발 환경 + SOLAPI 키 미발급(mock 발송) 상태에서는 서버 터미널
+    // console.log로만 코드가 남아서, 브라우저에서 테스트하는 사람은 실제로
+    // 인증할 방법이 없었다 — 로컬 개발 편의를 위해 이 조건에서만 코드를
+    // 응답에 함께 실어 화면에 보여준다. 운영 환경(NODE_ENV=production)
+    // 또는 실제 SOLAPI 키가 있으면 절대 노출하지 않는다.
+    const devCode = process.env.NODE_ENV !== 'production' && !process.env.SOLAPI_API_KEY ? code : undefined
+
+    return NextResponse.json({ success: true, devCode })
   } catch (err) {
     console.error('[auth/phone/send]', err)
     return NextResponse.json({ error: '서버 오류' }, { status: 500 })

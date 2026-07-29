@@ -351,7 +351,13 @@ export default function ProjectDetailPage({ projectId }: Props) {
             (app/api/reviews/[matchId]/submit이 status==='reviewing' 요구). */}
         {project.status === 'active' && (() => {
           const deadlinePassed = project.deadline ? new Date(project.deadline) < new Date() : false
-          const targetMet = completedCount >= targetCount && targetCount > 0
+          // ⚠️ 예전엔 completed_count(리뷰 "제출 완료" 수)로 모집 충족 여부를
+          // 판단해서, 지원이 수락돼 모집 인원은 이미 다 찼는데도(활성 매칭
+          // acceptedCount === targetCount) 아직 아무도 리뷰를 "제출"하지
+          // 않았다는 이유로 "미달"로 잘못 표시되고 있었다 — 모집 충족은
+          // 실제 수락된 인원(activeMatches) 기준으로 판단해야 한다.
+          const acceptedCount = activeMatches.length
+          const targetMet = acceptedCount >= targetCount && targetCount > 0
 
           // ── 케이스 3: 목표 인원 다 채움 — 경고 없이 바로 시작 ──
           if (targetMet) {
@@ -427,7 +433,7 @@ export default function ProjectDetailPage({ projectId }: Props) {
                 <span className="text-[13px] font-black">정말 지금 시작할까요?</span>
               </div>
               <p className="text-[12px] font-bold text-[#666] leading-relaxed">
-                아직 모집 마감일도 안 됐고, 목표한 인원({completedCount}/{targetCount}명)도 다 채우지 못했어요. 지금 시작하면 부족한 인원만큼의 금액을 포함해 이미 결제한 금액은 환불되지 않아요.
+                아직 모집 마감일도 안 됐고, 목표한 인원({activeMatches.length}/{targetCount}명)도 다 채우지 못했어요. 지금 시작하면 부족한 인원만큼의 금액을 포함해 이미 결제한 금액은 환불되지 않아요.
               </p>
               <div className="flex gap-2">
                 <button

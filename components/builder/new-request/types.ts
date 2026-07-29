@@ -53,6 +53,10 @@ export type RequestFormData = {
   stage: Stage | null
   landingUrl: string
   projectType: ProjectType | null
+  // Agent 대화에서 넘어온 세션 id — 있으면 등록 성공 시 그 대화 전문을
+  // agent_conversation_logs에 프로젝트와 연결해 저장한다(리포트 모드에서
+  // 이어서 대화하기 위함). DB에는 저장하지 않는 휘발성 마법사 상태.
+  agentSessionId?: string
 
   // Step 1 — 제품 접근 방식
   accessMethod: AccessMethod

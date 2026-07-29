@@ -1,17 +1,38 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useEffect, useState } from 'react'
 
 import { createClient } from '@/lib/supabase/client'
 import SocialLoginButtons from '@/components/auth/SocialLoginButtons'
 
+// 네이버 로그인은 Supabase가 모르는 provider라 서버가 직접 OAuth를 구현하고,
+// 실패하면 /auth/login?error=naver_xxx로 리다이렉트한다 — 그런데 이 페이지가
+// 그 쿼리파라미터를 전혀 안 읽고 있어서, 실패해도 사용자 눈엔 그냥 로그인
+// 화면이 다시 뜬 것처럼만 보이고 "로그인이 안 된다"는 인상만 남았다.
+const NAVER_ERROR_MESSAGES: Record<string, string> = {
+  naver_not_configured: '네이버 로그인이 아직 설정되지 않았어요. 다른 방법으로 로그인해주세요.',
+  naver_state_mismatch: '로그인 요청이 만료됐어요. 다시 시도해주세요.',
+  naver_token_failed: '네이버 인증에 실패했어요. 다시 시도해주세요.',
+  naver_email_required: '네이버 계정에 이메일 제공 동의가 필요해요.',
+  naver_create_failed: '계정 생성에 실패했어요. 잠시 후 다시 시도해주세요.',
+  naver_link_failed: '로그인 처리에 실패했어요. 잠시 후 다시 시도해주세요.',
+  naver_session_failed: '로그인 세션 확립에 실패했어요. 잠시 후 다시 시도해주세요.',
+  account_blocked: '이용이 제한된 계정입니다. 고객센터로 문의해주세요.',
+}
+
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    const errCode = searchParams.get('error')
+    if (errCode) setError(NAVER_ERROR_MESSAGES[errCode] ?? '로그인 중 문제가 발생했어요. 다시 시도해주세요.')
+  }, [searchParams])
 
   const routeByRole = async (userId: string): Promise<string | null> => {
     const supabase = createClient()

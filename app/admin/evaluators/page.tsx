@@ -11,6 +11,7 @@ type UserRow = {
   email: string
   role: UserRole | null
   status: UserStatus
+  last_active_role: 'builder' | 'evaluator' | null
   created_at: string
   project_count: number
   completed_review_count: number
@@ -157,6 +158,7 @@ export default function AdminUsersPage() {
                   <th className="px-5 py-3">이메일</th>
                   <th className="px-5 py-3">역할</th>
                   <th className="px-5 py-3">활동</th>
+                  <th className="px-5 py-3">현재 모드</th>
                   <th className="px-5 py-3">상태</th>
                   <th className="px-5 py-3">가입</th>
                   <th className="px-5 py-3 text-right">관리</th>
@@ -195,6 +197,22 @@ export default function AdminUsersPage() {
                           u.is_builder ? `등록 프로젝트 ${u.project_count}건` : null,
                           u.is_reviewer ? `완료 리뷰 ${u.completed_review_count}건` : null,
                         ].filter(Boolean).join(' · ') || '—'}
+                      </td>
+                      <td className="px-5 py-3">
+                        {u.last_active_role ? (
+                          <span
+                            className="text-[9px] font-black px-2 py-0.5 rounded-full border"
+                            style={{
+                              color: ROLE_LABEL[u.last_active_role].color,
+                              borderColor: `${ROLE_LABEL[u.last_active_role].color}40`,
+                              background: `${ROLE_LABEL[u.last_active_role].color}10`,
+                            }}
+                          >
+                            ● 지금 {ROLE_LABEL[u.last_active_role].label}로 활동 중
+                          </span>
+                        ) : (
+                          <span className="text-[9px] font-bold text-[#CCC]">기록 없음</span>
+                        )}
                       </td>
                       <td className="px-5 py-3">
                         <span

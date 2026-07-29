@@ -28,7 +28,7 @@ export async function GET() {
 
   const [{ data: projects }, { data: distributions }] = await Promise.all([
     projectIds.length
-      ? supabase.from('projects_public').select('id, title, one_liner, target_count, completed_count').in('id', projectIds)
+      ? supabase.from('projects_public').select('id, title, one_liner, target_count, completed_count, status').in('id', projectIds)
       : Promise.resolve({ data: [] }),
     projectIds.length
       ? supabase.from('distributions').select('project_id, status, paid_at, amount').eq('reviewer_id', user.id).in('project_id', projectIds)

@@ -21,12 +21,18 @@ import { createClient } from '@/lib/supabase/server'
 // 라우트(app/api/projects/[id]/distribute/route.ts)가 이미 project.status
 // === 'reviewing'을 전제로 하고 있었는데, 그 상태로 넘기는 코드가 지금껏
 // 하나도 없어서 크리에이터가 사례금 배분 단계 자체에 도달할 방법이 없었다.
+// 리뷰 마감까지 기본 며칠을 줄지 — 크리에이터가 화면에서 직접 고르는 UI는
+// 아직 없어서(다음 작업 후보) 우선 고정값으로 시작한다.
+const DEFAULT_REVIEW_DAYS = 7
+
 export async function POST(req: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params
-  const { mode } = (await req.json()) as { mode?: 'force_early' | 'proceed_short' | 'complete_start' }
+  const body = (await req.json()) as { mode?: 'force_early' | 'proceed_short' | 'complete_start'; reviewDays?: number }
+  const { mode } = body
   if (mode !== 'force_early' && mode !== 'proceed_short' && mode !== 'complete_start') {
     return NextResponse.json({ error: 'mode는 force_early, proceed_short, complete_start 중 하나여야 합니다' }, { status: 400 })
   }
+  const reviewDays = body.reviewDays && body.reviewDays > 0 ? body.reviewDays : DEFAULT_REVIEW_DAYS
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -43,7 +49,11 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     return NextResponse.json({ error: '모집 중인 프로젝트만 마감할 수 있습니다' }, { status: 400 })
   }
 
-  const { error } = await supabase.from('projects').update({ status: 'reviewing' }).eq('id', id)
+  const reviewDeadline = new Date(Date.now() + reviewDays * 24 * 60 * 60 * 1000).toISOString()
+  const { error } = await supabase
+    .from('projects')
+    .update({ status: 'reviewing', review_deadline: reviewDeadline })
+    .eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   const shortfall = Math.max(0, project.target_count - project.completed_count)
@@ -52,5 +62,6 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     mode,
     refundNeeded: mode === 'proceed_short' && shortfall > 0,
     shortfallCount: shortfall,
+    reviewDeadline,
   })
 }

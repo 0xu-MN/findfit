@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Activity, MessageCircle, Sparkles } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
+import { Activity } from 'lucide-react'
 
 type TickerItem = {
   id: string
@@ -12,6 +12,10 @@ type TickerItem = {
   subtitle?: string
   time: string
   img: string
+  // 실제 DB 프로젝트에서 온 항목만 클릭 시 상세 페이지로 이동한다 —
+  // 아래 DEFAULT_TICKER_ITEMS(하드코딩 예시)는 실제 프로젝트가 아니라
+  // 눌러도 갈 곳이 없으므로 projectId를 아예 안 준다.
+  projectId?: string
 }
 
 const DEFAULT_TICKER_ITEMS: TickerItem[] = [
@@ -63,6 +67,7 @@ const DEFAULT_TICKER_ITEMS: TickerItem[] = [
 ]
 
 export default function LiveActivityTicker() {
+  const router = useRouter()
   const [items, setItems] = useState<TickerItem[]>(DEFAULT_TICKER_ITEMS)
 
   useEffect(() => {
@@ -73,6 +78,7 @@ export default function LiveActivityTicker() {
         if (data?.all && data.all.length > 0) {
           const dbItems: TickerItem[] = data.all.map((p: any, idx: number) => ({
             id: p.id,
+            projectId: p.id,
             tag: p.status === 'completed' ? '검증 완료' : '리뷰 모집 중',
             tagColor: p.status === 'completed' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700',
             title: p.title,
@@ -103,7 +109,10 @@ export default function LiveActivityTicker() {
           {tickerContent.map((act, index) => (
             <div
               key={`${act.id}-${index}`}
-              className="flex items-center gap-3 p-2.5 px-4 rounded-2xl bg-[#F8F9FA] border border-[#1D1C1C]/5 hover:border-[#189DF7]/40 hover:bg-white transition-all shrink-0 cursor-pointer shadow-sm"
+              onClick={() => act.projectId && router.push(`/evaluator/projects/${act.projectId}`)}
+              className={`flex items-center gap-3 p-2.5 px-4 rounded-2xl bg-[#F8F9FA] border border-[#1D1C1C]/5 hover:border-[#189DF7]/40 hover:bg-white transition-all shrink-0 shadow-sm ${
+                act.projectId ? 'cursor-pointer' : 'cursor-default'
+              }`}
             >
               <img src={act.img} alt="" className="w-10 h-10 rounded-xl object-cover" />
               <div className="flex flex-col gap-0.5 min-w-0">

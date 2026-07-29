@@ -231,6 +231,34 @@ export function AgentTrendBlock({ trends }: { trends: TrendKeyword[] }) {
 }
 
 /* ─────────────────────────────────────────────────────── */
+/*  추천 다음 질문 칩 — toastOptions와 달리 실제 자유 텍스트로 처리돼서    */
+/*  Claude 연동 시 진짜 맥락 있는 대화가 이어진다(단순 "사례 궁금해요"     */
+/*  버튼 하나로 끝나지 않음).                                            */
+/* ─────────────────────────────────────────────────────── */
+
+export function SuggestedQuestionChips({
+  questions,
+  onSelect,
+}: {
+  questions: string[]
+  onSelect: (question: string) => void
+}) {
+  return (
+    <div className="flex flex-wrap gap-1.5 mt-1.5">
+      {questions.map((q) => (
+        <button
+          key={q}
+          onClick={() => onSelect(q)}
+          className="text-[10px] font-bold text-[#F77019] bg-[#F77019]/8 border border-[#F77019]/20 px-2.5 py-1.5 rounded-full hover:bg-[#F77019]/15 transition-colors"
+        >
+          {q}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+/* ─────────────────────────────────────────────────────── */
 /*  CTA 버튼                                              */
 /* ─────────────────────────────────────────────────────── */
 
@@ -278,11 +306,13 @@ export function AgentMessageBubble({
   message,
   onCTAClick,
   onToastSelect,
+  onSuggestedClick,
   isLatest,
 }: {
   message: AgentMessageType
   onCTAClick?: () => void
   onToastSelect?: (value: string | string[]) => void
+  onSuggestedClick?: (question: string) => void
   isLatest?: boolean
 }) {
   const isUser = message.role === 'user'
@@ -325,6 +355,11 @@ export function AgentMessageBubble({
             onSelect={onToastSelect}
             disabled={!isLatest}
           />
+        )}
+
+        {/* 추천 다음 질문 칩 — 누르면 진짜 자유 텍스트로 이어진다 */}
+        {message.suggestedQuestions && message.suggestedQuestions.length > 0 && onSuggestedClick && isLatest && (
+          <SuggestedQuestionChips questions={message.suggestedQuestions} onSelect={onSuggestedClick} />
         )}
 
         {/* CTA 버튼 */}

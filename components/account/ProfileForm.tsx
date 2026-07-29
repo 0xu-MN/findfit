@@ -36,6 +36,7 @@ export default function ProfileForm({
   const [sendingCode, setSendingCode] = useState(false)
   const [verifyingCode, setVerifyingCode] = useState(false)
   const [phoneError, setPhoneError] = useState<string | null>(null)
+  const [devCode, setDevCode] = useState<string | null>(null)
 
   useEffect(() => {
     const supabase = createClient()
@@ -74,6 +75,9 @@ export default function ProfileForm({
       const body = await res.json()
       if (!res.ok) { setPhoneError(body.error ?? '인증코드 발송에 실패했어요'); return }
       setOtpSent(true)
+      // 개발 환경(SMS mock)에서만 서버가 코드를 함께 내려준다 — 실제
+      // SOLAPI 연동/운영 환경에서는 devCode 자체가 없다.
+      setDevCode(body.devCode ?? null)
     } finally {
       setSendingCode(false)
     }
@@ -243,6 +247,12 @@ export default function ProfileForm({
 
         {phoneVerifiedAt !== null && phone !== originalPhone && (
           <span className="text-[10px] font-bold text-amber-600">번호를 변경했어요 — 다시 인증해주세요</span>
+        )}
+
+        {otpSent && !isPhoneVerified && devCode && (
+          <span className="text-[10px] font-bold text-blue-600">
+            개발 환경 임시 코드(실제 SMS 미연동): {devCode}
+          </span>
         )}
 
         {otpSent && !isPhoneVerified && (

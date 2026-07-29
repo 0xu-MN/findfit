@@ -20,11 +20,17 @@ type AgentBubbleState = {
   //    전환, ② 버블이 닫혀 있을 때 토글 버튼을 누르면 이 값을 기본값으로
   //    사용해서 리포트 모드로 연다(FloatingAgentBubble.tsx에서 처리).
   activeReportProjectId: string | null
+  // 등록 마법사(NewRequestPage)가 지금 몇 단계·어떤 필드를 작성 중인지.
+  // Agent가 "이 부분 어떻게 쓰면 좋을까?" 같은 질문을 받았을 때 검증 문항
+  // 설계와 헷갈리지 않고 실제 그 단계 필드에 맞는 문구를 제안하게 하려는
+  // 용도 — 리포트 모드의 activeReportProjectId와 동일한 패턴.
+  activeWizardStep: { stepKey: string; stepLabel: string; fieldsHint?: string } | null
   open: () => void
   close: () => void
   openForReport: (projectId: string) => void
   openWithSeed: (text: string, targetCustomer?: string) => void
   setActiveReportProjectId: (projectId: string | null) => void
+  setActiveWizardStep: (step: { stepKey: string; stepLabel: string; fieldsHint?: string } | null) => void
 }
 
 const AgentBubbleContext = createContext<AgentBubbleState | null>(null)
@@ -35,6 +41,7 @@ export function AgentBubbleProvider({ children }: { children: React.ReactNode })
   const [seedMessage, setSeedMessage] = useState<string | null>(null)
   const [seedTargetCustomer, setSeedTargetCustomer] = useState<string | null>(null)
   const [activeReportProjectId, setActiveReportProjectId] = useState<string | null>(null)
+  const [activeWizardStep, setActiveWizardStep] = useState<{ stepKey: string; stepLabel: string; fieldsHint?: string } | null>(null)
 
   const open = useCallback(() => setIsOpen(true), [])
   const close = useCallback(() => setIsOpen(false), [])
@@ -68,11 +75,13 @@ export function AgentBubbleProvider({ children }: { children: React.ReactNode })
         seedMessage,
         seedTargetCustomer,
         activeReportProjectId,
+        activeWizardStep,
         open,
         close,
         openForReport,
         openWithSeed,
         setActiveReportProjectId,
+        setActiveWizardStep,
       }}
     >
       {children}
