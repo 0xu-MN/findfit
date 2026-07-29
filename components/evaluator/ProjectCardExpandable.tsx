@@ -466,8 +466,17 @@ function ReviewFormPanel({
       .select('id, question_text, question_type, options, allow_multiple')
       .eq('project_id', projectId)
       .order('order_index')
-      .then(({ data }: { data: Question[] | null }) => {
-        setQuestions(data ?? [])
+      .then(({ data, error: fetchError }: { data: Question[] | null; error: { message: string } | null }) => {
+        // 이전엔 실패해도 조용히 []로 넘어가서, 질문이 하나도 안 뜨는데
+        // "제출하기"는 눌려서 빈 답변으로 서버에 요청이 갔다 — 서버는
+        // 휴대폰 인증부터 검사하므로 진짜 원인(질문 로딩 실패)과 무관한
+        // "휴대폰 인증" 에러만 보여서 완전히 다른 문제처럼 보였다.
+        if (fetchError) {
+          setError('질문을 불러오지 못했어요. 새로고침 후 다시 시도해주세요.')
+          setQuestions([])
+        } else {
+          setQuestions(data ?? [])
+        }
         setLoading(false)
       })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -495,6 +504,10 @@ function ReviewFormPanel({
 
   const handleSubmit = async () => {
     if (!questions) return
+    if (questions.length === 0) {
+      setError('질문을 불러오지 못했어요. 새로고침 후 다시 시도해주세요.')
+      return
+    }
 
     const unanswered = questions.find((q) => !answers[q.id]?.trim())
     if (unanswered) {
@@ -578,6 +591,12 @@ function ReviewFormPanel({
             </a>
           )}
         </div>
+      )}
+
+      {questions?.length === 0 && (
+        <p className="text-[11px] font-bold text-[#999] text-center py-4">
+          이 프로젝트에 등록된 질문이 없어요.
+        </p>
       )}
 
       {(questions ?? []).map((q, i) => (

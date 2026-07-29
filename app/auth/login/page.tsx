@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 
 import { createClient } from '@/lib/supabase/client'
 import SocialLoginButtons from '@/components/auth/SocialLoginButtons'
@@ -21,18 +21,26 @@ const NAVER_ERROR_MESSAGES: Record<string, string> = {
   account_blocked: '이용이 제한된 계정입니다. 고객센터로 문의해주세요.',
 }
 
+// useSearchParams()는 Next.js 프로덕션 빌드에서 Suspense 경계 없이 쓰면
+// 빌드 자체가 실패한다(로컬 dev 서버는 이 검사를 안 해서 멀쩡해 보였다) —
+// Vercel 배포가 조용히 실패하고 이전 빌드가 계속 서빙되던 원인이었다.
+// 이 훅만 별도 자식 컴포넌트로 분리해 Suspense로 감싼다.
+function NaverErrorBanner({ onError }: { onError: (message: string) => void }) {
+  const searchParams = useSearchParams()
+  useEffect(() => {
+    const errCode = searchParams.get('error')
+    if (errCode) onError(NAVER_ERROR_MESSAGES[errCode] ?? '로그인 중 문제가 발생했어요. 다시 시도해주세요.')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
+  return null
+}
+
 export default function LoginPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-
-  useEffect(() => {
-    const errCode = searchParams.get('error')
-    if (errCode) setError(NAVER_ERROR_MESSAGES[errCode] ?? '로그인 중 문제가 발생했어요. 다시 시도해주세요.')
-  }, [searchParams])
 
   const routeByRole = async (userId: string): Promise<string | null> => {
     const supabase = createClient()
@@ -72,6 +80,9 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center px-4">
+      <Suspense fallback={null}>
+        <NaverErrorBanner onError={setError} />
+      </Suspense>
       <div className="w-full max-w-sm flex flex-col gap-8">
         <div className="text-center">
           <img src="/logo.png" alt="FindFit" className="h-9 w-auto object-contain mx-auto" />
