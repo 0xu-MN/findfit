@@ -83,9 +83,38 @@ export async function generateAndSaveReport(projectId: string, supabase: any) {
     bucket[key] = a.answer_text
     byReviewer.set(rid, bucket)
   }
+  // 응답자 인구통계(성별/나이/직군) — 리포트가 "누가 답했는지"를 전혀
+  // 몰라서 성별/연령/직군별 패턴을 분석할 수 없었다. reviewer_id가
+  // 'anon'(질문 매칭 실패 등 예외 케이스)이면 조회 대상에서 제외.
+  const reviewerIds = Array.from(byReviewer.keys()).filter((id) => id !== 'anon')
+  const [{ data: reviewerUsers }, { data: reviewerProfiles }] = reviewerIds.length
+    ? await Promise.all([
+        supabase.from('users').select('id, gender, birth_date').in('id', reviewerIds),
+        supabase.from('reviewer_profiles').select('user_id, domain_tags').in('user_id', reviewerIds),
+      ])
+    : [{ data: [] }, { data: [] }]
+
+  const genderById = new Map<string, string | null>(
+    (reviewerUsers ?? []).map((u: { id: string; gender: string | null }) => [u.id, u.gender])
+  )
+  const ageById = new Map<string, number | null>(
+    (reviewerUsers ?? []).map((u: { id: string; birth_date: string | null }) => [
+      u.id,
+      u.birth_date ? Math.floor((Date.now() - new Date(u.birth_date).getTime()) / (365.25 * 86400000)) : null,
+    ])
+  )
+  const domainById = new Map<string, string[]>(
+    (reviewerProfiles ?? []).map((p: { user_id: string; domain_tags: string[] }) => [p.user_id, p.domain_tags])
+  )
+
   const reviews: Review[] = Array.from(byReviewer.entries()).map(([id, ans]) => ({
     id,
     answers: ans,
+    demographics: {
+      gender: genderById.get(id) ?? null,
+      age: ageById.get(id) ?? null,
+      jobDomain: domainById.get(id) ?? [],
+    },
   }))
 
   // 3) PSF 서브스코어 계산 (고정 문항 응답 집계)

@@ -28,6 +28,7 @@ export default function ProfileForm({
   const [originalPhone, setOriginalPhone] = useState('')
   const [phoneVerifiedAt, setPhoneVerifiedAt] = useState<string | null>(null)
   const [birthDate, setBirthDate] = useState('')
+  const [gender, setGender] = useState('')
 
   // 휴대폰 인증 흐름 상태 — 번호를 바꾸면 다시 인증해야 하므로 phone !==
   // originalPhone이면 phoneVerifiedAt이 있어도 미인증으로 취급한다.
@@ -44,7 +45,7 @@ export default function ProfileForm({
       if (!user) { setLoading(false); return }
       const { data } = await supabase
         .from('users')
-        .select('nickname, real_name, phone, phone_verified_at, birth_date')
+        .select('nickname, real_name, phone, phone_verified_at, birth_date, gender')
         .eq('id', user.id)
         .single()
       if (data) {
@@ -55,6 +56,7 @@ export default function ProfileForm({
         setOriginalPhone(data.phone ?? '')
         setPhoneVerifiedAt(data.phone_verified_at ?? null)
         setBirthDate(data.birth_date ?? '')
+        setGender(data.gender ?? '')
       }
       setLoading(false)
     })
@@ -169,6 +171,7 @@ export default function ProfileForm({
         nickname: nickname.trim(),
         real_name: realName.trim() || null,
         birth_date: birthDate || null,
+        gender: gender || null,
       })
 
     setSaving(false)
@@ -290,6 +293,28 @@ export default function ProfileForm({
         {underAge && (
           <span className="flex items-center gap-1 text-[10px] font-bold text-red-500"><X className="w-3 h-3" />만 19세 미만은 가입/이용이 제한돼요</span>
         )}
+      </Field>
+
+      {/* 성별 — 리뷰 리포트에서 응답자 인구통계(성별/나이/직군) 분석에
+          쓰인다. 소셜 로그인 사용자는 이 폼을 거치지 않고는 채울 방법이
+          없었어서 여기서도 수집한다. */}
+      <Field label="성별" hint="선택 · 리뷰 리포트의 응답자 분석에 사용돼요">
+        <div className="flex gap-2">
+          {[{ v: 'male', l: '남성' }, { v: 'female', l: '여성' }, { v: 'other', l: '응답 안 함' }].map((opt) => (
+            <button
+              key={opt.v}
+              type="button"
+              onClick={() => setGender(opt.v)}
+              className={`flex-1 h-11 rounded-xl border text-[12px] font-bold transition-colors ${
+                gender === opt.v
+                  ? 'border-[#F77019] bg-[#F77019]/8 text-[#F77019]'
+                  : 'border-[#1D1C1C]/12 text-[#666] hover:border-[#1D1C1C]/20'
+              }`}
+            >
+              {opt.l}
+            </button>
+          ))}
+        </div>
       </Field>
 
       {error && <p className="text-[11px] font-bold text-red-500 bg-red-50 px-3 py-2 rounded-xl text-center">{error}</p>}

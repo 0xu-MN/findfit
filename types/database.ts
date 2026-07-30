@@ -81,6 +81,7 @@ export interface Database {
           phone: string | null
           phone_verified_at: string | null
           birth_date: string | null
+          gender: string | null
           is_admin: boolean
           created_at: string
         }
@@ -97,6 +98,7 @@ export interface Database {
           phone?: string | null
           phone_verified_at?: string | null
           birth_date?: string | null
+          gender?: string | null
           is_admin?: boolean
           created_at?: string
         }
@@ -115,6 +117,7 @@ export interface Database {
           phone?: string | null
           phone_verified_at?: string | null
           birth_date?: string | null
+          gender?: string | null
           is_admin?: boolean
         }
 

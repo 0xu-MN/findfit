@@ -3,6 +3,10 @@ import { getReportModulesForStage } from './reportModules'
 export type Review = {
   id: string
   answers: Record<string, unknown>
+  // 응답자 인구통계 — 리포트가 "누가 이렇게 답했는지"를 전혀 몰라서 성별/
+  // 나이/직군별 패턴을 분석할 수 없었다(그런 데이터 자체가 파이프라인에
+  // 안 들어가고 있었음). 값이 없을 수 있는 필드라 있는 만큼만 사용.
+  demographics?: { gender?: string | null; age?: number | null; jobDomain?: string[] }
 }
 
 export type ProjectStage = 'idea' | 'prototype' | 'beta' | 'launched'
@@ -250,6 +254,26 @@ ${[...requiredQuestions, ...alreadyAdded].map(q => `- ${q.question_text}`).join(
 ]`
 }
 
+// 응답자 인구통계 요약 — 성별/나이/직군 중 있는 값만 한 줄로 정리한다.
+// 값이 아예 없는 응답자가 섞여 있어도(성별 미입력 등) 괜찮은 만큼만 쓴다.
+function buildDemographicsSummary(reviews: Review[]): string {
+  const lines = reviews
+    .map((r, i) => {
+      const d = r.demographics
+      if (!d || (!d.gender && d.age == null && !d.jobDomain?.length)) return null
+      const parts: string[] = []
+      if (d.gender) parts.push(d.gender === 'male' ? '남성' : d.gender === 'female' ? '여성' : d.gender)
+      if (d.age != null) parts.push(`${d.age}세`)
+      if (d.jobDomain?.length) parts.push(d.jobDomain.join('/'))
+      return `응답자${i + 1}: ${parts.join(', ')}`
+    })
+    .filter(Boolean)
+  if (lines.length === 0) return ''
+  return `\n[응답자 인구통계 — 있는 만큼만, 없는 응답자는 생략됨]\n${lines.join('\n')}\n` +
+    `이 정보로 성별/연령대/직군별 응답 패턴 차이가 뚜렷하게 보이면 언급하고,\n` +
+    `표본이 너무 적어 의미 없으면 억지로 분석하지 마세요.\n`
+}
+
 export function buildPrompt(reviews: Review[], project: ProjectForReport): string {
   if (project.project_type === 'light') return buildLightPrompt(reviews, project)
   if (project.project_type === 'deep') return buildDeepPrompt(reviews, project)
@@ -260,7 +284,7 @@ function buildLightPrompt(reviews: Review[], _project: ProjectForReport): string
   return `당신은 빠른 의사결정을 돕는 분석가입니다.
 [${reviews.length}건의 응답]
 ${JSON.stringify(reviews.map((r) => r.answers))}
-
+${buildDemographicsSummary(reviews)}
 [중요] Light 티어는 설계상 소수 응답(보통 2~5명)으로 빠른 방향성만 확인하는
 용도입니다. "표본이 적다", "통계적으로 유의하지 않다", "n=30 이상 추가로
 확보해야 한다" 같은 통계적 유의성 경고는 절대 넣지 마세요 — 이건 Light 티어의
@@ -299,7 +323,7 @@ function buildStandardPrompt(reviews: Review[], project: ProjectForReport): stri
 [문제] ${project.problem ?? ''}  [솔루션] ${project.solution ?? ''}
 [${reviews.length}건의 응답]
 ${JSON.stringify(reviews.map((r) => r.answers))}
-
+${buildDemographicsSummary(reviews)}
 [중요 — 아래 필드들에 대한 지침]
 1. recommendation을 먼저 스스로 판단하세요 ("continue"=계속 진행, "pivot"=방향 전환 검토,
    "stop"=재검토 필요). action_plan은 위 [현재 단계] 톤에 맞게 실제 프로젝트 내용을
@@ -369,7 +393,7 @@ function buildDeepPrompt(reviews: Review[], project: ProjectForReport): string {
 [체험 태스크] ${taskDesc}
 [${reviews.length}건의 체험 후 평가]
 ${JSON.stringify(reviews.map((r) => r.answers))}
-
+${buildDemographicsSummary(reviews)}
 아래 JSON 형식으로만 반환하세요:
 {
   "usability_score": 0~100,

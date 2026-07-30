@@ -20,6 +20,7 @@ export default function SignupPage() {
   const [realName, setRealName] = useState('')
   const [phone, setPhone] = useState('')
   const [birthDate, setBirthDate] = useState('')
+  const [gender, setGender] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -97,6 +98,7 @@ export default function SignupPage() {
         real_name: realName.trim() || null,
         phone: phone.trim() || null,
         birth_date: birthDate || null,
+        gender: gender || null,
       })
       .eq('id', data.user.id)
 
@@ -187,6 +189,27 @@ export default function SignupPage() {
             {underAge && (
               <span className="flex items-center gap-1 text-[10px] font-bold text-red-500"><X className="w-3 h-3" />만 19세 미만은 가입이 제한돼요</span>
             )}
+          </Field>
+
+          {/* 성별 — 리포트에서 응답자 인구통계(성별/나이/직군)를 분석하려면
+              이 값이 있어야 하는데 지금까지 아예 수집하지 않고 있었다. */}
+          <Field label="성별" hint="선택 · 리뷰 리포트의 응답자 분석에 사용돼요">
+            <div className="flex gap-2">
+              {[{ v: 'male', l: '남성' }, { v: 'female', l: '여성' }, { v: 'other', l: '응답 안 함' }].map((opt) => (
+                <button
+                  key={opt.v}
+                  type="button"
+                  onClick={() => setGender(opt.v)}
+                  className={`flex-1 h-11 rounded-xl border text-[12px] font-bold transition-colors ${
+                    gender === opt.v
+                      ? 'border-[#F77019] bg-[#F77019]/8 text-[#F77019]'
+                      : 'border-[#1D1C1C]/12 text-[#666] hover:border-[#1D1C1C]/20'
+                  }`}
+                >
+                  {opt.l}
+                </button>
+              ))}
+            </div>
           </Field>
 
           {/* 비밀번호 + 확인 */}
