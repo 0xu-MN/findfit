@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { Search, TrendingUp } from 'lucide-react'
+import { Search, TrendingUp, FileEdit } from 'lucide-react'
 import Step0Modal from '../builder/new-request/Step0Modal'
 import HappeningSection from '../shared/HappeningSection'
 import ReviewerBannerCarousel from '../shared/ReviewerBannerCarousel'
@@ -125,6 +125,18 @@ export default function CreatorHome() {
         <div className="w-full mt-2">
           <ReviewerBannerCarousel />
         </div>
+
+        {/* 이미 아이디어가 구체적인 사람을 위한 직행 경로 — 검색창의 "검증
+            시작"을 눌러도 Step0Modal을 한 번 더 거치게 돼 있어서, 바로
+            등록하고 싶은 사람에게는 그 한 단계가 불필요한 마찰이었다.
+            눈에 잘 띄도록 별도 버튼으로 분리(기존엔 CTA가 약하다는 피드백). */}
+        <button
+          onClick={() => router.push('/builder/new-request?skipIntro=1')}
+          className="flex items-center gap-2 h-11 px-6 rounded-2xl border-2 border-[#1D1C1C]/12 bg-white text-[#1D1C1C] text-[12px] font-black hover:border-[#F77019] hover:text-[#F77019] transition-colors"
+        >
+          <FileEdit className="w-4 h-4" />
+          이미 완성된 아이디어가 있어요 · 바로 등록하기
+        </button>
       </div>
 
       {/* ── 지금 FindFit에서 일어나고 있어요 (1번 전달 이미지 UI 반영) ── */}

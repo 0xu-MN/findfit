@@ -356,7 +356,12 @@ export default function AgentPanel({ isExpanded = false, reportProjectIdOverride
       setContext(updatedContext)
       setIsTyping(false)
     }, delay)
-  }, [isTyping, context, messages, reportProjectId])
+    // agentBubble.activeWizardStep이 deps에 없으면, 이 콜백이 다른 이유로
+    // 메모이즈된 채 그대로 재사용될 때 등록 마법사가 이미 다른 단계로
+    // 넘어가 있어도(또는 wizardStep이 막 채워졌어도) 예전 값(널 포함)을
+    // 계속 들고 있는 stale closure가 될 수 있었다 — 실제로 "지금 등록
+    // 중인 프로젝트 내용을 왜 모르냐"는 문제의 원인이었다.
+  }, [isTyping, context, messages, reportProjectId, agentBubble.activeWizardStep])
 
   const handleSend = useCallback(() => {
     const trimmed = input.trim()

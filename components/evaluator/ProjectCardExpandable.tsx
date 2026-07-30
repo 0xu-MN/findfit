@@ -152,15 +152,20 @@ export default function ProjectCardExpandable({ project, match, onApplied, onSub
         </div>
 
         <div className="flex items-center justify-between gap-4">
-          <div className="flex-1 flex flex-col gap-1">
-            <div className="flex items-center justify-between text-[9px] font-bold text-[#666]">
-              <span>참여 현황</span>
-              <span className="text-[#189DF7]">{project.occupied_count ?? project.completed_count}/{project.target_count}명</span>
+          {/* 지원 여부를 판단하는 단계(아직 안 지원했거나 승인 대기 중)에서만
+              "몇 명이 지원했는지/자리가 있는지"가 의미 있다 — 이미 승인돼서
+              참여가 확정된 사람에게는 이 지표가 더 이상 필요 없으므로 숨긴다. */}
+          {(status === 'available' || status === 'pending') && (
+            <div className="flex-1 flex flex-col gap-1">
+              <div className="flex items-center justify-between text-[9px] font-bold text-[#666]">
+                <span>참여 현황</span>
+                <span className="text-[#189DF7]">{project.occupied_count ?? project.completed_count}/{project.target_count}명</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-[#F5F5F5] overflow-hidden">
+                <div className="h-full rounded-full bg-[#189DF7] transition-all" style={{ width: `${occupiedPct}%` }} />
+              </div>
             </div>
-            <div className="h-1.5 rounded-full bg-[#F5F5F5] overflow-hidden">
-              <div className="h-full rounded-full bg-[#189DF7] transition-all" style={{ width: `${occupiedPct}%` }} />
-            </div>
-          </div>
+          )}
           {project.incentive_exists && reviewerNet > 0 ? (
             <div className="flex items-center gap-1 flex-shrink-0">
               <Coins className="w-3.5 h-3.5 text-[#F77019]" />

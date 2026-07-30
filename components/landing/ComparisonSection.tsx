@@ -127,11 +127,13 @@ export default function ComparisonSection({ progress }: ComparisonSectionProps) 
             </div>
           </div>
 
-          {/* 2-Column Layout */}
+          {/* 2-Column Layout — "함께" 쪽을 시각적으로 더 강조(약간 더 크게,
+              더 강한 글로우)하고 "없이" 쪽은 살짝 무채색/축소해서 대비를
+              줘 "이걸 써야만 한다"는 인상이 더 강하게 들도록 조정. */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 lg:gap-24 items-center">
-            
-            {/* Left Column — FIND FIT 없이 */}
-            <div className="flex flex-col items-center md:items-start text-center md:text-left">
+
+            {/* Left Column — FIND FIT 없이 (의도적으로 톤을 낮춤) */}
+            <div className="flex flex-col items-center md:items-start text-center md:text-left opacity-70 grayscale-[30%] md:scale-95">
               {/* Badge */}
               <div className="inline-flex items-center px-4 py-1.5 rounded-full border border-white/20 bg-[#141416]/90 backdrop-blur-md mb-4 shadow-md">
                 <span className="text-white/70 text-xs font-semibold tracking-wider">
@@ -170,8 +172,8 @@ export default function ComparisonSection({ progress }: ComparisonSectionProps) 
               </div>
             </div>
 
-            {/* Right Column — FIND FIT과 함께 */}
-            <div className="flex flex-col items-center md:items-start text-center md:text-left">
+            {/* Right Column — FIND FIT과 함께 (강조) */}
+            <div className="flex flex-col items-center md:items-start text-center md:text-left md:scale-105 relative">
               {/* Badge */}
               <div className="inline-flex items-center px-4 py-1.5 rounded-full border border-[#F77019]/60 bg-[#1A110B] backdrop-blur-md shadow-[0_0_15px_rgba(247,112,25,0.25)] mb-4">
                 <span className="text-[#F77019] text-xs font-bold tracking-wider">
@@ -180,9 +182,12 @@ export default function ComparisonSection({ progress }: ComparisonSectionProps) 
               </div>
 
               {/* Title */}
-              <h3 className="text-2xl md:text-3xl font-bold text-white tracking-tight mb-8">
+              <h3 className="text-2xl md:text-3xl font-black text-white tracking-tight mb-2">
                 빠르고, 객관적이고, 신뢰할 수 있는 검증
               </h3>
+              <p className="text-[13px] md:text-[14px] font-bold text-[#F77019] mb-6">
+                지금 이 방식이 아니면, 검증은 항상 반쪽짜리입니다.
+              </p>
 
               {/* List Cards */}
               <div className="w-full space-y-3.5">
@@ -191,7 +196,7 @@ export default function ComparisonSection({ progress }: ComparisonSectionProps) 
                   return (
                     <div
                       key={idx}
-                      className="flex items-center justify-between px-5 py-3.5 rounded-2xl bg-[#1A110B]/90 border border-[#F77019]/35 backdrop-blur-md shadow-[0_4px_20px_rgba(247,112,25,0.12)]"
+                      className="flex items-center justify-between px-5 py-3.5 rounded-2xl bg-[#1A110B]/90 border border-[#F77019]/50 backdrop-blur-md shadow-[0_4px_28px_rgba(247,112,25,0.22)]"
                     >
                       <div className="flex items-center gap-3.5">
                         <div className="w-9 h-9 rounded-xl bg-[#F77019]/20 border border-[#F77019]/40 flex items-center justify-center text-[#F77019] shrink-0">
@@ -225,11 +230,14 @@ export default function ComparisonSection({ progress }: ComparisonSectionProps) 
             <span className="text-[#F77019] text-xs font-extrabold uppercase tracking-[0.3em] mb-5 block">
               Why FindFit
             </span>
+            {/* span에 block이 붙어있어서 닫는 따옴표(&rdquo;)가 항상 그
+                줄 밑으로 밀려나 2줄이어야 할 문장이 3줄로 보였다 —
+                inline으로 바꿔 같은 줄에 자연스럽게 붙게 수정. */}
             <h2 className="text-2xl md:text-4xl lg:text-5xl font-black text-white leading-tight tracking-tight">
               &ldquo;FindFit 이전과 이후.<br />
-              <span className="mt-2 block bg-gradient-to-r from-[#F77019] via-[#FFA066] to-[#F77019] bg-clip-text text-transparent">
-                당신이 듣게 되는 목소리가 달라집니다
-              </span>&rdquo;
+              <span className="bg-gradient-to-r from-[#F77019] via-[#FFA066] to-[#F77019] bg-clip-text text-transparent">
+                당신이 듣게 되는 목소리가 달라집니다&rdquo;
+              </span>
             </h2>
           </div>
         </motion.div>
