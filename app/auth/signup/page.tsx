@@ -70,7 +70,16 @@ export default function SignupPage() {
     const supabase = createClient()
     const { data, error: signUpError } = await supabase.auth.signUp({ email, password })
     if (signUpError) {
-      setError(signUpError.message)
+      // check-availability는 public.users만 보는데, 이메일 확인 전
+      // 중간에 끊긴 가입 등으로 auth.users에는 있지만 public.users엔 없는
+      // 경우 "사용 가능"으로 잘못 통과시킬 수 있다 — 그 경우 여기서 원본
+      // Supabase 영문 에러("User already registered")가 그대로 노출돼
+      // 마치 회원가입 자체가 고장난 것처럼 보였다. 명확한 한글 메시지로.
+      setError(
+        signUpError.code === 'user_already_exists' || signUpError.message.toLowerCase().includes('already registered')
+          ? '이미 가입된 이메일이에요. 로그인을 이용해주세요.'
+          : signUpError.message
+      )
       setLoading(false)
       return
     }

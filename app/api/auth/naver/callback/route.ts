@@ -58,13 +58,19 @@ export async function GET(request: Request) {
 
   const admin = createAdminClient()
 
-  // 3) 유저 없으면 생성 (이미 있으면 "already registered" 에러 → 무시하고 계속)
+  // 3) 유저 없으면 생성 (이미 있으면 무시하고 계속 — 기존 계정으로 로그인)
+  // 실제 Supabase 에러 메시지는 "A user with this email address has
+  // already been registered"라서 "already registered"라는 문자열 그대로는
+  // 절대 안 나온다("already"와 "registered" 사이에 "been"이 껴 있음) —
+  // 이 부분 문자열 매칭이 항상 실패해서, 이미 가입된(=재로그인하는 거의
+  // 모든) 네이버 사용자가 매번 "계정 생성 실패"로 튕겨나가고 있었다.
+  // 문자열 대신 안정적인 에러 코드로 판별한다.
   const { error: createErr } = await admin.auth.admin.createUser({
     email: naverProfile.email,
     email_confirm: true,
     user_metadata: { provider: 'naver', naver_id: naverProfile.id },
   })
-  if (createErr && !createErr.message?.toLowerCase().includes('already registered')) {
+  if (createErr && createErr.code !== 'email_exists') {
     console.error('[naver callback] createUser failed', createErr)
     return NextResponse.redirect(`${origin}/auth/login?error=naver_create_failed`)
   }
