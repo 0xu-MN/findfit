@@ -1,0 +1,50 @@
+/* 관리자 패널 라이트/다크 토글용 시맨틱 클래스 — Tailwind 임의값
+   (bg-[#15171C] 등)을 이 클래스들로 교체하고, 여기서 [data-admin-theme]에
+   따라 실제 색을 정의한다. 기본(속성 없음/dark)은 지금까지의 다크 테마
+   그대로, light면 대비되는 밝은 색상으로 전환된다. */
+
+[data-admin-theme='dark'], :root:not([data-admin-theme]) {
+  --admin-page: #0F1115;
+  --admin-card: #15171C;
+  --admin-border: rgba(255, 255, 255, 0.05);
+  --admin-border-md: rgba(255, 255, 255, 0.10);
+  --admin-border-strong: rgba(255, 255, 255, 0.20);
+  --admin-chip: rgba(255, 255, 255, 0.05);
+  --admin-chip-hover: rgba(255, 255, 255, 0.10);
+  --admin-chip-strong: rgba(255, 255, 255, 0.20);
+  --admin-text: #ffffff;
+  --admin-text-dim: rgba(255, 255, 255, 0.40);
+  --admin-text-mid: rgba(255, 255, 255, 0.65);
+  --admin-text-strong: rgba(255, 255, 255, 0.85);
+}
+
+[data-admin-theme='light'] {
+  --admin-page: #FAFAFA;
+  --admin-card: #ffffff;
+  --admin-border: rgba(29, 28, 28, 0.08);
+  --admin-border-md: rgba(29, 28, 28, 0.12);
+  --admin-border-strong: rgba(29, 28, 28, 0.22);
+  --admin-chip: rgba(29, 28, 28, 0.05);
+  --admin-chip-hover: rgba(29, 28, 28, 0.08);
+  --admin-chip-strong: rgba(29, 28, 28, 0.15);
+  --admin-text: #1D1C1C;
+  --admin-text-dim: rgba(29, 28, 28, 0.45);
+  --admin-text-mid: rgba(29, 28, 28, 0.65);
+  --admin-text-strong: rgba(29, 28, 28, 0.85);
+}
+
+.admin-page { background-color: var(--admin-page); }
+.admin-card { background-color: var(--admin-card); }
+.admin-border { border-color: var(--admin-border); }
+.admin-border-md { border-color: var(--admin-border-md); }
+.admin-border-strong { border-color: var(--admin-border-strong); }
+.admin-chip { background-color: var(--admin-chip); }
+.admin-chip-strong { background-color: var(--admin-chip-strong); }
+.admin-text { color: var(--admin-text); }
+.admin-text-dim { color: var(--admin-text-dim); }
+.admin-text-mid { color: var(--admin-text-mid); }
+.admin-text-strong { color: var(--admin-text-strong); }
+.admin-hover-chip:hover { background-color: var(--admin-chip-hover); }
+.admin-hover-text:hover { color: var(--admin-text); }
+.admin-hover-text-mid:hover { color: var(--admin-text-mid); }
+.admin-focus-border:focus-within { border-color: var(--admin-border-strong); }

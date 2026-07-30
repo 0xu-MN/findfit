@@ -117,8 +117,8 @@ export default function AdminInsightsPage() {
 
   return (
     <div className="min-h-screen bg-transparent">
-      <header className="bg-[#15171C] border-b border-white/5 px-6 py-4 flex items-center gap-4">
-        <span className="text-[14px] font-black text-white">인사이트 관리</span>
+      <header className="admin-card border-b admin-border px-6 py-4 flex items-center gap-4">
+        <span className="text-[14px] font-black admin-text">인사이트 관리</span>
         <button
           onClick={resetForm}
           className="ml-auto flex items-center gap-1.5 text-[11px] font-black text-[#F77019] hover:underline"
@@ -130,35 +130,35 @@ export default function AdminInsightsPage() {
       <main className="max-w-[1500px] mx-auto px-6 py-8 grid grid-cols-[240px_1fr_1fr] gap-5 items-start">
         {/* 글 목록 */}
         <div className="flex flex-col gap-2">
-          <span className="text-[10px] font-black text-white/40 uppercase tracking-wider px-1">전체 글</span>
+          <span className="text-[10px] font-black admin-text-dim uppercase tracking-wider px-1">전체 글</span>
           {loading ? (
             <div className="flex justify-center py-16">
-              <Loader2 className="w-5 h-5 animate-spin text-white/40" />
+              <Loader2 className="w-5 h-5 animate-spin admin-text-dim" />
             </div>
           ) : posts.length === 0 ? (
-            <div className="bg-[#15171C] rounded-2xl border border-white/5 p-6 text-center">
-              <p className="text-[11px] font-bold text-white/40">작성된 글이 없습니다</p>
+            <div className="admin-card rounded-2xl border admin-border p-6 text-center">
+              <p className="text-[11px] font-bold admin-text-dim">작성된 글이 없습니다</p>
             </div>
           ) : (
             posts.map((p) => (
               <div
                 key={p.id}
                 onClick={() => startEdit(p)}
-                className={`bg-[#15171C] rounded-xl border p-3 flex flex-col gap-1 cursor-pointer transition-colors ${
-                  editingId === p.id ? 'border-[#F77019] bg-[#F77019]/5' : 'border-white/5 hover:border-white/15'
+                className={`admin-card rounded-xl border p-3 flex flex-col gap-1 cursor-pointer transition-colors ${
+                  editingId === p.id ? 'border-[#F77019] bg-[#F77019]/5' : 'admin-border hover:admin-border-md'
                 }`}
               >
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-white/5 text-white/60">
+                  <span className="text-[8px] font-black px-1.5 py-0.5 rounded admin-chip admin-text-mid">
                     {p.type === 'feed' ? '피드' : '뉴스룸'}
                   </span>
                   {!p.published && (
                     <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-red-50 text-red-500">비공개</span>
                   )}
                 </div>
-                <span className="text-[11px] font-black text-white line-clamp-1">{p.title}</span>
+                <span className="text-[11px] font-black admin-text line-clamp-1">{p.title}</span>
                 <div className="flex items-center justify-between">
-                  <span className="text-[9px] font-bold text-white/40">{new Date(p.created_at).toLocaleDateString('ko-KR')}</span>
+                  <span className="text-[9px] font-bold admin-text-dim">{new Date(p.created_at).toLocaleDateString('ko-KR')}</span>
                   <button
                     onClick={(e) => { e.stopPropagation(); handleDelete(p.id) }}
                     className="p-1 rounded text-[#CCC] hover:text-red-500"
@@ -172,21 +172,21 @@ export default function AdminInsightsPage() {
         </div>
 
         {/* 에디터 — 노션 스타일: 큰 제목/본문 블록 위주 */}
-        <div className="bg-[#15171C] rounded-3xl border border-white/5 p-6 flex flex-col gap-4">
+        <div className="admin-card rounded-3xl border admin-border p-6 flex flex-col gap-4">
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-black text-white flex items-center gap-1.5">
+            <span className="text-[11px] font-black admin-text flex items-center gap-1.5">
               <Pencil className="w-3.5 h-3.5" /> {editingId ? '글 수정' : '새 글 작성'}
             </span>
             <div className="flex items-center gap-2 ml-auto">
               <select
                 value={form.type}
                 onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as 'feed' | 'newsroom' }))}
-                className="text-[10px] font-bold border border-white/8 rounded-lg px-2 py-1.5"
+                className="text-[10px] font-bold border admin-border rounded-lg px-2 py-1.5"
               >
                 <option value="feed">피드</option>
                 <option value="newsroom">뉴스룸</option>
               </select>
-              <label className="flex items-center gap-1.5 text-[10px] font-bold text-white/60 cursor-pointer">
+              <label className="flex items-center gap-1.5 text-[10px] font-bold admin-text-mid cursor-pointer">
                 <input
                   type="checkbox"
                   checked={form.published}
@@ -202,7 +202,7 @@ export default function AdminInsightsPage() {
             value={form.title}
             onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
             placeholder="제목 없음"
-            className="w-full text-[22px] font-black text-white outline-none placeholder-[#DDD] border-b border-white/5 pb-3"
+            className="w-full text-[22px] font-black admin-text outline-none placeholder-[#DDD] border-b admin-border pb-3"
           />
 
           <div className="flex items-center gap-2">
@@ -210,25 +210,25 @@ export default function AdminInsightsPage() {
               value={form.category}
               onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
               placeholder="카테고리 (예: 트렌드)"
-              className="flex-1 text-[11px] font-bold border border-white/8 rounded-lg px-3 py-2"
+              className="flex-1 text-[11px] font-bold border admin-border rounded-lg px-3 py-2"
             />
             <input
               value={form.tag}
               onChange={(e) => setForm((f) => ({ ...f, tag: e.target.value }))}
               placeholder="태그 (예: NEW)"
-              className="flex-1 text-[11px] font-bold border border-white/8 rounded-lg px-3 py-2"
+              className="flex-1 text-[11px] font-bold border admin-border rounded-lg px-3 py-2"
             />
             <input
               value={form.author}
               onChange={(e) => setForm((f) => ({ ...f, author: e.target.value }))}
               placeholder="작성자"
-              className="flex-1 text-[11px] font-bold border border-white/8 rounded-lg px-3 py-2"
+              className="flex-1 text-[11px] font-bold border admin-border rounded-lg px-3 py-2"
             />
           </div>
 
           {/* 커버 이미지 — 파일 업로드(드래그앤드롭) + URL 직접입력 둘 다 지원 */}
           <div className="flex flex-col gap-1.5">
-            <span className="text-[9px] font-black text-white/40 uppercase tracking-wider">커버 이미지</span>
+            <span className="text-[9px] font-black admin-text-dim uppercase tracking-wider">커버 이미지</span>
             <div
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => {
@@ -237,17 +237,17 @@ export default function AdminInsightsPage() {
                 if (file) uploadCover(file)
               }}
               onClick={() => fileInputRef.current?.click()}
-              className="relative flex items-center gap-3 h-14 rounded-xl border border-dashed border-white/12 bg-transparent px-4 cursor-pointer hover:border-[#F77019] hover:bg-[#F77019]/5 transition-colors overflow-hidden"
+              className="relative flex items-center gap-3 h-14 rounded-xl border border-dashed admin-border-md bg-transparent px-4 cursor-pointer hover:border-[#F77019] hover:bg-[#F77019]/5 transition-colors overflow-hidden"
             >
               {form.cover_image_url && (
                 <img src={form.cover_image_url} alt="" className="w-9 h-9 rounded-lg object-cover flex-shrink-0" />
               )}
               {uploading ? (
-                <Loader2 className="w-4 h-4 text-white/40 animate-spin" />
+                <Loader2 className="w-4 h-4 admin-text-dim animate-spin" />
               ) : (
-                <ImagePlus className="w-4 h-4 text-white/40 flex-shrink-0" />
+                <ImagePlus className="w-4 h-4 admin-text-dim flex-shrink-0" />
               )}
-              <span className="text-[11px] font-bold text-white/60 flex-1 truncate">
+              <span className="text-[11px] font-bold admin-text-mid flex-1 truncate">
                 {form.cover_image_url ? form.cover_image_url : '클릭하거나 파일을 끌어다 놓으세요 (JPG·PNG·WEBP·GIF, 5MB 이하)'}
               </span>
               <input
@@ -262,7 +262,7 @@ export default function AdminInsightsPage() {
               value={form.cover_image_url}
               onChange={(e) => setForm((f) => ({ ...f, cover_image_url: e.target.value }))}
               placeholder="또는 이미지 URL을 직접 입력"
-              className="text-[10px] font-bold border border-white/8 rounded-lg px-3 py-1.5"
+              className="text-[10px] font-bold border admin-border rounded-lg px-3 py-1.5"
             />
             {uploadError && <span className="text-[9px] font-bold text-red-500">{uploadError}</span>}
           </div>
@@ -273,10 +273,10 @@ export default function AdminInsightsPage() {
             onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))}
             placeholder="본문을 입력하세요..."
             rows={14}
-            className="w-full text-[13px] leading-relaxed text-white outline-none resize-none placeholder-[#CCC]"
+            className="w-full text-[13px] leading-relaxed admin-text outline-none resize-none placeholder-[#CCC]"
           />
 
-          <div className="flex gap-2 pt-1 border-t border-white/5">
+          <div className="flex gap-2 pt-1 border-t admin-border">
             <button
               onClick={handleSave}
               disabled={saving}
@@ -288,7 +288,7 @@ export default function AdminInsightsPage() {
             {editingId && (
               <button
                 onClick={resetForm}
-                className="px-4 py-2.5 rounded-xl bg-white/5 text-white/60 text-[11px] font-black hover:bg-white/10 transition-colors mt-3"
+                className="px-4 py-2.5 rounded-xl admin-chip admin-text-mid text-[11px] font-black admin-hover-chip transition-colors mt-3"
               >
                 취소
               </button>
@@ -298,16 +298,16 @@ export default function AdminInsightsPage() {
 
         {/* 실시간 미리보기 — 실제 인사이트 상세 페이지와 동일한 모양으로 즉시 반영 */}
         <div className="sticky top-6 flex flex-col gap-2">
-          <span className="text-[10px] font-black text-white/40 uppercase tracking-wider px-1">실시간 미리보기</span>
-          <div className="rounded-3xl border border-white/5 bg-[#15171C] shadow-[0_4px_24px_rgba(0,0,0,0.03)] overflow-hidden">
+          <span className="text-[10px] font-black admin-text-dim uppercase tracking-wider px-1">실시간 미리보기</span>
+          <div className="rounded-3xl border admin-border admin-card shadow-[0_4px_24px_rgba(0,0,0,0.03)] overflow-hidden">
             <div className="flex flex-col gap-5 p-6">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-full flex items-center justify-center text-white font-black text-xs flex-shrink-0 bg-[#F77019]">
                   {form.author ? form.author[0] : <User className="w-4 h-4" />}
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <span className="text-[11px] font-black text-white truncate">{form.author || '작성자 없음'}</span>
-                  <span className="text-[9px] font-bold text-white/40">
+                  <span className="text-[11px] font-black admin-text truncate">{form.author || '작성자 없음'}</span>
+                  <span className="text-[9px] font-bold admin-text-dim">
                     {form.category || (form.type === 'newsroom' ? '뉴스룸' : '인사이트')}
                   </span>
                 </div>
@@ -318,7 +318,7 @@ export default function AdminInsightsPage() {
                 )}
               </div>
 
-              <h1 className="text-[18px] font-black text-white leading-snug break-words">
+              <h1 className="text-[18px] font-black admin-text leading-snug break-words">
                 {form.title || '제목 없음'}
               </h1>
 

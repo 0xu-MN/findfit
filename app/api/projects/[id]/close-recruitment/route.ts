@@ -49,14 +49,33 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     return NextResponse.json({ error: '모집 중인 프로젝트만 마감할 수 있습니다' }, { status: 400 })
   }
 
+  // force_early/proceed_short로 목표 미달인 채 마감하면, 실제로 리뷰를
+  // 진행할 인원은 target_count(원래 목표)보다 적다 — 그런데 target_count를
+  // 안 바꾸고 그대로 두면, 리뷰 제출 완료 체크(reviews/submit route의
+  // completed_count >= target_count)가 절대 만족되지 않아서 전원이 리뷰를
+  // 다 냈는데도 리포트가 영원히 자동 생성되지 않는 버그가 있었다 — 실제로
+  // 6명 모집에 5명만 수락된 채 조기 시작한 프로젝트가 이 상태로 멈춰있는
+  // 걸 확인했다. 실제 수락 인원 수로 target_count를 맞춰 내려준다.
+  let effectiveTarget = project.target_count
+  if (mode === 'force_early' || mode === 'proceed_short') {
+    const { count: acceptedCount } = await supabase
+      .from('project_matches')
+      .select('id', { count: 'exact', head: true })
+      .eq('project_id', id)
+      .in('status', ['accepted', 'completed'])
+    if (typeof acceptedCount === 'number' && acceptedCount < project.target_count) {
+      effectiveTarget = acceptedCount
+    }
+  }
+
   const reviewDeadline = new Date(Date.now() + reviewDays * 24 * 60 * 60 * 1000).toISOString()
   const { error } = await supabase
     .from('projects')
-    .update({ status: 'reviewing', review_deadline: reviewDeadline })
+    .update({ status: 'reviewing', review_deadline: reviewDeadline, target_count: effectiveTarget })
     .eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const shortfall = Math.max(0, project.target_count - project.completed_count)
+  const shortfall = Math.max(0, effectiveTarget - project.completed_count)
   return NextResponse.json({
     ok: true,
     mode,

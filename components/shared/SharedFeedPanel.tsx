@@ -1,9 +1,11 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Clock, Loader2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Bookmark, Clock, Loader2 } from 'lucide-react'
 import { useRightPanel } from './RightPanelContext'
 import InsightDetailView from './InsightDetailView'
+import InsightModalNav from './InsightModalNav'
 
 export type InsightPost = {
   id: string
@@ -62,6 +64,7 @@ interface Props {
 // 관리자만 작성 가능한 실제 DB 콘텐츠(insight_posts, /api/insights)로
 // 교체했다. 카드를 클릭하면 노트폴리오 스타일 상세 페이지로 이동한다.
 export default function SharedFeedPanel({ basePath }: Props) {
+  const router = useRouter()
   const [activeFilter, setActiveFilter] = useState('전체')
   const { isExpanded: ctxExpanded, hasProvider } = useRightPanel()
 
@@ -187,6 +190,12 @@ export default function SharedFeedPanel({ basePath }: Props) {
         <div className="flex-1 min-w-0 flex flex-col gap-5">
           <div className="flex items-center justify-between">
             <h2 className="text-[15px] font-black text-[#1D1C1C]">최신 인사이트</h2>
+            <button
+              onClick={() => router.push(`/${basePath}/feed/scraps`)}
+              className="flex items-center gap-1.5 text-[10px] font-black text-[#1565C0] hover:underline"
+            >
+              <Bookmark className="w-3.5 h-3.5" /> 스크랩한 글
+            </button>
           </div>
 
           {/* Filter tabs */}
@@ -270,6 +279,11 @@ export default function SharedFeedPanel({ basePath }: Props) {
           style={{ background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(4px)' }}
           onClick={() => setSelectedId(null)}
         >
+          <InsightModalNav
+            onClose={() => setSelectedId(null)}
+            onNext={selectedIndex < allPosts.length - 1 ? () => setSelectedId(allPosts[selectedIndex + 1].id) : undefined}
+            onPrev={selectedIndex > 0 ? () => setSelectedId(allPosts[selectedIndex - 1].id) : undefined}
+          />
           <div
             className="w-full max-w-[1080px] max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}

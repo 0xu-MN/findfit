@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowLeft, Bookmark, ChevronRight, Loader2, MessageSquare, Share2, ThumbsUp, X } from 'lucide-react'
+import { ArrowLeft, Bookmark, Loader2, MessageSquare, Share2, ThumbsUp } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -39,6 +39,19 @@ export default function InsightDetailView({ postId, basePath, onClose, onNext, o
   useEffect(() => {
     createClient().auth.getUser().then(({ data: { user } }) => setLoggedIn(Boolean(user)))
   }, [])
+
+  // 모달 모드에서 화살표 키로도 다음/이전 글, Esc로 닫기 — 화면 양 끝의
+  // 큰 버튼(ModalNavButtons)과 같은 동작을 키보드로도 쓸 수 있게.
+  useEffect(() => {
+    if (!onClose) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+      else if (e.key === 'ArrowRight' && onNext) onNext()
+      else if (e.key === 'ArrowLeft' && onPrev) onPrev()
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [onClose, onNext, onPrev])
 
   useEffect(() => {
     setLoading(true)
@@ -137,34 +150,20 @@ export default function InsightDetailView({ postId, basePath, onClose, onNext, o
 
   return (
     <div className="w-full max-w-[1080px] mx-auto py-8">
-      <div className="flex items-center justify-between mb-5">
-        <button
-          onClick={() => (onClose ? onClose() : router.back())}
-          className="flex items-center gap-1.5 text-[11px] font-black text-[#666] hover:text-[#1D1C1C] transition-colors"
-        >
-          {onClose ? <X className="w-3.5 h-3.5" /> : <ArrowLeft className="w-3.5 h-3.5" />}
-          {onClose ? '닫기' : '목록으로'}
-        </button>
-
-        {(onNext || onPrev) && (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onPrev}
-              disabled={!onPrev}
-              className="text-[11px] font-black text-[#666] hover:text-[#1D1C1C] disabled:opacity-30 disabled:hover:text-[#666] transition-colors"
-            >
-              이전 글
-            </button>
-            <button
-              onClick={onNext}
-              disabled={!onNext}
-              className="flex items-center gap-1 text-[11px] font-black text-[#F77019] hover:underline disabled:opacity-30 disabled:hover:no-underline transition-colors"
-            >
-              다음 글 <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
-      </div>
+      {/* 모달 모드(onClose 있음)에서는 이 작은 상단 바 대신, 화면 양 끝에
+          큰 버튼(ModalNavButtons, Agent 위젯 토글 버튼과 같은 톤)을 띄운다
+          — 예전엔 글 위에 작게 붙어있어서 안 보인다는 피드백이 있었다. */}
+      {!onClose && (
+        <div className="flex items-center justify-between mb-5">
+          <button
+            onClick={() => router.back()}
+            className="flex items-center gap-1.5 text-[11px] font-black text-[#666] hover:text-[#1D1C1C] transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            목록으로
+          </button>
+        </div>
+      )}
 
       <div className="rounded-[28px] border border-[#1D1C1C]/8 bg-white shadow-[0_8px_40px_rgba(0,0,0,0.05)] overflow-hidden flex flex-col md:flex-row">
         {/* 본문 컬럼 */}

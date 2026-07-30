@@ -5,40 +5,52 @@ import { redirect } from 'next/navigation'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = any
 
-const ACTIVITY_WINDOW_DAYS = 7
+// 세션/로그인 이벤트를 남기는 테이블이 따로 없어서 "지금 몇 명이 쓰고
+// 있나"를 완벽하게 실시간 측정할 수는 없다 — 대신 실제 행동(프로젝트
+// 등록/지원/제출)의 타임스탬프를 여러 창(5분/오늘/7일)으로 나눠서
+// 근사한다. 창이 좁을수록 "지금 활동 중"에 더 가깝다.
+const WINDOWS = [
+  { key: 'now', label: '지금(5분 이내)', ms: 5 * 60 * 1000 },
+  { key: 'today', label: '오늘', ms: 24 * 60 * 60 * 1000 },
+  { key: 'week', label: '최근 7일', ms: 7 * 24 * 60 * 60 * 1000 },
+] as const
 
-// "지금 몇 명이 쓰고 있나"를 측정할 세션/로그인 이벤트 테이블이 따로 없어서,
-// 최근 N일 내 실제 행동(프로젝트 등록/지원/제출)을 남긴 distinct 유저 수로
-// 근사한다 — role 컬럼은 계정당 1개로 고정이라 크리에이터/리뷰어 활동을
-// 겹치지 않고 명확하게 나눌 수 있다.
 async function getActivityStats() {
   const supabase: AnySupabase = createAdminClient()
-  const since = new Date(Date.now() - ACTIVITY_WINDOW_DAYS * 86400000).toISOString()
 
-  const [
-    { count: totalCreators },
-    { count: totalReviewers },
-    { data: activeProjectCreators },
-    { data: activeMatchReviewers },
-  ] = await Promise.all([
+  const [{ count: totalCreators }, { count: totalReviewers }] = await Promise.all([
     supabase.from('users').select('id', { count: 'exact', head: true }).eq('role', 'builder'),
     supabase.from('users').select('id', { count: 'exact', head: true }).eq('role', 'evaluator'),
-    supabase.from('projects').select('creator_id').gte('created_at', since),
-    supabase
-      .from('project_matches')
-      .select('reviewer_id')
-      .or(`applied_at.gte.${since},submitted_at.gte.${since}`),
   ])
 
-  const activeCreators = new Set((activeProjectCreators ?? []).map((r: { creator_id: string }) => r.creator_id)).size
-  const activeReviewers = new Set((activeMatchReviewers ?? []).map((r: { reviewer_id: string }) => r.reviewer_id)).size
+  // 가장 넓은 창(7일)만 조회해서 메모리에서 좁은 창을 다시 필터링 —
+  // 창마다 매번 쿼리 3번씩(총 9번) 날릴 필요 없이 1번으로 끝낸다.
+  const since7d = new Date(Date.now() - WINDOWS[2].ms).toISOString()
+  const [{ data: projectRows }, { data: matchRows }] = await Promise.all([
+    supabase.from('projects').select('creator_id, created_at').gte('created_at', since7d),
+    supabase.from('project_matches').select('reviewer_id, applied_at, submitted_at').or(`applied_at.gte.${since7d},submitted_at.gte.${since7d}`),
+  ])
 
-  return {
-    totalCreators: totalCreators ?? 0,
-    totalReviewers: totalReviewers ?? 0,
-    activeCreators,
-    activeReviewers,
-  }
+  const byWindow = WINDOWS.map((w) => {
+    const cutoff = Date.now() - w.ms
+    const creators = new Set(
+      (projectRows ?? [])
+        .filter((r: { created_at: string }) => new Date(r.created_at).getTime() >= cutoff)
+        .map((r: { creator_id: string }) => r.creator_id)
+    )
+    const reviewers = new Set(
+      (matchRows ?? [])
+        .filter((r: { applied_at: string | null; submitted_at: string | null }) => {
+          const a = r.applied_at ? new Date(r.applied_at).getTime() : 0
+          const s = r.submitted_at ? new Date(r.submitted_at).getTime() : 0
+          return a >= cutoff || s >= cutoff
+        })
+        .map((r: { reviewer_id: string }) => r.reviewer_id)
+    )
+    return { key: w.key, label: w.label, activeCreators: creators.size, activeReviewers: reviewers.size }
+  })
+
+  return { totalCreators: totalCreators ?? 0, totalReviewers: totalReviewers ?? 0, byWindow }
 }
 
 const DAILY_TREND_DAYS = 14
@@ -88,48 +100,100 @@ async function getDailyTrend() {
   })
 }
 
+// 프로젝트별 참여 세부현황 — "신청은 했는데 실제로 참여 안 하는 사람이
+// 있는지" 확인용. active/reviewing 상태 프로젝트만 대상으로, 매칭
+// status별 인원수를 함께 보여준다.
+type ProjectParticipation = {
+  id: string; title: string; status: string; targetCount: number
+  pending: number; accepted: number; completed: number; dropped: number; notYetSubmitted: number
+}
+
+async function getProjectParticipation(): Promise<ProjectParticipation[]> {
+  const supabase: AnySupabase = createAdminClient()
+  const { data: projects } = await supabase
+    .from('projects')
+    .select('id, title, status, target_count, completed_count, created_at')
+    .in('status', ['active', 'reviewing'])
+    .order('created_at', { ascending: false })
+    .limit(30)
+
+  if (!projects || projects.length === 0) return []
+
+  const ids = projects.map((p: { id: string }) => p.id)
+  const { data: matches } = await supabase
+    .from('project_matches')
+    .select('project_id, status')
+    .in('project_id', ids)
+
+  const byProject = new Map<string, { pending: number; accepted: number; completed: number; dropped: number }>()
+  for (const m of matches ?? []) {
+    const entry = byProject.get(m.project_id) ?? { pending: 0, accepted: 0, completed: 0, dropped: 0 }
+    if (m.status === 'pending') entry.pending += 1
+    else if (m.status === 'accepted') entry.accepted += 1
+    else if (m.status === 'completed') entry.completed += 1
+    else if (m.status === 'dropped') entry.dropped += 1
+    byProject.set(m.project_id, entry)
+  }
+
+  return projects.map((p: { id: string; title: string; status: string; target_count: number; completed_count: number }) => {
+    const counts = byProject.get(p.id) ?? { pending: 0, accepted: 0, completed: 0, dropped: 0 }
+    // "신청은 했는데 아직 리뷰 안 낸" 사람 — accepted인데 completed로 안
+    // 넘어간 매칭 수(= 수락됐지만 리뷰 미제출, 이탈 후보로 볼 수 있음)
+    const notYetSubmitted = counts.accepted
+    return { id: p.id, title: p.title, status: p.status, targetCount: p.target_count, ...counts, notYetSubmitted }
+  })
+}
+
 export default async function AdminStatsPage() {
   if (!(await checkAdmin())) redirect('/admin/login')
 
-  const [stats, dailyTrend] = await Promise.all([getActivityStats(), getDailyTrend()])
+  const [stats, dailyTrend, participation] = await Promise.all([
+    getActivityStats(),
+    getDailyTrend(),
+    getProjectParticipation(),
+  ])
 
   return (
     <div className="min-h-screen bg-transparent">
-      <main className="max-w-3xl mx-auto px-6 py-10 flex flex-col gap-8">
+      <main className="max-w-5xl mx-auto px-6 py-10 flex flex-col gap-8">
         <div>
-          <h1 className="text-2xl font-black text-white">활동 통계</h1>
-          <p className="text-[12px] font-bold text-white/40 mt-1">
-            최근 {ACTIVITY_WINDOW_DAYS}일 내 실제 활동(등록·지원·제출)이 있었던 유저 수 기준
+          <h1 className="text-2xl font-black admin-text">활동 통계</h1>
+          <p className="text-[12px] font-bold admin-text-dim mt-1">
+            세션 로그가 없어 실제 행동(등록·지원·제출) 시각 기준으로 근사한 활동 유저 수입니다
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <ActivityCard
-            title="크리에이터"
-            active={stats.activeCreators}
-            total={stats.totalCreators}
-            color="#F77019"
-          />
-          <ActivityCard
-            title="리뷰어"
-            active={stats.activeReviewers}
-            total={stats.totalReviewers}
-            color="#1565C0"
-          />
+        {/* 실시간/오늘/이번 주 활동 */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {stats.byWindow.map((w) => (
+            <div key={w.key} className="admin-card rounded-3xl border admin-border p-5 flex flex-col gap-3 shadow-[0_2px_12px_rgba(0,0,0,0.03)]">
+              <span className="text-[10px] font-black admin-text-dim uppercase tracking-wider">{w.label}</span>
+              <div className="flex items-center gap-4">
+                <div className="flex flex-col">
+                  <span className="text-2xl font-black text-[#F77019]">{w.activeCreators}</span>
+                  <span className="text-[9px] font-bold admin-text-dim">크리에이터 / 전체 {stats.totalCreators}명</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-2xl font-black text-[#189DF7]">{w.activeReviewers}</span>
+                  <span className="text-[9px] font-bold admin-text-dim">리뷰어 / 전체 {stats.totalReviewers}명</span>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
 
         <div>
-          <h2 className="text-lg font-black text-white">일별 유입·결제 추이</h2>
-          <p className="text-[11px] font-bold text-white/40 mt-1">
+          <h2 className="text-lg font-black admin-text">일별 유입·결제 추이</h2>
+          <p className="text-[11px] font-bold admin-text-dim mt-1">
             최근 {DAILY_TREND_DAYS}일 · 유입은 가입(신규 계정) 기준 근사치, 결제율은 그날 가입자 대비
             결제 성공 건수
           </p>
         </div>
 
-        <div className="bg-[#15171C] rounded-3xl border border-white/5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] overflow-x-auto">
+        <div className="admin-card rounded-3xl border admin-border shadow-[0_2px_12px_rgba(0,0,0,0.03)] overflow-x-auto">
           <table className="w-full text-[11px]">
             <thead>
-              <tr className="border-b border-white/5 text-white/40 font-bold">
+              <tr className="border-b admin-border admin-text-dim font-bold">
                 <th className="text-left px-4 py-2.5">날짜</th>
                 <th className="text-right px-4 py-2.5">신규 가입</th>
                 <th className="text-right px-4 py-2.5">결제 시도</th>
@@ -139,18 +203,59 @@ export default async function AdminStatsPage() {
             </thead>
             <tbody>
               {dailyTrend.map((row) => (
-                <tr key={row.day} className="border-b border-white/5 last:border-0">
-                  <td className="px-4 py-2 font-bold text-white">{row.day}</td>
+                <tr key={row.day} className="border-b admin-border last:border-0">
+                  <td className="px-4 py-2 font-bold admin-text">{row.day}</td>
                   <td className="px-4 py-2 text-right font-black">{row.signups}</td>
-                  <td className="px-4 py-2 text-right text-white/60">{row.paymentAttempts}</td>
+                  <td className="px-4 py-2 text-right admin-text-mid">{row.paymentAttempts}</td>
                   <td className="px-4 py-2 text-right text-[#2E7D32] font-black">{row.paymentSuccess}</td>
-                  <td className="px-4 py-2 text-right font-bold text-white/40">
+                  <td className="px-4 py-2 text-right font-bold admin-text-dim">
                     {row.conversionPct === null ? '—' : `${row.conversionPct}%`}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* 프로젝트별 참여 세부현황 */}
+        <div>
+          <h2 className="text-lg font-black admin-text">진행 중 프로젝트 참여 세부현황</h2>
+          <p className="text-[11px] font-bold admin-text-dim mt-1">
+            수락됐지만 아직 리뷰를 제출하지 않은 인원(이탈 후보)을 함께 보여줍니다
+          </p>
+        </div>
+
+        <div className="admin-card rounded-3xl border admin-border shadow-[0_2px_12px_rgba(0,0,0,0.03)] overflow-x-auto">
+          {participation.length === 0 ? (
+            <p className="text-[11px] font-bold admin-text-dim text-center py-8">진행 중인 프로젝트가 없습니다</p>
+          ) : (
+            <table className="w-full text-[11px]">
+              <thead>
+                <tr className="border-b admin-border admin-text-dim font-bold">
+                  <th className="text-left px-4 py-2.5">프로젝트</th>
+                  <th className="text-right px-4 py-2.5">목표</th>
+                  <th className="text-right px-4 py-2.5">대기</th>
+                  <th className="text-right px-4 py-2.5">수락(미제출)</th>
+                  <th className="text-right px-4 py-2.5">완료</th>
+                  <th className="text-right px-4 py-2.5">이탈</th>
+                </tr>
+              </thead>
+              <tbody>
+                {participation.map((p) => (
+                  <tr key={p.id} className="border-b admin-border last:border-0">
+                    <td className="px-4 py-2 font-bold admin-text truncate max-w-[240px]">{p.title}</td>
+                    <td className="px-4 py-2 text-right admin-text-mid">{p.targetCount}</td>
+                    <td className="px-4 py-2 text-right admin-text-mid">{p.pending}</td>
+                    <td className="px-4 py-2 text-right font-black" style={{ color: p.notYetSubmitted > 0 ? '#F77019' : undefined }}>
+                      {p.notYetSubmitted}
+                    </td>
+                    <td className="px-4 py-2 text-right text-[#2E7D32] font-black">{p.completed}</td>
+                    <td className="px-4 py-2 text-right admin-text-dim">{p.dropped}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
 
         <div className="rounded-2xl bg-[#1565C0]/5 border border-[#1565C0]/15 p-4">
@@ -160,27 +265,6 @@ export default async function AdminStatsPage() {
           </p>
         </div>
       </main>
-    </div>
-  )
-}
-
-function ActivityCard({
-  title, active, total, color,
-}: {
-  title: string; active: number; total: number; color: string
-}) {
-  const pct = total > 0 ? Math.round((active / total) * 100) : 0
-  return (
-    <div className="bg-[#15171C] rounded-3xl border border-white/5 p-5 flex flex-col gap-3 shadow-[0_2px_12px_rgba(0,0,0,0.03)]">
-      <span className="text-[10px] font-black text-white/40 uppercase tracking-wider">{title}</span>
-      <div className="flex items-baseline gap-1.5">
-        <span className="text-3xl font-black" style={{ color }}>{active}</span>
-        <span className="text-[11px] font-bold text-white/40">/ 전체 {total}명</span>
-      </div>
-      <div className="w-full h-1.5 rounded-full bg-white/5 overflow-hidden">
-        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
-      </div>
-      <span className="text-[9px] font-bold text-white/40">최근 활동 비율 {pct}%</span>
     </div>
   )
 }

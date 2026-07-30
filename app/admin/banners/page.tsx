@@ -170,8 +170,8 @@ export default function AdminBannersPage() {
 
   return (
     <div className="min-h-screen bg-transparent">
-      <header className="bg-[#15171C] border-b border-white/5 px-6 py-4 flex items-center gap-4">
-        <span className="text-[14px] font-black text-white">배너 광고 관리</span>
+      <header className="admin-card border-b admin-border px-6 py-4 flex items-center gap-4">
+        <span className="text-[14px] font-black admin-text">배너 광고 관리</span>
         <button
           onClick={resetForm}
           className="ml-auto flex items-center gap-1.5 text-[11px] font-black text-[#F77019] hover:underline"
@@ -186,14 +186,14 @@ export default function AdminBannersPage() {
           {([['creator_home', '크리에이터 홈', creatorBanners], ['reviewer_dashboard', '리뷰어 대시보드', reviewerBanners]] as const).map(
             ([placement, label, list]) => (
               <div key={label} className="flex flex-col gap-2">
-                <span className="text-[10px] font-black text-white/40 uppercase tracking-wider px-1">{label} — 드래그로 순서 변경</span>
+                <span className="text-[10px] font-black admin-text-dim uppercase tracking-wider px-1">{label} — 드래그로 순서 변경</span>
                 {loading ? (
                   <div className="flex justify-center py-8">
-                    <Loader2 className="w-5 h-5 animate-spin text-white/40" />
+                    <Loader2 className="w-5 h-5 animate-spin admin-text-dim" />
                   </div>
                 ) : list.length === 0 ? (
-                  <div className="bg-[#15171C] rounded-2xl border border-white/5 p-6 text-center">
-                    <p className="text-[11px] font-bold text-white/40">등록된 배너가 없습니다</p>
+                  <div className="admin-card rounded-2xl border admin-border p-6 text-center">
+                    <p className="text-[11px] font-bold admin-text-dim">등록된 배너가 없습니다</p>
                   </div>
                 ) : (
                   list.map((b) => (
@@ -205,20 +205,20 @@ export default function AdminBannersPage() {
                       onDrop={(e) => { e.preventDefault(); if (dragId && dragId !== b.id) reorder(placement, dragId, b.id); setDragId(null) }}
                       onClick={() => startEdit(b)}
                       className={`rounded-2xl border p-4 flex items-center gap-3 cursor-pointer transition-colors overflow-hidden relative ${
-                        editingId === b.id ? 'border-[#F77019]' : 'border-white/5 hover:border-white/15'
+                        editingId === b.id ? 'border-[#F77019]' : 'admin-border hover:admin-border-md'
                       }`}
                       style={{ background: b.image_url ? undefined : b.bg_gradient }}
                     >
                       {b.image_url && (
                         <img src={b.image_url} alt="" className="absolute inset-0 w-full h-full object-cover opacity-40" />
                       )}
-                      <span className="relative z-10 text-white/60 cursor-grab active:cursor-grabbing flex-shrink-0">
+                      <span className="relative z-10 admin-text-mid cursor-grab active:cursor-grabbing flex-shrink-0">
                         <GripVertical className="w-4 h-4" />
                       </span>
                       <div className="relative z-10 flex flex-col gap-1 min-w-0 flex-1 text-white">
                         <div className="flex items-center gap-2">
                           {b.badge && (
-                            <span className="text-[8px] font-black px-1.5 py-0.5 rounded-full bg-white/20">{b.badge}</span>
+                            <span className="text-[8px] font-black px-1.5 py-0.5 rounded-full admin-chip-strong">{b.badge}</span>
                           )}
                           {!b.active && (
                             <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-red-500/80">비활성</span>
@@ -227,10 +227,10 @@ export default function AdminBannersPage() {
                         <span className="text-[12px] font-black line-clamp-1">{b.title}</span>
                       </div>
                       <div className="relative z-10 flex items-center gap-1 flex-shrink-0">
-                        <button onClick={(e) => { e.stopPropagation(); startEdit(b) }} className="p-2 rounded-lg text-white/80 hover:bg-white/15">
+                        <button onClick={(e) => { e.stopPropagation(); startEdit(b) }} className="p-2 rounded-lg admin-text-strong admin-hover-chip">
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={(e) => { e.stopPropagation(); handleDelete(b.id) }} className="p-2 rounded-lg text-white/80 hover:bg-red-500/80">
+                        <button onClick={(e) => { e.stopPropagation(); handleDelete(b.id) }} className="p-2 rounded-lg admin-text-strong hover:bg-red-500/80">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
@@ -246,7 +246,7 @@ export default function AdminBannersPage() {
         <div className="flex flex-col gap-4 sticky top-6">
           {/* 실제 배너처럼 보이는 실시간 미리보기 */}
           <div className="flex flex-col gap-1.5">
-            <span className="text-[9px] font-black text-white/40 uppercase tracking-wider px-1">미리보기</span>
+            <span className="text-[9px] font-black admin-text-dim uppercase tracking-wider px-1">미리보기</span>
             <div
               className="relative rounded-3xl overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.08)] min-h-[180px] p-6 flex flex-col justify-center text-white"
               style={{ background: form.image_url ? undefined : form.bg_gradient }}
@@ -255,14 +255,14 @@ export default function AdminBannersPage() {
               <div className="absolute inset-0 bg-black/25" />
               <div className="relative z-10 flex flex-col items-start gap-2">
                 {form.badge && (
-                  <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-white border border-white/30">
+                  <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full admin-chip-strong backdrop-blur-md text-white border admin-border-strong">
                     {form.badge}
                   </span>
                 )}
                 <h2 className="text-xl font-black leading-tight break-keep">{form.title || '배너 제목'}</h2>
-                {form.subtitle && <p className="text-xs font-medium text-white/80 break-keep">{form.subtitle}</p>}
+                {form.subtitle && <p className="text-xs font-medium admin-text-strong break-keep">{form.subtitle}</p>}
                 {form.button_text && (
-                  <button className="mt-1 px-4 py-2 rounded-full bg-[#15171C] text-[#1565C0] text-[11px] font-black shadow-md">
+                  <button className="mt-1 px-4 py-2 rounded-full admin-card text-[#1565C0] text-[11px] font-black shadow-md">
                     {form.button_text}
                   </button>
                 )}
@@ -270,13 +270,13 @@ export default function AdminBannersPage() {
             </div>
           </div>
 
-          <div className="bg-[#15171C] rounded-3xl border border-white/5 p-5 flex flex-col gap-3">
-            <span className="text-[12px] font-black text-white">{editingId ? '배너 수정' : '새 배너 작성'}</span>
+          <div className="admin-card rounded-3xl border admin-border p-5 flex flex-col gap-3">
+            <span className="text-[12px] font-black admin-text">{editingId ? '배너 수정' : '새 배너 작성'}</span>
 
             <select
               value={form.placement}
               onChange={(e) => setForm((f) => ({ ...f, placement: e.target.value as 'creator_home' | 'reviewer_dashboard' }))}
-              className="text-[11px] font-bold border border-white/8 rounded-lg px-3 py-2"
+              className="text-[11px] font-bold border admin-border rounded-lg px-3 py-2"
             >
               <option value="creator_home">크리에이터 홈</option>
               <option value="reviewer_dashboard">리뷰어 대시보드</option>
@@ -285,47 +285,47 @@ export default function AdminBannersPage() {
               value={form.badge}
               onChange={(e) => setForm((f) => ({ ...f, badge: e.target.value }))}
               placeholder="상단 배지 문구 (예: NEW 서비스)"
-              className="text-[11px] font-bold border border-white/8 rounded-lg px-3 py-2"
+              className="text-[11px] font-bold border admin-border rounded-lg px-3 py-2"
             />
             <input
               value={form.title}
               onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
               placeholder="제목"
-              className="text-[11px] font-bold border border-white/8 rounded-lg px-3 py-2"
+              className="text-[11px] font-bold border admin-border rounded-lg px-3 py-2"
             />
             <textarea
               value={form.subtitle}
               onChange={(e) => setForm((f) => ({ ...f, subtitle: e.target.value }))}
               placeholder="부제목"
               rows={2}
-              className="text-[11px] font-bold border border-white/8 rounded-lg px-3 py-2 resize-none"
+              className="text-[11px] font-bold border admin-border rounded-lg px-3 py-2 resize-none"
             />
             <div className="flex gap-2">
               <input
                 value={form.button_text}
                 onChange={(e) => setForm((f) => ({ ...f, button_text: e.target.value }))}
                 placeholder="버튼 문구"
-                className="flex-1 text-[11px] font-bold border border-white/8 rounded-lg px-3 py-2"
+                className="flex-1 text-[11px] font-bold border admin-border rounded-lg px-3 py-2"
               />
               <input
                 value={form.button_link}
                 onChange={(e) => setForm((f) => ({ ...f, button_link: e.target.value }))}
                 placeholder="버튼 클릭 시 이동 경로 (예: /builder/new-request)"
-                className="flex-1 text-[11px] font-bold border border-white/8 rounded-lg px-3 py-2"
+                className="flex-1 text-[11px] font-bold border admin-border rounded-lg px-3 py-2"
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <span className="text-[9px] font-black text-white/40 uppercase tracking-wider">배경 이미지 (선택 — 없으면 그라디언트 사용)</span>
+              <span className="text-[9px] font-black admin-text-dim uppercase tracking-wider">배경 이미지 (선택 — 없으면 그라디언트 사용)</span>
               <div
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) uploadImage(f) }}
                 onClick={() => fileInputRef.current?.click()}
-                className="relative flex items-center gap-3 h-12 rounded-xl border border-dashed border-white/12 bg-transparent px-4 cursor-pointer hover:border-[#F77019] hover:bg-[#F77019]/5 transition-colors overflow-hidden"
+                className="relative flex items-center gap-3 h-12 rounded-xl border border-dashed admin-border-md bg-transparent px-4 cursor-pointer hover:border-[#F77019] hover:bg-[#F77019]/5 transition-colors overflow-hidden"
               >
                 {form.image_url && <img src={form.image_url} alt="" className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />}
-                {uploading ? <Loader2 className="w-4 h-4 text-white/40 animate-spin" /> : <ImagePlus className="w-4 h-4 text-white/40 flex-shrink-0" />}
-                <span className="text-[10px] font-bold text-white/60 flex-1 truncate">
+                {uploading ? <Loader2 className="w-4 h-4 admin-text-dim animate-spin" /> : <ImagePlus className="w-4 h-4 admin-text-dim flex-shrink-0" />}
+                <span className="text-[10px] font-bold admin-text-mid flex-1 truncate">
                   {form.image_url || '클릭하거나 파일을 끌어다 놓으세요'}
                 </span>
                 <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadImage(f) }} />
@@ -335,7 +335,7 @@ export default function AdminBannersPage() {
 
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between">
-                <span className="text-[9px] font-black text-white/40 uppercase tracking-wider">배경 색상</span>
+                <span className="text-[9px] font-black admin-text-dim uppercase tracking-wider">배경 색상</span>
                 <button
                   type="button"
                   onClick={() => setCustomGradient((v) => !v)}
@@ -349,7 +349,7 @@ export default function AdminBannersPage() {
                   value={form.bg_gradient}
                   onChange={(e) => setForm((f) => ({ ...f, bg_gradient: e.target.value }))}
                   placeholder="linear-gradient(...) 형식의 CSS 값"
-                  className="text-[10px] font-mono border border-white/8 rounded-lg px-3 py-2"
+                  className="text-[10px] font-mono border admin-border rounded-lg px-3 py-2"
                 />
               ) : (
                 <div className="grid grid-cols-4 gap-2">
@@ -364,7 +364,7 @@ export default function AdminBannersPage() {
                       style={{ background: preset.value }}
                       title={preset.label}
                     >
-                      <span className="text-[7px] font-black text-white/90">{preset.label}</span>
+                      <span className="text-[7px] font-black admin-text-strong">{preset.label}</span>
                     </button>
                   ))}
                 </div>
@@ -372,11 +372,11 @@ export default function AdminBannersPage() {
             </div>
 
             <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2 text-[11px] font-bold text-white/60">
-                <input type="number" value={form.display_order} onChange={(e) => setForm((f) => ({ ...f, display_order: Number(e.target.value) || 0 }))} className="w-16 border border-white/8 rounded-lg px-2 py-1.5 text-[11px]" />
+              <label className="flex items-center gap-2 text-[11px] font-bold admin-text-mid">
+                <input type="number" value={form.display_order} onChange={(e) => setForm((f) => ({ ...f, display_order: Number(e.target.value) || 0 }))} className="w-16 border admin-border rounded-lg px-2 py-1.5 text-[11px]" />
                 순서(숫자로 직접 지정도 가능)
               </label>
-              <label className="flex items-center gap-2 text-[11px] font-bold text-white/60">
+              <label className="flex items-center gap-2 text-[11px] font-bold admin-text-mid">
                 <input type="checkbox" checked={form.active} onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))} />
                 활성화
               </label>
@@ -392,7 +392,7 @@ export default function AdminBannersPage() {
                 {editingId ? '수정 저장' : '작성'}
               </button>
               {editingId && (
-                <button onClick={resetForm} className="px-4 py-2.5 rounded-xl bg-white/5 text-white/60 text-[11px] font-black hover:bg-white/10 transition-colors">
+                <button onClick={resetForm} className="px-4 py-2.5 rounded-xl admin-chip admin-text-mid text-[11px] font-black admin-hover-chip transition-colors">
                   취소
                 </button>
               )}

@@ -108,14 +108,14 @@ export default async function AdminDashboardPage() {
     : 'conic-gradient(#333 0deg 360deg)'
 
   return (
-    <div className="min-h-screen text-white">
+    <div className="min-h-screen admin-text">
       {/* 사이드바는 app/admin/layout.tsx가 모든 /admin/* 페이지에 공통으로
           씌워준다 — 예전엔 이 페이지만 따로 사이드바를 그려서, 대시보드는
           새 디자인인데 나머지 페이지는 옛날 흰 배경 그대로인 불일치가 있었다. */}
       <main className="px-8 py-8 flex flex-col gap-6 max-w-[1200px]">
         <div>
           <h1 className="text-xl font-black">대시보드</h1>
-          <p className="text-[12px] font-bold text-white/40 mt-1">운영 현황을 한눈에 확인하세요</p>
+          <p className="text-[12px] font-bold admin-text-dim mt-1">운영 현황을 한눈에 확인하세요</p>
         </div>
 
         {/* KPI 카드 */}
@@ -130,15 +130,20 @@ export default async function AdminDashboardPage() {
           <KpiCard label="전체 크리에이터" value={stats.totalCreators} color="#F77019" />
           <KpiCard label="전체 리뷰어" value={stats.totalReviewers} color="#189DF7" />
           <KpiCard label={`최근 ${TREND_DAYS}일 결제 전환율`} value={`${paymentConversionPct}%`} color="#8B5CF6" />
-          <KpiCard label="누적 결제액(원)" value={stats.totalRevenue.toLocaleString()} color="#2E7D32" />
+          <KpiCard
+            label="누적 결제액(원)"
+            value={stats.totalRevenue.toLocaleString()}
+            color="#2E7D32"
+            hint="실제 등록/리포트 이용료 금액 합계 — PortOne 미연동으로 전부 waived_test(테스트 승인) 처리 중"
+          />
         </div>
 
         {/* 차트 영역 */}
         <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-4">
           {/* 일별 신규가입 막대그래프 */}
-          <div className="bg-[#15171C] rounded-3xl border border-white/5 p-6 flex flex-col gap-4">
+          <div className="admin-card rounded-3xl border admin-border p-6 flex flex-col gap-4">
             <div className="flex items-center justify-between">
-              <span className="text-[12px] font-black text-white/80">최근 {TREND_DAYS}일 신규가입 추이</span>
+              <span className="text-[12px] font-black admin-text-strong">최근 {TREND_DAYS}일 신규가입 추이</span>
               <Link href="/admin/stats" className="text-[10px] font-bold text-[#F77019] hover:underline">자세히 →</Link>
             </div>
             <div className="flex items-end justify-between gap-2 h-36">
@@ -150,18 +155,18 @@ export default async function AdminDashboardPage() {
                       style={{ height: `${Math.max(4, (d.count / maxSignup) * 100)}%` }}
                     />
                   </div>
-                  <span className="text-[9px] font-bold text-white/40">{d.day.slice(5)}</span>
-                  <span className="text-[10px] font-black text-white/70">{d.count}</span>
+                  <span className="text-[9px] font-bold admin-text-dim">{d.day.slice(5)}</span>
+                  <span className="text-[10px] font-black admin-text-mid">{d.count}</span>
                 </div>
               ))}
             </div>
           </div>
 
           {/* 분야별 프로젝트 분포 도넛 */}
-          <div className="bg-[#15171C] rounded-3xl border border-white/5 p-6 flex flex-col gap-4">
-            <span className="text-[12px] font-black text-white/80">분야별 프로젝트 분포</span>
+          <div className="admin-card rounded-3xl border admin-border p-6 flex flex-col gap-4">
+            <span className="text-[12px] font-black admin-text-strong">분야별 프로젝트 분포</span>
             {stats.categoryBreakdown.length === 0 ? (
-              <p className="text-[11px] font-bold text-white/30 py-8 text-center">아직 데이터가 없어요</p>
+              <p className="text-[11px] font-bold admin-text-dim py-8 text-center">아직 데이터가 없어요</p>
             ) : (
               <div className="flex items-center gap-5">
                 <div
@@ -172,8 +177,8 @@ export default async function AdminDashboardPage() {
                   {stats.categoryBreakdown.map((c) => (
                     <div key={c.name} className="flex items-center gap-2 text-[10px] font-bold">
                       <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: c.color }} />
-                      <span className="text-white/70 truncate">{c.name}</span>
-                      <span className="text-white/40 ml-auto">{c.count}</span>
+                      <span className="admin-text-mid truncate">{c.name}</span>
+                      <span className="admin-text-dim ml-auto">{c.count}</span>
                     </div>
                   ))}
                 </div>
@@ -184,7 +189,7 @@ export default async function AdminDashboardPage() {
 
         {/* 바로가기 */}
         <div>
-          <span className="text-[12px] font-black text-white/80">바로가기</span>
+          <span className="text-[12px] font-black admin-text-strong">바로가기</span>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-3">
             <NavCard href="/admin/applications" title="지원자 관리" desc="수락 · 거절 처리" count={stats.pendingApplications} color="#189DF7" />
             <NavCard href="/admin/distributions" title="정산 관리" desc="사례금 지급 완료 처리" count={stats.pendingDistributions} color="#F77019" />
@@ -199,14 +204,19 @@ export default async function AdminDashboardPage() {
   )
 }
 
-function KpiCard({ label, value, color, urgent }: { label: string; value: number | string; color: string; urgent?: boolean }) {
+function KpiCard({
+  label, value, color, urgent, hint,
+}: {
+  label: string; value: number | string; color: string; urgent?: boolean; hint?: string
+}) {
   return (
-    <div className="bg-[#15171C] rounded-2xl border border-white/5 p-5 flex flex-col gap-2">
+    <div className="admin-card rounded-2xl border admin-border p-5 flex flex-col gap-2" title={hint}>
       <div className="flex items-center justify-between">
-        <span className="text-[9px] font-black text-white/40 uppercase tracking-wider">{label}</span>
+        <span className="text-[9px] font-black admin-text-dim uppercase tracking-wider">{label}</span>
         {urgent && <span className="text-[8px] font-black text-white px-1.5 py-0.5 rounded-full" style={{ background: color }}>처리 필요</span>}
       </div>
       <span className="text-2xl font-black" style={{ color }}>{value}</span>
+      {hint && <span className="text-[8px] font-bold admin-text-dim leading-snug">{hint}</span>}
     </div>
   )
 }
@@ -219,12 +229,12 @@ function NavCard({
   return (
     <Link
       href={href}
-      className="bg-[#15171C] rounded-2xl border border-white/5 p-5 flex flex-col gap-3 hover:border-white/15 transition-colors group"
+      className="admin-card rounded-2xl border admin-border p-5 flex flex-col gap-3 hover:admin-border-md transition-colors group"
     >
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-[13px] font-black text-white/90">{title}</p>
-          <p className="text-[11px] font-bold text-white/40 mt-0.5">{desc}</p>
+          <p className="text-[13px] font-black admin-text-strong">{title}</p>
+          <p className="text-[11px] font-bold admin-text-dim mt-0.5">{desc}</p>
         </div>
         {count > 0 && (
           <span className="text-[11px] font-black text-white px-2 py-0.5 rounded-full" style={{ background: color }}>

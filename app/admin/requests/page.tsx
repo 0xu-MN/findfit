@@ -89,8 +89,8 @@ export default function AdminRequestsPage() {
 
   return (
     <div className="min-h-screen bg-transparent">
-      <header className="bg-[#15171C] border-b border-white/5 px-6 py-4 flex items-center gap-4">
-        <span className="text-[14px] font-black text-white">프로젝트 검수</span>
+      <header className="admin-card border-b admin-border px-6 py-4 flex items-center gap-4">
+        <span className="text-[14px] font-black admin-text">프로젝트 검수</span>
         {pendingCount > 0 && (
           <span className="text-[10px] font-black text-white bg-[#1565C0] px-2 py-0.5 rounded-full">
             {pendingCount}
@@ -106,7 +106,7 @@ export default function AdminRequestsPage() {
           </p>
         </div>
 
-        <div className="flex gap-1 bg-[#15171C] border border-white/5 rounded-2xl p-1 w-fit shadow-sm">
+        <div className="flex gap-1 admin-card border admin-border rounded-2xl p-1 w-fit shadow-sm">
           {TABS.map((t) => {
             const count = t.key === 'all' ? projects.length : projects.filter((p) => p.status === t.key).length
             return (
@@ -114,7 +114,7 @@ export default function AdminRequestsPage() {
                 key={t.key}
                 onClick={() => setTab(t.key)}
                 className={`px-4 py-2 rounded-xl text-[11px] font-black transition-all ${
-                  tab === t.key ? 'bg-[#1D1C1C] text-white shadow-sm' : 'text-white/40 hover:text-white'
+                  tab === t.key ? 'bg-[#1D1C1C] text-white shadow-sm' : 'admin-text-dim admin-hover-text'
                 }`}
               >
                 {t.label} {count > 0 && `(${count})`}
@@ -125,11 +125,11 @@ export default function AdminRequestsPage() {
 
         {loading ? (
           <div className="flex justify-center py-16">
-            <Loader2 className="w-5 h-5 animate-spin text-white/40" />
+            <Loader2 className="w-5 h-5 animate-spin admin-text-dim" />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="bg-[#15171C] rounded-3xl border border-white/5 p-12 text-center">
-            <p className="text-[12px] font-bold text-white/40">해당 상태의 프로젝트가 없습니다</p>
+          <div className="admin-card rounded-3xl border admin-border p-12 text-center">
+            <p className="text-[12px] font-bold admin-text-dim">해당 상태의 프로젝트가 없습니다</p>
           </div>
         ) : (
           <div className="flex flex-col gap-3">
@@ -139,27 +139,27 @@ export default function AdminRequestsPage() {
               return (
                 <div
                   key={p.id}
-                  className="bg-[#15171C] rounded-3xl border border-white/5 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col gap-3"
+                  className="admin-card rounded-3xl border admin-border p-5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col gap-3"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-[12px] font-black text-white">{p.title}</span>
+                        <span className="text-[12px] font-black admin-text">{p.title}</span>
                         <span
                           className="text-[9px] font-black px-2 py-0.5 rounded-full text-white"
                           style={{ background: cfg.color }}
                         >
                           {cfg.label}
                         </span>
-                        <span className="text-[9px] font-bold bg-white/5 text-white/60 px-1.5 py-0.5 rounded">
+                        <span className="text-[9px] font-bold admin-chip admin-text-mid px-1.5 py-0.5 rounded">
                           {p.project_type}
                         </span>
                       </div>
-                      <span className="text-[11px] font-bold text-white/60">
+                      <span className="text-[11px] font-bold admin-text-mid">
                         {p.one_liner ?? '—'} · {p.completed_count}/{p.target_count}명 · {p.access_method}
                       </span>
                     </div>
-                    <span className="text-[10px] font-bold text-white/40 shrink-0">{relativeDate(p.created_at)}</span>
+                    <span className="text-[10px] font-bold admin-text-dim shrink-0">{relativeDate(p.created_at)}</span>
                   </div>
 
                   {p.status === 'pending_review' && (
@@ -175,7 +175,7 @@ export default function AdminRequestsPage() {
                       <button
                         onClick={() => handleReject(p.id)}
                         disabled={isProcessing}
-                        className="flex-1 py-2.5 rounded-xl bg-white/5 text-white/60 text-[11px] font-black hover:bg-white/10 transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5"
+                        className="flex-1 py-2.5 rounded-xl admin-chip admin-text-mid text-[11px] font-black admin-hover-chip transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5"
                       >
                         {isProcessing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
                         반려
@@ -186,7 +186,7 @@ export default function AdminRequestsPage() {
                     <button
                       onClick={() => handleReject(p.id)}
                       disabled={isProcessing}
-                      className="self-start text-[10px] font-bold text-white/40 hover:text-[#EF4444] transition-colors flex items-center gap-1"
+                      className="self-start text-[10px] font-bold admin-text-dim hover:text-[#EF4444] transition-colors flex items-center gap-1"
                     >
                       <Clock className="w-3 h-3" /> 이 프로젝트 반려(노출 중단)
                     </button>
