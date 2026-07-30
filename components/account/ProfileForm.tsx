@@ -300,7 +300,7 @@ export default function ProfileForm({
           없었어서 여기서도 수집한다. */}
       <Field label="성별" hint="선택 · 리뷰 리포트의 응답자 분석에 사용돼요">
         <div className="flex gap-2">
-          {[{ v: 'male', l: '남성' }, { v: 'female', l: '여성' }, { v: 'other', l: '응답 안 함' }].map((opt) => (
+          {[{ v: 'male', l: '남성' }, { v: 'female', l: '여성' }].map((opt) => (
             <button
               key={opt.v}
               type="button"

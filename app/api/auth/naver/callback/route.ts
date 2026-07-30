@@ -96,6 +96,16 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/auth/login?error=naver_session_failed`)
   }
 
+  // handle_new_user 트리거가 auth.users insert에 맞춰 public.users row를
+  // 만들어주는 게 정상이지만, admin.auth.admin.createUser()로 생성한
+  // 계정은 이 트리거가 안정적으로 안 타는 경우가 실제로 확인됐다(auth.users는
+  // 있는데 public.users가 없어서, 그 다음 단계인 휴대폰 인증이 외래키
+  // 위반으로 전부 실패했다) — 여기서 직접 upsert해 없으면 만들어 방어한다.
+  await admin.from('users').upsert(
+    { id: verifyData.user.id, email: naverProfile.email },
+    { onConflict: 'id', ignoreDuplicates: true }
+  )
+
   cookieStore.delete('naver_oauth_state')
 
   // 이후 라우팅 규칙은 구글/카카오 콜백과 동일
