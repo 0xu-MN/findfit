@@ -1,8 +1,8 @@
 export default function AdminReportsPage() {
   return (
     <div className="p-8">
-      <h1 className="text-2xl font-bold">어드민 리포트 관리</h1>
-      <p className="text-gray-500 mt-2">준비 중입니다.</p>
+      <h1 className="text-2xl font-bold text-white">어드민 리포트 관리</h1>
+      <p className="text-white/40 mt-2">준비 중입니다.</p>
     </div>
   )
 }

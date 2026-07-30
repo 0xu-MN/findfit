@@ -2,10 +2,6 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { checkAdmin } from '@/lib/auth/checkAdmin'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import {
-  Users, FileText, Wallet, CheckSquare, Newspaper, Image as ImageIcon,
-  BarChart3, LogOut, LayoutDashboard,
-} from 'lucide-react'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = any
@@ -88,17 +84,6 @@ async function getAdminStats() {
   }
 }
 
-const NAV_ITEMS = [
-  { href: '/admin', label: '대시보드', icon: LayoutDashboard },
-  { href: '/admin/requests', label: '프로젝트 검수', icon: FileText },
-  { href: '/admin/applications', label: '지원자 관리', icon: CheckSquare },
-  { href: '/admin/distributions', label: '정산 관리', icon: Wallet },
-  { href: '/admin/evaluators', label: '유저 관리', icon: Users },
-  { href: '/admin/insights', label: '인사이트 관리', icon: Newspaper },
-  { href: '/admin/banners', label: '배너 광고 관리', icon: ImageIcon },
-  { href: '/admin/stats', label: '활동 통계', icon: BarChart3 },
-]
-
 export default async function AdminDashboardPage() {
   if (!(await checkAdmin())) redirect('/admin/login')
 
@@ -123,41 +108,11 @@ export default async function AdminDashboardPage() {
     : 'conic-gradient(#333 0deg 360deg)'
 
   return (
-    <div className="min-h-screen bg-[#0F1115] text-white flex">
-      {/* ── 좌측 사이드바 ── */}
-      <aside className="w-56 flex-shrink-0 bg-[#15171C] border-r border-white/5 px-4 py-6 flex flex-col gap-6 min-h-screen">
-        <div className="flex items-center gap-2 px-2">
-          <span className="text-lg font-black">FindFit</span>
-          <span className="text-[9px] font-black text-white bg-white/10 px-2 py-0.5 rounded">운영 패널</span>
-        </div>
-        <nav className="flex flex-col gap-1">
-          {NAV_ITEMS.map((item) => {
-            const active = item.href === '/admin'
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[12px] font-bold transition-colors ${
-                  active ? 'bg-[#F77019]/15 text-[#F77019]' : 'text-white/60 hover:bg-white/5 hover:text-white'
-                }`}
-              >
-                <item.icon className="w-4 h-4" />
-                {item.label}
-              </Link>
-            )
-          })}
-        </nav>
-        <Link
-          href="/admin/login"
-          className="mt-auto flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[12px] font-bold text-white/40 hover:bg-white/5 hover:text-white/70 transition-colors"
-        >
-          <LogOut className="w-4 h-4" />
-          로그아웃
-        </Link>
-      </aside>
-
-      {/* ── 메인 콘텐츠 ── */}
-      <main className="flex-1 px-8 py-8 flex flex-col gap-6 max-w-[1200px]">
+    <div className="min-h-screen text-white">
+      {/* 사이드바는 app/admin/layout.tsx가 모든 /admin/* 페이지에 공통으로
+          씌워준다 — 예전엔 이 페이지만 따로 사이드바를 그려서, 대시보드는
+          새 디자인인데 나머지 페이지는 옛날 흰 배경 그대로인 불일치가 있었다. */}
+      <main className="px-8 py-8 flex flex-col gap-6 max-w-[1200px]">
         <div>
           <h1 className="text-xl font-black">대시보드</h1>
           <p className="text-[12px] font-bold text-white/40 mt-1">운영 현황을 한눈에 확인하세요</p>

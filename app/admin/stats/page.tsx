@@ -94,11 +94,11 @@ export default async function AdminStatsPage() {
   const [stats, dailyTrend] = await Promise.all([getActivityStats(), getDailyTrend()])
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA]">
+    <div className="min-h-screen bg-transparent">
       <main className="max-w-3xl mx-auto px-6 py-10 flex flex-col gap-8">
         <div>
-          <h1 className="text-2xl font-black text-[#1D1C1C]">활동 통계</h1>
-          <p className="text-[12px] font-bold text-[#999] mt-1">
+          <h1 className="text-2xl font-black text-white">활동 통계</h1>
+          <p className="text-[12px] font-bold text-white/40 mt-1">
             최근 {ACTIVITY_WINDOW_DAYS}일 내 실제 활동(등록·지원·제출)이 있었던 유저 수 기준
           </p>
         </div>
@@ -119,17 +119,17 @@ export default async function AdminStatsPage() {
         </div>
 
         <div>
-          <h2 className="text-lg font-black text-[#1D1C1C]">일별 유입·결제 추이</h2>
-          <p className="text-[11px] font-bold text-[#999] mt-1">
+          <h2 className="text-lg font-black text-white">일별 유입·결제 추이</h2>
+          <p className="text-[11px] font-bold text-white/40 mt-1">
             최근 {DAILY_TREND_DAYS}일 · 유입은 가입(신규 계정) 기준 근사치, 결제율은 그날 가입자 대비
             결제 성공 건수
           </p>
         </div>
 
-        <div className="bg-white rounded-3xl border border-[#1D1C1C]/8 shadow-[0_2px_12px_rgba(0,0,0,0.03)] overflow-x-auto">
+        <div className="bg-[#15171C] rounded-3xl border border-white/5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] overflow-x-auto">
           <table className="w-full text-[11px]">
             <thead>
-              <tr className="border-b border-[#1D1C1C]/8 text-[#999] font-bold">
+              <tr className="border-b border-white/5 text-white/40 font-bold">
                 <th className="text-left px-4 py-2.5">날짜</th>
                 <th className="text-right px-4 py-2.5">신규 가입</th>
                 <th className="text-right px-4 py-2.5">결제 시도</th>
@@ -139,12 +139,12 @@ export default async function AdminStatsPage() {
             </thead>
             <tbody>
               {dailyTrend.map((row) => (
-                <tr key={row.day} className="border-b border-[#1D1C1C]/5 last:border-0">
-                  <td className="px-4 py-2 font-bold text-[#1D1C1C]">{row.day}</td>
+                <tr key={row.day} className="border-b border-white/5 last:border-0">
+                  <td className="px-4 py-2 font-bold text-white">{row.day}</td>
                   <td className="px-4 py-2 text-right font-black">{row.signups}</td>
-                  <td className="px-4 py-2 text-right text-[#666]">{row.paymentAttempts}</td>
+                  <td className="px-4 py-2 text-right text-white/60">{row.paymentAttempts}</td>
                   <td className="px-4 py-2 text-right text-[#2E7D32] font-black">{row.paymentSuccess}</td>
-                  <td className="px-4 py-2 text-right font-bold text-[#999]">
+                  <td className="px-4 py-2 text-right font-bold text-white/40">
                     {row.conversionPct === null ? '—' : `${row.conversionPct}%`}
                   </td>
                 </tr>
@@ -171,16 +171,16 @@ function ActivityCard({
 }) {
   const pct = total > 0 ? Math.round((active / total) * 100) : 0
   return (
-    <div className="bg-white rounded-3xl border border-[#1D1C1C]/8 p-5 flex flex-col gap-3 shadow-[0_2px_12px_rgba(0,0,0,0.03)]">
-      <span className="text-[10px] font-black text-[#999] uppercase tracking-wider">{title}</span>
+    <div className="bg-[#15171C] rounded-3xl border border-white/5 p-5 flex flex-col gap-3 shadow-[0_2px_12px_rgba(0,0,0,0.03)]">
+      <span className="text-[10px] font-black text-white/40 uppercase tracking-wider">{title}</span>
       <div className="flex items-baseline gap-1.5">
         <span className="text-3xl font-black" style={{ color }}>{active}</span>
-        <span className="text-[11px] font-bold text-[#999]">/ 전체 {total}명</span>
+        <span className="text-[11px] font-bold text-white/40">/ 전체 {total}명</span>
       </div>
-      <div className="w-full h-1.5 rounded-full bg-[#F5F5F5] overflow-hidden">
+      <div className="w-full h-1.5 rounded-full bg-white/5 overflow-hidden">
         <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
       </div>
-      <span className="text-[9px] font-bold text-[#999]">최근 활동 비율 {pct}%</span>
+      <span className="text-[9px] font-bold text-white/40">최근 활동 비율 {pct}%</span>
     </div>
   )
 }

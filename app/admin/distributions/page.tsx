@@ -66,12 +66,9 @@ export default function AdminDistributionsPage() {
     .reduce((sum, d) => sum + (d.net_amount ?? d.amount), 0)
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA]">
-      <header className="bg-white border-b border-[#1D1C1C]/8 px-6 py-4 flex items-center gap-4">
-        <a href="/admin" className="text-[11px] font-black text-[#999] hover:text-[#1D1C1C] transition-colors">
-          ← 대시보드
-        </a>
-        <span className="text-[14px] font-black text-[#1D1C1C]">정산 관리</span>
+    <div className="min-h-screen bg-transparent">
+      <header className="bg-[#15171C] border-b border-white/5 px-6 py-4 flex items-center gap-4">
+        <span className="text-[14px] font-black text-white">정산 관리</span>
         {pendingCount > 0 && (
           <span className="text-[10px] font-black text-white bg-[#F77019] px-2 py-0.5 rounded-full">
             {pendingCount}
@@ -85,14 +82,14 @@ export default function AdminDistributionsPage() {
           <div className="bg-[#F77019]/5 border border-[#F77019]/20 rounded-2xl px-5 py-4 flex items-center justify-between">
             <div>
               <p className="text-[11px] font-black text-[#F77019]">정산 대기 총액</p>
-              <p className="text-xl font-black text-[#1D1C1C] mt-0.5">{fmt(totalPendingAmount)}원</p>
+              <p className="text-xl font-black text-white mt-0.5">{fmt(totalPendingAmount)}원</p>
             </div>
-            <p className="text-[10px] font-bold text-[#999]">인터넷뱅킹에서 직접 이체 후<br/>정산 완료 처리 해주세요</p>
+            <p className="text-[10px] font-bold text-white/40">인터넷뱅킹에서 직접 이체 후<br/>정산 완료 처리 해주세요</p>
           </div>
         )}
 
         {/* 탭 */}
-        <div className="flex gap-1 bg-white border border-[#1D1C1C]/8 rounded-2xl p-1 w-fit shadow-sm">
+        <div className="flex gap-1 bg-[#15171C] border border-white/5 rounded-2xl p-1 w-fit shadow-sm">
           {(['pending', 'completed'] as const).map((t) => {
             const count = distributions.filter((d) =>
               t === 'completed' ? d.status === 'completed' : d.status !== 'completed'
@@ -104,7 +101,7 @@ export default function AdminDistributionsPage() {
                 className={`px-4 py-2 rounded-xl text-[11px] font-black transition-all ${
                   tab === t
                     ? 'bg-[#1D1C1C] text-white shadow-sm'
-                    : 'text-[#999] hover:text-[#1D1C1C]'
+                    : 'text-white/40 hover:text-white'
                 }`}
               >
                 {t === 'pending' ? '대기 중' : '완료'} {count > 0 && `(${count})`}
@@ -116,11 +113,11 @@ export default function AdminDistributionsPage() {
         {/* 목록 */}
         {loading ? (
           <div className="flex justify-center py-16">
-            <Loader2 className="w-5 h-5 animate-spin text-[#999]" />
+            <Loader2 className="w-5 h-5 animate-spin text-white/40" />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="bg-white rounded-3xl border border-[#1D1C1C]/8 p-12 text-center">
-            <p className="text-[12px] font-bold text-[#999]">
+          <div className="bg-[#15171C] rounded-3xl border border-white/5 p-12 text-center">
+            <p className="text-[12px] font-bold text-white/40">
               {tab === 'pending' ? '정산 대기 건이 없습니다' : '완료된 정산이 없습니다'}
             </p>
           </div>
@@ -133,15 +130,15 @@ export default function AdminDistributionsPage() {
               return (
                 <div
                   key={dist.id}
-                  className="bg-white rounded-3xl border border-[#1D1C1C]/8 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex items-center gap-4"
+                  className="bg-[#15171C] rounded-3xl border border-white/5 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex items-center gap-4"
                 >
                   <div className="flex-1 flex flex-col gap-1.5">
                     <div className="flex items-center gap-2">
-                      <span className="text-[13px] font-black text-[#1D1C1C]">
+                      <span className="text-[13px] font-black text-white">
                         {fmt(net)}원
                       </span>
                       {dist.withholding_tax && dist.withholding_tax > 0 && (
-                        <span className="text-[9px] font-bold text-[#999] bg-[#F5F5F5] px-1.5 py-0.5 rounded">
+                        <span className="text-[9px] font-bold text-white/40 bg-white/5 px-1.5 py-0.5 rounded">
                           원천징수 {fmt(dist.withholding_tax)}원 차감
                         </span>
                       )}
@@ -151,7 +148,7 @@ export default function AdminDistributionsPage() {
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-2 text-[10px] font-bold text-[#999]">
+                    <div className="flex items-center gap-2 text-[10px] font-bold text-white/40">
                       <span>프로젝트: {dist.projects?.title ?? '—'}</span>
                       <span>·</span>
                       <span>{isDone ? `지급일: ${relativeDate(dist.paid_at)}` : `생성: ${relativeDate(dist.created_at)}`}</span>

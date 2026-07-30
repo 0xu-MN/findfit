@@ -88,13 +88,10 @@ export default function AdminUsersPage() {
   const suspendedCount = users.filter((u) => u.status === 'suspended').length
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA]">
-      <header className="bg-white border-b border-[#1D1C1C]/8 px-6 py-4 flex items-center gap-4">
-        <a href="/admin" className="text-[11px] font-black text-[#999] hover:text-[#1D1C1C] transition-colors">
-          ← 대시보드
-        </a>
-        <span className="text-[14px] font-black text-[#1D1C1C]">유저 관리</span>
-        <span className="text-[10px] font-bold text-[#999]">
+    <div className="min-h-screen bg-transparent">
+      <header className="bg-[#15171C] border-b border-white/5 px-6 py-4 flex items-center gap-4">
+        <span className="text-[14px] font-black text-white">유저 관리</span>
+        <span className="text-[10px] font-bold text-white/40">
           활성 {activeCount}명 {suspendedCount > 0 && `· 정지 ${suspendedCount}명`}
         </span>
       </header>
@@ -102,8 +99,8 @@ export default function AdminUsersPage() {
       <main className="max-w-5xl mx-auto px-6 py-8 flex flex-col gap-6">
         {/* 검색 + 필터 */}
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center bg-white border border-[#1D1C1C]/10 rounded-xl px-3 py-2 w-72 shadow-sm focus-within:border-[#1D1C1C]/30 transition-colors">
-            <Search className="w-4 h-4 text-[#999] mr-2" />
+          <div className="flex items-center bg-[#15171C] border border-white/8 rounded-xl px-3 py-2 w-72 shadow-sm focus-within:border-white/20 transition-colors">
+            <Search className="w-4 h-4 text-white/40 mr-2" />
             <input
               type="text"
               value={query}
@@ -113,13 +110,13 @@ export default function AdminUsersPage() {
             />
           </div>
 
-          <div className="flex gap-1 bg-white border border-[#1D1C1C]/8 rounded-xl p-1 shadow-sm">
+          <div className="flex gap-1 bg-[#15171C] border border-white/5 rounded-xl p-1 shadow-sm">
             {(['all', 'builder', 'evaluator'] as const).map((r) => (
               <button
                 key={r}
                 onClick={() => setRoleFilter(r)}
                 className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${
-                  roleFilter === r ? 'bg-[#1D1C1C] text-white' : 'text-[#999] hover:text-[#1D1C1C]'
+                  roleFilter === r ? 'bg-[#1D1C1C] text-white' : 'text-white/40 hover:text-white'
                 }`}
               >
                 {r === 'all' ? '전체 역할' : ROLE_LABEL[r].label}
@@ -127,13 +124,13 @@ export default function AdminUsersPage() {
             ))}
           </div>
 
-          <div className="flex gap-1 bg-white border border-[#1D1C1C]/8 rounded-xl p-1 shadow-sm">
+          <div className="flex gap-1 bg-[#15171C] border border-white/5 rounded-xl p-1 shadow-sm">
             {(['all', 'active', 'suspended', 'withdrawn'] as const).map((s) => (
               <button
                 key={s}
                 onClick={() => setStatusFilter(s)}
                 className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${
-                  statusFilter === s ? 'bg-[#1D1C1C] text-white' : 'text-[#999] hover:text-[#1D1C1C]'
+                  statusFilter === s ? 'bg-[#1D1C1C] text-white' : 'text-white/40 hover:text-white'
                 }`}
               >
                 {s === 'all' ? '전체 상태' : STATUS_LABEL[s].label}
@@ -145,17 +142,17 @@ export default function AdminUsersPage() {
         {/* 목록 */}
         {loading ? (
           <div className="flex justify-center py-16">
-            <Loader2 className="w-5 h-5 animate-spin text-[#999]" />
+            <Loader2 className="w-5 h-5 animate-spin text-white/40" />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="bg-white rounded-3xl border border-[#1D1C1C]/8 p-12 text-center">
-            <p className="text-[12px] font-bold text-[#999]">조건에 맞는 유저가 없습니다</p>
+          <div className="bg-[#15171C] rounded-3xl border border-white/5 p-12 text-center">
+            <p className="text-[12px] font-bold text-white/40">조건에 맞는 유저가 없습니다</p>
           </div>
         ) : (
-          <div className="bg-white rounded-3xl border border-[#1D1C1C]/8 shadow-[0_2px_12px_rgba(0,0,0,0.03)] overflow-hidden">
+          <div className="bg-[#15171C] rounded-3xl border border-white/5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] overflow-hidden">
             <table className="w-full text-left">
               <thead>
-                <tr className="border-b border-[#1D1C1C]/8 text-[10px] font-black text-[#999] uppercase tracking-wider">
+                <tr className="border-b border-white/5 text-[10px] font-black text-white/40 uppercase tracking-wider">
                   <th className="px-5 py-3">이메일</th>
                   <th className="px-5 py-3">역할</th>
                   <th className="px-5 py-3">활동</th>
@@ -174,8 +171,8 @@ export default function AdminUsersPage() {
                   if (u.is_builder) badges.push(ROLE_LABEL.builder)
                   if (u.is_reviewer) badges.push(ROLE_LABEL.evaluator)
                   return (
-                    <tr key={u.id} className="border-b border-[#1D1C1C]/5 last:border-0 hover:bg-[#FAFAFA]/60">
-                      <td className="px-5 py-3 text-[12px] font-bold text-[#1D1C1C]">{u.email}</td>
+                    <tr key={u.id} className="border-b border-white/5 last:border-0 hover:bg-white/5">
+                      <td className="px-5 py-3 text-[12px] font-bold text-white">{u.email}</td>
                       <td className="px-5 py-3">
                         {badges.length > 0 ? (
                           <div className="flex items-center gap-1 flex-wrap">
@@ -190,10 +187,10 @@ export default function AdminUsersPage() {
                             ))}
                           </div>
                         ) : (
-                          <span className="text-[9px] font-bold text-[#999]">미선택</span>
+                          <span className="text-[9px] font-bold text-white/40">미선택</span>
                         )}
                       </td>
-                      <td className="px-5 py-3 text-[10px] font-bold text-[#666]">
+                      <td className="px-5 py-3 text-[10px] font-bold text-white/60">
                         {[
                           u.is_builder ? `등록 프로젝트 ${u.project_count}건` : null,
                           u.is_reviewer ? `완료 리뷰 ${u.completed_review_count}건` : null,
@@ -223,18 +220,18 @@ export default function AdminUsersPage() {
                           {statusMeta.label}
                         </span>
                       </td>
-                      <td className="px-5 py-3 text-[10px] font-bold text-[#999]">{relativeDate(u.created_at)}</td>
+                      <td className="px-5 py-3 text-[10px] font-bold text-white/40">{relativeDate(u.created_at)}</td>
                       <td className="px-5 py-3">
                         <div className="flex items-center justify-end gap-1.5">
                           {isProcessing ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin text-[#999]" />
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-white/40" />
                           ) : u.is_admin ? (
                             // role은 가입 시 고정되는 'builder'/'evaluator'뿐이라
                             // 실제 관리자 계정(is_admin=true)도 role==='admin'이
                             // 절대 아니다 — 기존에 u.role !== 'admin'으로만 막았던
                             // 건 사실상 아무도 막지 못하는 죽은 가드였다. 관리자
                             // 계정은 아예 클릭도 못 하게 한다.
-                            <span className="text-[9px] font-bold text-[#999] px-2 py-1">관리자 계정 (보호됨)</span>
+                            <span className="text-[9px] font-bold text-white/40 px-2 py-1">관리자 계정 (보호됨)</span>
                           ) : (
                             <>
                               {u.status !== 'active' && (
@@ -256,7 +253,7 @@ export default function AdminUsersPage() {
                               {u.status !== 'withdrawn' && (
                                 <button
                                   onClick={() => changeStatus(u.id, 'withdrawn')}
-                                  className="flex items-center gap-1 text-[9px] font-black text-[#999] hover:bg-[#999]/10 px-2 py-1 rounded-lg transition-colors"
+                                  className="flex items-center gap-1 text-[9px] font-black text-white/40 hover:bg-[#999]/10 px-2 py-1 rounded-lg transition-colors"
                                 >
                                   <UserX className="w-3 h-3" /> 탈퇴 처리
                                 </button>

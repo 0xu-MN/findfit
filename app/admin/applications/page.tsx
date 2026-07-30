@@ -88,12 +88,9 @@ export default function AdminApplicationsPage() {
   const pendingCount = applications.filter((a) => a.status === 'pending').length
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA]">
-      <header className="bg-white border-b border-[#1D1C1C]/8 px-6 py-4 flex items-center gap-4">
-        <a href="/admin" className="text-[11px] font-black text-[#999] hover:text-[#1D1C1C] transition-colors">
-          ← 대시보드
-        </a>
-        <span className="text-[14px] font-black text-[#1D1C1C]">지원자 관리</span>
+    <div className="min-h-screen bg-transparent">
+      <header className="bg-[#15171C] border-b border-white/5 px-6 py-4 flex items-center gap-4">
+        <span className="text-[14px] font-black text-white">지원자 관리</span>
         {pendingCount > 0 && (
           <span className="text-[10px] font-black text-white bg-[#1565C0] px-2 py-0.5 rounded-full">
             {pendingCount}
@@ -103,7 +100,7 @@ export default function AdminApplicationsPage() {
 
       <main className="max-w-4xl mx-auto px-6 py-8 flex flex-col gap-6">
         {/* 탭 */}
-        <div className="flex gap-1 bg-white border border-[#1D1C1C]/8 rounded-2xl p-1 w-fit shadow-sm">
+        <div className="flex gap-1 bg-[#15171C] border border-white/5 rounded-2xl p-1 w-fit shadow-sm">
           {TABS.filter((t) => t.key !== 'all').map((t) => {
             const key = t.key as ApplicationStatus
             const count = applications.filter((a) => a.status === key).length
@@ -114,7 +111,7 @@ export default function AdminApplicationsPage() {
                 className={`px-4 py-2 rounded-xl text-[11px] font-black transition-all ${
                   tab === key
                     ? 'bg-[#1D1C1C] text-white shadow-sm'
-                    : 'text-[#999] hover:text-[#1D1C1C]'
+                    : 'text-white/40 hover:text-white'
                 }`}
               >
                 {t.label} {count > 0 && `(${count})`}
@@ -126,11 +123,11 @@ export default function AdminApplicationsPage() {
         {/* 목록 */}
         {loading ? (
           <div className="flex justify-center py-16">
-            <Loader2 className="w-5 h-5 animate-spin text-[#999]" />
+            <Loader2 className="w-5 h-5 animate-spin text-white/40" />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="bg-white rounded-3xl border border-[#1D1C1C]/8 p-12 text-center">
-            <p className="text-[12px] font-bold text-[#999]">
+          <div className="bg-[#15171C] rounded-3xl border border-white/5 p-12 text-center">
+            <p className="text-[12px] font-bold text-white/40">
               {tab === 'pending' ? '검토할 지원이 없습니다' : '해당 상태의 지원이 없습니다'}
             </p>
           </div>
@@ -142,13 +139,13 @@ export default function AdminApplicationsPage() {
               return (
                 <div
                   key={app.id}
-                  className="bg-white rounded-3xl border border-[#1D1C1C]/8 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col gap-4"
+                  className="bg-[#15171C] rounded-3xl border border-white/5 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col gap-4"
                 >
                   {/* 상단 */}
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-[12px] font-black text-[#1D1C1C]">
+                        <span className="text-[12px] font-black text-white">
                           {app.applicant_email ?? '이메일 없음'}
                         </span>
                         <span
@@ -158,12 +155,12 @@ export default function AdminApplicationsPage() {
                           {cfg.label}
                         </span>
                       </div>
-                      <span className="text-[11px] font-bold text-[#666]">
+                      <span className="text-[11px] font-bold text-white/60">
                         프로젝트: {app.projects?.title ?? '—'}
                         {app.nickname && ` · 닉네임: ${app.nickname}`}
                       </span>
                     </div>
-                    <span className="text-[10px] font-bold text-[#999] shrink-0">
+                    <span className="text-[10px] font-bold text-white/40 shrink-0">
                       {relativeDate(app.applied_at)}
                     </span>
                   </div>
@@ -174,7 +171,7 @@ export default function AdminApplicationsPage() {
                       {app.applicant_domain.map((d) => (
                         <span
                           key={d}
-                          className="text-[9px] font-bold bg-[#F5F5F5] text-[#666] px-2 py-0.5 rounded-full"
+                          className="text-[9px] font-bold bg-white/5 text-white/60 px-2 py-0.5 rounded-full"
                         >
                           {d}
                         </span>
@@ -184,7 +181,7 @@ export default function AdminApplicationsPage() {
 
                   {/* 자기소개 */}
                   {app.applicant_intro && (
-                    <p className="text-[11px] font-bold text-[#666] bg-[#F5F5F5] rounded-xl px-3 py-2 leading-relaxed">
+                    <p className="text-[11px] font-bold text-white/60 bg-white/5 rounded-xl px-3 py-2 leading-relaxed">
                       {app.applicant_intro}
                     </p>
                   )}
@@ -203,7 +200,7 @@ export default function AdminApplicationsPage() {
                       <button
                         onClick={() => handleReject(app.id)}
                         disabled={isProcessing}
-                        className="flex-1 py-2.5 rounded-xl bg-[#F5F5F5] text-[#666] text-[11px] font-black hover:bg-[#EBEBEB] transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5"
+                        className="flex-1 py-2.5 rounded-xl bg-white/5 text-white/60 text-[11px] font-black hover:bg-white/10 transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5"
                       >
                         {isProcessing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
                         거절
