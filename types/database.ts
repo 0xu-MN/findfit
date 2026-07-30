@@ -316,6 +316,44 @@ export interface Database {
         Relationships: []
       }
 
+      /* ── 현행: lounge_posts / *_likes / *_comments / insight_scraps (migration 039) ── */
+      lounge_posts: {
+        Row: { id: string; author_id: string; author_nickname: string; body: string; created_at: string }
+        Insert: { id?: string; author_id: string; author_nickname: string; body: string; created_at?: string }
+        Update: Partial<Database['public']['Tables']['lounge_posts']['Insert']>
+        Relationships: []
+      }
+      lounge_likes: {
+        Row: { post_id: string; user_id: string; created_at: string }
+        Insert: { post_id: string; user_id: string; created_at?: string }
+        Update: Partial<Database['public']['Tables']['lounge_likes']['Insert']>
+        Relationships: []
+      }
+      lounge_comments: {
+        Row: { id: string; post_id: string; author_id: string; author_nickname: string; body: string; created_at: string }
+        Insert: { id?: string; post_id: string; author_id: string; author_nickname: string; body: string; created_at?: string }
+        Update: Partial<Database['public']['Tables']['lounge_comments']['Insert']>
+        Relationships: []
+      }
+      insight_likes: {
+        Row: { insight_id: string; user_id: string; created_at: string }
+        Insert: { insight_id: string; user_id: string; created_at?: string }
+        Update: Partial<Database['public']['Tables']['insight_likes']['Insert']>
+        Relationships: []
+      }
+      insight_scraps: {
+        Row: { insight_id: string; user_id: string; created_at: string }
+        Insert: { insight_id: string; user_id: string; created_at?: string }
+        Update: Partial<Database['public']['Tables']['insight_scraps']['Insert']>
+        Relationships: []
+      }
+      insight_comments: {
+        Row: { id: string; insight_id: string; author_id: string; author_nickname: string; body: string; created_at: string }
+        Insert: { id?: string; insight_id: string; author_id: string; author_nickname: string; body: string; created_at?: string }
+        Update: Partial<Database['public']['Tables']['insight_comments']['Insert']>
+        Relationships: []
+      }
+
       /* ── ad_banners (migration 033) — 크리에이터 홈/리뷰어 대시보드 히어로 배너 ── */
       ad_banners: {
         Row: {

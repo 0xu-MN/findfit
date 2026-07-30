@@ -1,28 +1,49 @@
 'use client'
 
-import { ArrowLeft, Bookmark, Loader2, MessageSquare, Share2, ThumbsUp } from 'lucide-react'
+import { ArrowLeft, Bookmark, ChevronRight, Loader2, MessageSquare, Share2, ThumbsUp, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import type { InsightPost } from './SharedFeedPanel'
+
+type Comment = { id: string; author_nickname: string; body: string; created_at: string }
 
 interface Props {
   postId: string
+  // 모달 모드(SharedFeedPanel 오버레이)에서만 넘어온다 — 있으면 뒤로가기
+  // 대신 닫기 버튼을 쓰고, 다음/이전 글 버튼도 보여준다. 없으면(기존
+  // /[basePath]/feed/[id] 단독 페이지) 지금까지처럼 전체 페이지로 렌더링.
+  basePath?: 'builder' | 'evaluator'
+  onClose?: () => void
+  onNext?: () => void
+  onPrev?: () => void
 }
 
-// 인사이트(구 "피드") 상세 — 노트폴리오 포트폴리오 상세 페이지 참고: 좌측에
-// 작성자 배지/제목/본문/큰 커버 이미지가 세로로 흐르고, 우측에 좋아요·저장·
-// 댓글·공유 아이콘 레일이 세로로 붙는 카드 레이아웃. /api/insights/[id]로
-// 조회하며, 관리자가 작성한 글만 존재하므로 좋아요/댓글 수는 표시용 정적
-// 카운트다(실제 상호작용 저장은 이번 범위 밖).
-export default function InsightDetailView({ postId }: Props) {
+// 인사이트 상세 — 좋아요/스크랩/댓글/공유가 전부 장식용 로컬 state였던 걸
+// 실제 백엔드(insight_likes/insight_scraps/insight_comments)로 교체했다.
+export default function InsightDetailView({ postId, basePath, onClose, onNext, onPrev }: Props) {
   const router = useRouter()
   const [post, setPost] = useState<InsightPost | null>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [liked, setLiked] = useState(false)
+  const [likeCount, setLikeCount] = useState(0)
   const [saved, setSaved] = useState(false)
+  const [comments, setComments] = useState<Comment[] | null>(null)
+  const [showComments, setShowComments] = useState(false)
+  const [commentInput, setCommentInput] = useState('')
+  const [postingComment, setPostingComment] = useState(false)
+  const [shareCopied, setShareCopied] = useState(false)
+  const [loggedIn, setLoggedIn] = useState(false)
 
   useEffect(() => {
+    createClient().auth.getUser().then(({ data: { user } }) => setLoggedIn(Boolean(user)))
+  }, [])
+
+  useEffect(() => {
+    setLoading(true)
+    setShowComments(false)
+    setComments(null)
     const load = async () => {
       const res = await fetch(`/api/insights/${postId}`)
       if (!res.ok) {
@@ -32,10 +53,68 @@ export default function InsightDetailView({ postId }: Props) {
       }
       const { post: data } = await res.json()
       setPost(data)
+      setLiked(Boolean(data.liked_by_me))
+      setLikeCount(data.like_count ?? 0)
+      setSaved(Boolean(data.scrapped_by_me))
       setLoading(false)
     }
     load()
   }, [postId])
+
+  const toggleLike = async () => {
+    if (!loggedIn) return
+    const next = !liked
+    setLiked(next)
+    setLikeCount((c) => c + (next ? 1 : -1))
+    const res = await fetch(`/api/insights/${postId}/like`, { method: 'POST' })
+    if (!res.ok) {
+      // 실패하면 낙관적 업데이트를 되돌린다
+      setLiked(!next)
+      setLikeCount((c) => c + (next ? -1 : 1))
+    }
+  }
+
+  const toggleSave = async () => {
+    if (!loggedIn) return
+    const next = !saved
+    setSaved(next)
+    const res = await fetch(`/api/insights/${postId}/scrap`, { method: 'POST' })
+    if (!res.ok) setSaved(!next)
+  }
+
+  const openComments = async () => {
+    setShowComments((v) => !v)
+    if (comments === null) {
+      const res = await fetch(`/api/insights/${postId}/comments`)
+      const { comments: data } = await res.json()
+      setComments(data ?? [])
+    }
+  }
+
+  const submitComment = async () => {
+    if (!commentInput.trim() || postingComment) return
+    setPostingComment(true)
+    const res = await fetch(`/api/insights/${postId}/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body: commentInput.trim() }),
+    })
+    setPostingComment(false)
+    if (res.ok) {
+      const { comment } = await res.json()
+      setComments((prev) => [...(prev ?? []), comment])
+      setCommentInput('')
+    }
+  }
+
+  const handleShare = () => {
+    const url = basePath
+      ? `${window.location.origin}/${basePath}/feed/${postId}`
+      : window.location.href
+    navigator.clipboard?.writeText(url)
+    setShareCopied(true)
+    setTimeout(() => setShareCopied(false), 1800)
+  }
 
   if (loading) {
     return (
@@ -47,10 +126,10 @@ export default function InsightDetailView({ postId }: Props) {
 
   if (notFound || !post) {
     return (
-      <div className="w-full flex flex-col items-center justify-center py-32 gap-4">
+      <div className="w-full flex flex-col items-center justify-center py-32 gap-4 bg-white rounded-[28px]">
         <p className="text-sm font-black text-[#999]">글을 찾을 수 없습니다</p>
-        <button onClick={() => router.back()} className="text-[11px] font-black text-[#F77019] hover:underline">
-          뒤로 가기
+        <button onClick={() => (onClose ? onClose() : router.back())} className="text-[11px] font-black text-[#F77019] hover:underline">
+          {onClose ? '닫기' : '뒤로 가기'}
         </button>
       </div>
     )
@@ -58,18 +137,38 @@ export default function InsightDetailView({ postId }: Props) {
 
   return (
     <div className="w-full max-w-[1080px] mx-auto py-8">
-      <button
-        onClick={() => router.back()}
-        className="flex items-center gap-1.5 text-[11px] font-black text-[#666] hover:text-[#1D1C1C] transition-colors mb-5"
-      >
-        <ArrowLeft className="w-3.5 h-3.5" />
-        목록으로
-      </button>
+      <div className="flex items-center justify-between mb-5">
+        <button
+          onClick={() => (onClose ? onClose() : router.back())}
+          className="flex items-center gap-1.5 text-[11px] font-black text-[#666] hover:text-[#1D1C1C] transition-colors"
+        >
+          {onClose ? <X className="w-3.5 h-3.5" /> : <ArrowLeft className="w-3.5 h-3.5" />}
+          {onClose ? '닫기' : '목록으로'}
+        </button>
 
-      <div className="rounded-[28px] border border-[#1D1C1C]/8 bg-white shadow-[0_8px_40px_rgba(0,0,0,0.05)] overflow-hidden flex">
+        {(onNext || onPrev) && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onPrev}
+              disabled={!onPrev}
+              className="text-[11px] font-black text-[#666] hover:text-[#1D1C1C] disabled:opacity-30 disabled:hover:text-[#666] transition-colors"
+            >
+              이전 글
+            </button>
+            <button
+              onClick={onNext}
+              disabled={!onNext}
+              className="flex items-center gap-1 text-[11px] font-black text-[#F77019] hover:underline disabled:opacity-30 disabled:hover:no-underline transition-colors"
+            >
+              다음 글 <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-[28px] border border-[#1D1C1C]/8 bg-white shadow-[0_8px_40px_rgba(0,0,0,0.05)] overflow-hidden flex flex-col md:flex-row">
         {/* 본문 컬럼 */}
         <div className="flex-1 min-w-0 flex flex-col gap-6 p-8 md:p-10">
-          {/* 작성자 배지 — 관리자 전용 글이라 개인 닉네임 대신 FindFit 브랜드로 표기 */}
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-2xl bg-[#F5F5F5] flex items-center justify-center flex-shrink-0">
               <img src="/logo.png" alt="FindFit" className="h-5 w-auto" />
@@ -104,26 +203,68 @@ export default function InsightDetailView({ postId }: Props) {
               <img src={post.cover_image_url} alt={post.title} className="w-full h-auto object-cover" />
             </div>
           )}
+
+          {/* 댓글 — 아이콘 레일에서 열고 닫는다 */}
+          {showComments && (
+            <div className="flex flex-col gap-3 pt-4 border-t border-[#1D1C1C]/6">
+              <span className="text-[12px] font-black text-[#1D1C1C]">댓글 {comments?.length ?? 0}</span>
+              {comments === null ? (
+                <Loader2 className="w-4 h-4 text-[#999] animate-spin" />
+              ) : comments.length === 0 ? (
+                <p className="text-[11px] font-bold text-[#999]">첫 댓글을 남겨보세요</p>
+              ) : (
+                <div className="flex flex-col gap-2.5">
+                  {comments.map((c) => (
+                    <div key={c.id} className="flex flex-col gap-0.5 bg-[#F8F9FA] rounded-xl px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black text-[#1D1C1C]">{c.author_nickname}</span>
+                        <span className="text-[9px] font-bold text-[#999]">{new Date(c.created_at).toLocaleDateString('ko-KR')}</span>
+                      </div>
+                      <p className="text-[11px] font-medium text-[#333]">{c.body}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {loggedIn && (
+                <div className="flex gap-2 mt-1">
+                  <input
+                    value={commentInput}
+                    onChange={(e) => setCommentInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && submitComment()}
+                    placeholder="댓글을 입력하세요"
+                    className="flex-1 h-9 rounded-lg bg-[#F5F5F5] px-3 text-[11px] font-bold outline-none focus:ring-1 focus:ring-[#F77019]"
+                  />
+                  <button
+                    onClick={submitComment}
+                    disabled={postingComment || !commentInput.trim()}
+                    className="px-3 h-9 rounded-lg bg-[#F77019] text-white text-[11px] font-black disabled:opacity-50"
+                  >
+                    등록
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* 우측 액션 아이콘 레일 */}
-        <div className="w-[88px] flex-shrink-0 border-l border-[#1D1C1C]/6 bg-[#FAFAFA] flex flex-col items-center gap-6 py-10">
+        <div className="w-full md:w-[88px] flex-shrink-0 border-t md:border-t-0 md:border-l border-[#1D1C1C]/6 bg-[#FAFAFA] flex flex-row md:flex-col items-center justify-center gap-6 py-4 md:py-10">
           <RailButton
             icon={ThumbsUp}
-            label="좋아요"
+            label={`좋아요${likeCount > 0 ? ` ${likeCount}` : ''}`}
             active={liked}
             activeColor="#F77019"
-            onClick={() => setLiked((v) => !v)}
+            onClick={toggleLike}
           />
           <RailButton
             icon={Bookmark}
             label="저장"
             active={saved}
             activeColor="#1565C0"
-            onClick={() => setSaved((v) => !v)}
+            onClick={toggleSave}
           />
-          <RailButton icon={MessageSquare} label="댓글" />
-          <RailButton icon={Share2} label="공유" onClick={() => navigator.clipboard?.writeText(window.location.href)} />
+          <RailButton icon={MessageSquare} label="댓글" active={showComments} activeColor="#2E7D32" onClick={openComments} />
+          <RailButton icon={Share2} label={shareCopied ? '복사됨!' : '공유'} onClick={handleShare} />
         </div>
       </div>
     </div>
@@ -157,7 +298,7 @@ function RailButton({
       >
         <Icon className="w-4 h-4" />
       </span>
-      <span className="text-[9px] font-bold text-[#999]">{label}</span>
+      <span className="text-[9px] font-bold text-[#999] whitespace-nowrap">{label}</span>
     </button>
   )
 }

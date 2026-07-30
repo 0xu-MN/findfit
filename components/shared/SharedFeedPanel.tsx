@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Clock, Loader2 } from 'lucide-react'
-import { useRouter } from 'next/navigation'
 import { useRightPanel } from './RightPanelContext'
+import InsightDetailView from './InsightDetailView'
 
 export type InsightPost = {
   id: string
@@ -15,6 +15,10 @@ export type InsightPost = {
   body: string
   author: string
   created_at: string
+  like_count?: number
+  comment_count?: number
+  liked_by_me?: boolean
+  scrapped_by_me?: boolean
 }
 
 const FILTER_TABS = ['전체', '성공사례', '팁/노하우', '리뷰어 이야기', '트렌드']
@@ -58,7 +62,6 @@ interface Props {
 // 관리자만 작성 가능한 실제 DB 콘텐츠(insight_posts, /api/insights)로
 // 교체했다. 카드를 클릭하면 노트폴리오 스타일 상세 페이지로 이동한다.
 export default function SharedFeedPanel({ basePath }: Props) {
-  const router = useRouter()
   const [activeFilter, setActiveFilter] = useState('전체')
   const { isExpanded: ctxExpanded, hasProvider } = useRightPanel()
 
@@ -108,7 +111,15 @@ export default function SharedFeedPanel({ basePath }: Props) {
     ? feedPosts
     : feedPosts.filter(p => p.category === activeFilter)
 
-  const goToDetail = (post: InsightPost) => router.push(`/${basePath}/feed/${post.id}`)
+  // 예전엔 카드를 누르면 완전히 새 페이지로 이동해서, 목록으로 돌아왔다가
+  // 다음 글을 또 눌러야 하는 흐름이었다 — 배경을 흐리게 두고 그 자리에서
+  // 바로 다음 글로 넘어갈 수 있는 오버레이로 바꾼다. 히어로 + 그리드를
+  // 하나의 순서(allPosts)로 합쳐서 다음/이전 버튼이 이 순서를 따라간다.
+  const allPosts = [...feedPosts, ...newsItems]
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const selectedIndex = selectedId ? allPosts.findIndex((p) => p.id === selectedId) : -1
+
+  const goToDetail = (post: InsightPost) => setSelectedId(post.id)
 
   // 그리드 컬럼 수 — 축소 시 1열, 확장 시 3열
   const gridCols = isNarrow ? 'repeat(1, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))'
@@ -249,6 +260,30 @@ export default function SharedFeedPanel({ basePath }: Props) {
         </div>
 
       </div>
+
+      {/* 예전엔 카드를 누르면 완전히 새 페이지로 이동해서 "다음 글도 계속
+          이어서 보기"가 안 됐다 — 배경을 흐리게 두는 오버레이로 열고,
+          다음/이전 버튼으로 같은 자리에서 바로 넘어갈 수 있게 한다. */}
+      {selectedIndex >= 0 && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:p-8"
+          style={{ background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(4px)' }}
+          onClick={() => setSelectedId(null)}
+        >
+          <div
+            className="w-full max-w-[1080px] max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <InsightDetailView
+              postId={allPosts[selectedIndex].id}
+              basePath={basePath}
+              onClose={() => setSelectedId(null)}
+              onNext={selectedIndex < allPosts.length - 1 ? () => setSelectedId(allPosts[selectedIndex + 1].id) : undefined}
+              onPrev={selectedIndex > 0 ? () => setSelectedId(allPosts[selectedIndex - 1].id) : undefined}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -63,6 +63,7 @@ type Question = {
   id: string
   question_text: string
   question_type: 'multiple_choice' | 'short_answer' | 'likert' | 'likert_5' | 'sean_ellis' | 'yes_no' | 'ab_test' | 'keyword'
+  question_key: string | null
   options: string[] | null
   allow_multiple: boolean | null
 }
@@ -198,7 +199,7 @@ export default function ProjectCardExpandable({ project, match, onApplied, onSub
           )}
           {status === 'accepted' && match && !(project.access_method === 'physical_shipping' && !match.received_confirmed_at) && (
             project.status === 'reviewing' ? (
-              <ReviewFormPanel projectId={project.id} matchId={match.id} accessMethod={project.access_method} accessInfo={project.access_info} onSubmitted={() => onSubmitted(match.id)} />
+              <ReviewFormPanel projectId={project.id} matchId={match.id} accessMethod={project.access_method} accessInfo={project.access_info} problem={project.problem} solution={project.solution ?? null} onSubmitted={() => onSubmitted(match.id)} />
             ) : project.status === 'rejected' || project.status === 'cancelled' ? (
               <ClosedProjectPanel status={project.status} />
             ) : (
@@ -445,12 +446,16 @@ function ReviewFormPanel({
   matchId,
   accessMethod,
   accessInfo,
+  problem,
+  solution,
   onSubmitted,
 }: {
   projectId: string
   matchId: string
   accessMethod: CardProject['access_method']
   accessInfo: AccessInfo | null
+  problem?: string | null
+  solution?: string | null
   onSubmitted: () => void
 }) {
   const router = useRouter()
@@ -468,7 +473,7 @@ function ReviewFormPanel({
   useEffect(() => {
     supabase
       .from('review_questions')
-      .select('id, question_text, question_type, options, allow_multiple')
+      .select('id, question_text, question_type, question_key, options, allow_multiple')
       .eq('project_id', projectId)
       .order('order_index')
       .then(({ data, error: fetchError }: { data: Question[] | null; error: { message: string } | null }) => {
@@ -604,8 +609,23 @@ function ReviewFormPanel({
         </p>
       )}
 
-      {(questions ?? []).map((q, i) => (
+      {(questions ?? []).map((q, i) => {
+        // PSF 고정 문항(psf-1/psf-2/psf-3)은 "이 문제", "이런 솔루션"처럼
+        // 지시어로만 돼 있어서, 실제 프로젝트의 문제/솔루션이 뭔지 리뷰어가
+        // 전혀 모른 채 질문만 보게 되는 문제가 있었다 — 어떤 문제·솔루션을
+        // 가리키는지 문항 위에 실제 내용을 붙여서 보여준다.
+        const contextLine =
+          q.question_key === 'psf-1' && problem ? `[문제] ${problem}` :
+          q.question_key === 'psf-3' && solution ? `[솔루션] ${solution}` :
+          q.question_key === 'psf-2' && problem ? `[문제] ${problem}` :
+          null
+        return (
         <div key={q.id} id={`q-${q.id}`} className="rounded-xl border border-[#1D1C1C]/8 bg-white p-4 flex flex-col gap-2.5 transition-shadow">
+          {contextLine && (
+            <p className="text-[10px] font-bold text-[#189DF7] bg-[#189DF7]/8 rounded-lg px-2.5 py-1.5 leading-relaxed">
+              {contextLine}
+            </p>
+          )}
           <p className="text-[11px] font-black text-[#1D1C1C]">
             <span className="text-[#189DF7] mr-1">{i + 1}.</span>
             {q.question_text}
@@ -775,7 +795,8 @@ function ReviewFormPanel({
             />
           )}
         </div>
-      ))}
+        )
+      })}
 
       {error && (
         <div className="flex flex-col items-center gap-1.5">

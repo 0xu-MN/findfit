@@ -24,7 +24,7 @@ import { createClient } from '@/lib/supabase/client'
 /* ─────────────────────────────────────────────────────── */
 
 export type LoungePost = {
-  id: number
+  id: number | string
   author: string
   authorHandle: string
   authorAvatarColor: string
@@ -35,6 +35,10 @@ export type LoungePost = {
   likes: number
   comments: number
   replies?: { author: string; avatarColor: string; body: string }[]
+  // 실제 lounge_posts row에서 온 글만 좋아요 등 상호작용이 가능하다 —
+  // 아래 정적 seed 데이터(HappeningSection 미리보기용)는 장식용이라
+  // 백엔드 row가 없어서 상호작용 대상이 아니다.
+  liked_by_me?: boolean
 }
 
 export const loungePosts: LoungePost[] = [
@@ -154,32 +158,79 @@ export default function SharedLoungeFeed() {
     })
   }, [])
 
-  // 라운지 자체가 아직 백엔드 미연동이라(원래 loungePosts는 정적 목데이터),
-  // "글쓰기"로 작성한 글은 로컬 state에만 앞쪽에 추가된다 — 새로고침하면
-  // 사라지는 세션 한정 글쓰기다. 실제 영속화(Supabase insert)는 라운지
-  // 백엔드 연동 시점의 범위.
-  const [posts, setPosts] = useState<LoungePost[]>(loungePosts)
+  // 예전엔 lounge_posts 백엔드가 없어서 "글쓰기"가 로컬 state에만 앞쪽에
+  // 추가되고 새로고침하면 사라졌다 — 이제 /api/lounge/posts로 실제
+  // 영속화한다. 글이 하나도 없으면(첫 방문 등) 보여줄 게 없어 허전하니
+  // 그때만 정적 seed를 대신 보여준다(seed는 상호작용 대상이 아님).
+  const [posts, setPosts] = useState<LoungePost[]>([])
+  const [postsLoaded, setPostsLoaded] = useState(false)
   const [composerOpen, setComposerOpen] = useState(false)
 
-  const submitPost = (body: string) => {
-    if (!body.trim()) return
-    const newPost: LoungePost = {
-      id: Date.now(),
-      author: nickname ?? '게스트',
-      authorHandle: (nickname ?? 'guest').toLowerCase().replace(/\s+/g, '_'),
+  const loadPosts = async () => {
+    const res = await fetch('/api/lounge/posts')
+    const { posts: data } = await res.json()
+    const mapped: LoungePost[] = (data ?? []).map((p: {
+      id: string; author_nickname: string; body: string; created_at: string
+      like_count: number; comment_count: number; liked_by_me: boolean
+    }) => ({
+      id: p.id,
+      author: p.author_nickname,
+      authorHandle: p.author_nickname.toLowerCase().replace(/\s+/g, '_'),
       authorAvatarColor: '#F77019',
       category: '자유',
-      time: '방금 전',
-      body,
+      time: new Date(p.created_at).toLocaleDateString('ko-KR'),
+      body: p.body,
       images: 0,
-      likes: 0,
-      comments: 0,
+      likes: p.like_count,
+      comments: p.comment_count,
+      liked_by_me: p.liked_by_me,
+    }))
+    setPosts(mapped)
+    setPostsLoaded(true)
+  }
+
+  useEffect(() => {
+    loadPosts()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const submitPost = async (body: string) => {
+    if (!body.trim()) return
+    const res = await fetch('/api/lounge/posts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body }),
+    })
+    if (res.ok) {
+      const { post: p } = await res.json()
+      const newPost: LoungePost = {
+        id: p.id,
+        author: p.author_nickname,
+        authorHandle: p.author_nickname.toLowerCase().replace(/\s+/g, '_'),
+        authorAvatarColor: '#F77019',
+        category: '자유',
+        time: '방금 전',
+        body: p.body,
+        images: 0,
+        likes: 0,
+        comments: 0,
+        liked_by_me: false,
+      }
+      setPosts((prev) => [newPost, ...prev])
     }
-    setPosts((prev) => [newPost, ...prev])
     setComposerOpen(false)
   }
 
-  const myPosts = posts.filter((p) => nickname && p.author === nickname)
+  const toggleLike = async (postId: LoungePost['id']) => {
+    if (typeof postId !== 'string') return // seed 목데이터는 상호작용 대상 아님
+    setPosts((prev) => prev.map((p) => p.id === postId
+      ? { ...p, liked_by_me: !p.liked_by_me, likes: p.likes + (p.liked_by_me ? -1 : 1) }
+      : p))
+    await fetch(`/api/lounge/posts/${postId}/like`, { method: 'POST' })
+  }
+
+  const displayPosts = postsLoaded && posts.length === 0 ? loungePosts : posts
+  const myPosts = displayPosts.filter((p) => nickname && p.author === nickname)
 
   return (
     <div ref={containerRef} className="w-full h-full flex gap-6 select-none text-[#1D1C1C] min-w-0 animate-fade-in">
@@ -187,9 +238,15 @@ export default function SharedLoungeFeed() {
         {/* 포스트 리스트 (트위터 스타일) — 상단 상시 컴포저는 없애고
             "글쓰기" 버튼(우측 사이드바)으로만 작성 모달을 연다 */}
         <div className="w-full rounded-2xl bg-white border border-[#1D1C1C]/5 divide-y divide-[#1D1C1C]/5 overflow-hidden">
-          {posts.map((p) => (
-            <LoungePostItem key={p.id} post={p} compact={!isExpanded} />
-          ))}
+          {displayPosts.length === 0 ? (
+            <p className="text-[11px] font-bold text-[#999] text-center py-10">
+              아직 글이 없어요. 첫 글을 남겨보세요!
+            </p>
+          ) : (
+            displayPosts.map((p) => (
+              <LoungePostItem key={p.id} post={p} compact={!isExpanded} onLike={() => toggleLike(p.id)} />
+            ))
+          )}
         </div>
       </div>
 
@@ -273,7 +330,7 @@ function ComposerModal({
   )
 }
 
-function LoungePostItem({ post, compact }: { post: LoungePost; compact?: boolean }) {
+function LoungePostItem({ post, compact, onLike }: { post: LoungePost; compact?: boolean; onLike?: () => void }) {
   return (
     <article
       className={`flex gap-3 hover:bg-[#FAFAFA] transition-colors cursor-pointer ${compact ? 'p-3.5' : 'p-5'}`}
@@ -312,7 +369,7 @@ function LoungePostItem({ post, compact }: { post: LoungePost; compact?: boolean
 
         {/* 액션 바 */}
         <div className="flex items-center gap-6 text-[#999]">
-          <ActionIcon Icon={Heart} count={post.likes} hover="#E53935" />
+          <ActionIcon Icon={Heart} count={post.likes} hover="#E53935" active={post.liked_by_me} onClick={onLike} />
           <ActionIcon Icon={MessageSquare} count={post.comments} hover="#1565C0" />
           <ActionIcon Icon={Repeat2} count={0} hover="#2E7D32" />
           <ActionIcon Icon={Share2} count={0} hover="#666" />
@@ -437,18 +494,24 @@ function ActionIcon({
   count,
   hover,
   small,
+  active,
+  onClick,
 }: {
   Icon: React.ComponentType<{ className?: string }>
   count?: number
   hover: string
   small?: boolean
+  active?: boolean
+  onClick?: () => void
 }) {
   return (
     <button
       type="button"
+      onClick={(e) => { e.stopPropagation(); onClick?.() }}
       className="flex items-center gap-1 group transition-colors"
+      style={active ? { color: hover } : undefined}
       onMouseEnter={(e) => (e.currentTarget.style.color = hover)}
-      onMouseLeave={(e) => (e.currentTarget.style.color = '')}
+      onMouseLeave={(e) => { if (!active) e.currentTarget.style.color = '' }}
     >
       <Icon className={small ? 'w-3 h-3' : 'w-3.5 h-3.5'} />
       {count !== undefined && count > 0 && (
