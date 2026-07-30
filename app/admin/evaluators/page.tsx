@@ -17,6 +17,7 @@ type UserRow = {
   completed_review_count: number
   is_builder: boolean
   is_reviewer: boolean
+  is_admin: boolean
 }
 
 const STATUS_LABEL: Record<UserStatus, { label: string; color: string }> = {
@@ -227,6 +228,13 @@ export default function AdminUsersPage() {
                         <div className="flex items-center justify-end gap-1.5">
                           {isProcessing ? (
                             <Loader2 className="w-3.5 h-3.5 animate-spin text-[#999]" />
+                          ) : u.is_admin ? (
+                            // role은 가입 시 고정되는 'builder'/'evaluator'뿐이라
+                            // 실제 관리자 계정(is_admin=true)도 role==='admin'이
+                            // 절대 아니다 — 기존에 u.role !== 'admin'으로만 막았던
+                            // 건 사실상 아무도 막지 못하는 죽은 가드였다. 관리자
+                            // 계정은 아예 클릭도 못 하게 한다.
+                            <span className="text-[9px] font-bold text-[#999] px-2 py-1">관리자 계정 (보호됨)</span>
                           ) : (
                             <>
                               {u.status !== 'active' && (
@@ -237,7 +245,7 @@ export default function AdminUsersPage() {
                                   <CheckCircle2 className="w-3 h-3" /> 재활성
                                 </button>
                               )}
-                              {u.status !== 'suspended' && u.role !== 'admin' && (
+                              {u.status !== 'suspended' && (
                                 <button
                                   onClick={() => changeStatus(u.id, 'suspended')}
                                   className="flex items-center gap-1 text-[9px] font-black text-[#F77019] hover:bg-[#F77019]/10 px-2 py-1 rounded-lg transition-colors"
@@ -245,7 +253,7 @@ export default function AdminUsersPage() {
                                   <Ban className="w-3 h-3" /> 정지
                                 </button>
                               )}
-                              {u.status !== 'withdrawn' && u.role !== 'admin' && (
+                              {u.status !== 'withdrawn' && (
                                 <button
                                   onClick={() => changeStatus(u.id, 'withdrawn')}
                                   className="flex items-center gap-1 text-[9px] font-black text-[#999] hover:bg-[#999]/10 px-2 py-1 rounded-lg transition-colors"

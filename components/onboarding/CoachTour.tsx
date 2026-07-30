@@ -16,6 +16,12 @@ type Props = {
   steps: CoachStep[]
   storageKey: string
   accentColor?: string
+  // 계정 기준으로 "이 역할은 처음이다"를 서버에서 판단해 강제로 다시 보여줄
+  // 때 쓴다(로그인/브라우저가 바뀌어도 계정별로 정확함 — localStorage
+  // 플래그는 브라우저 단위라 크리에이터로만 쓰던 계정이 리뷰어를 처음 눌러도
+  // 안 뜨는 문제가 있었다). undefined면 기존처럼 localStorage만 본다.
+  forceShow?: boolean
+  onShown?: () => void
 }
 
 // 신규 유저 온보딩 코치마크 투어 — 실제 화면 요소(data-coach 속성이 붙은
@@ -23,18 +29,22 @@ type Props = {
 // 띄운다. localStorage에 한 번 완료/스킵하면 다시 안 뜨는 단순 플래그만
 // 쓴다(계정별 서버 저장까지는 이번 범위 밖 — 새 브라우저/시크릿모드에서는
 // 다시 뜰 수 있음, 큰 문제 아니라고 판단).
-export default function CoachTour({ steps, storageKey, accentColor = '#F77019' }: Props) {
+export default function CoachTour({ steps, storageKey, accentColor = '#F77019', forceShow, onShown }: Props) {
   const [active, setActive] = useState(false)
   const [stepIdx, setStepIdx] = useState(0)
   const [rect, setRect] = useState<DOMRect | null>(null)
 
   useEffect(() => {
-    if (localStorage.getItem(storageKey) === 'true') return
+    if (forceShow === false) return
+    if (!forceShow && localStorage.getItem(storageKey) === 'true') return
     // 대상 요소들이 렌더링될 시간을 살짝 준다(데이터 로딩 후 마운트되는 경우 대비)
-    const t = setTimeout(() => setActive(true), 600)
+    const t = setTimeout(() => {
+      setActive(true)
+      onShown?.()
+    }, 600)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [forceShow])
 
   useEffect(() => {
     if (!active) return

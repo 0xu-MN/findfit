@@ -153,16 +153,42 @@ export default function NewRequestPage() {
   // 몇 단계인지 몰라서 검증 문항 설계 안내와 헷갈려 엉뚱한 답을 하던 문제
   // 수정 — 현재 단계를 버블 컨텍스트에 실시간으로 알려준다.
   useEffect(() => {
-    const fieldsHint =
-      currentKey === 'basic' ? `제품명: ${data.productName || '(비어있음)'} / 한줄소개: ${data.oneLineDesc || '(비어있음)'}` :
-      currentKey === 'problem' ? `문제: ${data.problem || '(비어있음)'} / 기존 대안·한계: ${data.alternativeAndLimit || '(비어있음)'} / 우리 차별점: ${data.ourDifference || '(비어있음)'}` :
-      currentKey === 'target' ? `타겟 맥락: ${data.targetContext || '(비어있음)'}` :
-      currentKey === 'cost' ? `검증 목표: ${data.validationGoal || '(비어있음)'} / 가설: ${data.hypothesis || '(비어있음)'}` :
-      undefined
+    // 예전엔 "지금 단계"에 해당하는 필드만 넘겨서(게다가 6단계 중 4단계만
+    // 분기 처리돼 있었음 — questions/attachments 단계는 아예 undefined),
+    // 이미 앞 단계에서 입력해둔 제품명/문제/타겟 같은 프로젝트 전체 맥락을
+    // Agent가 전혀 몰라서 "지금 이 서비스 등록하려는데 뭘 더 물어봐야
+    // 할까?" 같은 질문에도 일반론만 답했다 — 지금까지 입력된 프로젝트
+    // 전체를 항상 요약해서 넘긴다(비어있는 필드는 생략).
+    const parts: string[] = []
+    if (data.productName) parts.push(`제품명: ${data.productName}`)
+    if (data.oneLineDesc) parts.push(`한줄소개: ${data.oneLineDesc}`)
+    if (data.categories.length) parts.push(`분야: ${data.categories.join(', ')}`)
+    if (data.stage) parts.push(`단계: ${data.stage}`)
+    if (data.projectType) parts.push(`타입: ${data.projectType}`)
+    if (data.problem) parts.push(`문제: ${data.problem}`)
+    if (data.alternativeAndLimit) parts.push(`기존 대안·한계: ${data.alternativeAndLimit}`)
+    if (data.ourDifference) parts.push(`우리 차별점: ${data.ourDifference}`)
+    if (data.targetContext) parts.push(`타겟 맥락: ${data.targetContext}`)
+    if (data.validationGoal) parts.push(`검증 목표: ${data.validationGoal}`)
+    if (data.hypothesis) parts.push(`가설: ${data.hypothesis}`)
+    const fieldsHint = parts.length ? parts.join(' / ') : '(아직 입력된 내용 없음)'
     agentBubble.setActiveWizardStep({ stepKey: currentKey, stepLabel: STEP_KEY_LABELS[currentKey], fieldsHint })
     return () => agentBubble.setActiveWizardStep(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentKey, data.productName, data.oneLineDesc, data.problem, data.alternativeAndLimit, data.ourDifference, data.targetContext, data.validationGoal, data.hypothesis])
+  }, [
+    currentKey,
+    data.productName,
+    data.oneLineDesc,
+    data.categories,
+    data.stage,
+    data.projectType,
+    data.problem,
+    data.alternativeAndLimit,
+    data.ourDifference,
+    data.targetContext,
+    data.validationGoal,
+    data.hypothesis,
+  ])
 
   const updateData = (patch: Partial<RequestFormData>) => {
     setData((prev) => ({ ...prev, ...patch }))

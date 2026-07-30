@@ -367,17 +367,28 @@ function StdDeepPricing({
         <div className="grid grid-cols-1 gap-2">
           {DISTRIBUTION_OPTIONS.map((opt) => {
             const active = data.distributionMethod === opt.value
+            // 출시 일정상 균등 분배만 먼저 내보내고 나머지는 "도입 예정"으로
+            // 표시만 해둔다 — 코드/옵션 자체는 남겨두고 선택만 막는다.
+            const disabled = opt.value !== 'equal'
             return (
               <button
                 key={opt.value}
                 type="button"
-                onClick={() => onChange({ distributionMethod: opt.value as DistributionMethod })}
+                disabled={disabled}
+                onClick={() => !disabled && onChange({ distributionMethod: opt.value as DistributionMethod })}
                 className={`flex items-center justify-between p-3 rounded-xl text-left transition-colors ${
-                  active ? 'bg-[#F77019]/10 border border-[#F77019]' : 'bg-[#F5F5F5] border border-transparent hover:border-[#1D1C1C]/10'
+                  disabled
+                    ? 'bg-[#F5F5F5] border border-transparent opacity-50 cursor-not-allowed'
+                    : active ? 'bg-[#F77019]/10 border border-[#F77019]' : 'bg-[#F5F5F5] border border-transparent hover:border-[#1D1C1C]/10'
                 }`}
               >
                 <div className="flex flex-col">
-                  <span className={`text-[11px] font-black ${active ? 'text-[#F77019]' : 'text-[#1D1C1C]'}`}>{opt.label}</span>
+                  <span className={`text-[11px] font-black flex items-center gap-1.5 ${active ? 'text-[#F77019]' : 'text-[#1D1C1C]'}`}>
+                    {opt.label}
+                    {disabled && (
+                      <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-[#1D1C1C]/8 text-[#999]">도입 예정</span>
+                    )}
+                  </span>
                   <span className={`text-[9px] mt-0.5 ${active ? 'text-[#F77019]/70' : 'text-[#999]'}`}>{opt.desc}</span>
                 </div>
                 {active && (

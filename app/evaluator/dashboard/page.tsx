@@ -106,6 +106,9 @@ export default function EvaluatorDashboardPage() {
   const [feedIds, setFeedIds] = useState<string[]>([])
   const [query, setQuery] = useState('')
   const [userNickname, setUserNickname] = useState('리뷰어')
+  // null=아직 확인 전(이 상태에서는 CoachTour를 마운트하지 않아 판단 전에
+  // 잘못 뜨는 걸 막는다), true=계정 기준 리뷰어 첫 방문
+  const [reviewerNeverOnboarded, setReviewerNeverOnboarded] = useState<boolean | null>(null)
   const [userInterests, setUserInterests] = useState<string[]>([])
   const [selectedInterestTab, setSelectedInterestTab] = useState('맞춤 추천')
 
@@ -147,7 +150,7 @@ export default function EvaluatorDashboardPage() {
     if (!user) { setLoading(false); return }
 
     const [{ data: userInfo }, { data: profile }, { data: matchRows }, feedRes] = await Promise.all([
-      supabase.from('users').select('nickname').eq('id', user.id).maybeSingle(),
+      supabase.from('users').select('nickname, reviewer_onboarded_at').eq('id', user.id).maybeSingle(),
       supabase.from('reviewer_profiles').select('domain_tags').eq('user_id', user.id).maybeSingle(),
       supabase
         .from('project_matches')
@@ -158,6 +161,11 @@ export default function EvaluatorDashboardPage() {
     ])
 
     if (userInfo?.nickname) setUserNickname(userInfo.nickname)
+    // 계정 기준으로 리뷰어 역할을 처음 써보는지 확인 — 크리에이터로만 쓰던
+    // 계정이 리뷰어 화면을 처음 눌러도 온보딩이 뜨도록 하기 위함(브라우저
+    // localStorage만으로는 계정을 구분 못해서 이 화면이 뜬 적 없어도
+    // 다른 계정이 이미 dismiss했으면 다시 안 뜨는 문제가 있었다).
+    setReviewerNeverOnboarded(!userInfo?.reviewer_onboarded_at)
     if (profile?.domain_tags && profile.domain_tags.length > 0) {
       setUserInterests(profile.domain_tags)
     } else {
@@ -369,7 +377,21 @@ export default function EvaluatorDashboardPage() {
         </section>
       </div>
 
-      <CoachTour steps={REVIEWER_COACH_STEPS} storageKey="findfit_coach_seen_reviewer" accentColor="#189DF7" />
+      {reviewerNeverOnboarded !== null && (
+        <CoachTour
+          steps={REVIEWER_COACH_STEPS}
+          storageKey="findfit_coach_seen_reviewer"
+          accentColor="#189DF7"
+          forceShow={reviewerNeverOnboarded || undefined}
+          onShown={() => {
+            fetch('/api/users/mark-onboarded', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ role: 'reviewer' }),
+            }).catch(() => {})
+          }}
+        />
+      )}
     </ReviewerLayout>
   )
 }

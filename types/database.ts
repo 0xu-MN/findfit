@@ -74,6 +74,8 @@ export interface Database {
           role: UserRole | null
           status: UserStatus
           last_active_role: 'builder' | 'evaluator' | null
+          creator_onboarded_at: string | null
+          reviewer_onboarded_at: string | null
           nickname: string | null
           real_name: string | null
           phone: string | null
@@ -88,6 +90,8 @@ export interface Database {
           role?: UserRole | null
           status?: UserStatus
           last_active_role?: 'builder' | 'evaluator' | null
+          creator_onboarded_at?: string | null
+          reviewer_onboarded_at?: string | null
           nickname?: string | null
           real_name?: string | null
           phone?: string | null
@@ -99,6 +103,8 @@ export interface Database {
         Update: {
           role?: UserRole | null
           last_active_role?: 'builder' | 'evaluator' | null
+          creator_onboarded_at?: string | null
+          reviewer_onboarded_at?: string | null
           // status, is_admin: DB에서 authenticated 롤의 UPDATE 권한이
           // REVOKE되어 있어(본인 스스로 정지 해제/관리자 승격 불가) 브라우저
           // 클라이언트로는 실제로 안 먹는다 — 타입만 허용해두고, 실질 차단은

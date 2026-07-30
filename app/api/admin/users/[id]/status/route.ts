@@ -21,6 +21,16 @@ export async function POST(
   }
 
   const admin = createAdminClient()
+
+  // 프론트 가드(is_admin 클릭 자체를 막음)와 별개로, API를 직접 호출해도
+  // 관리자 계정은 정지/탈퇴 처리되지 않도록 서버에서도 막는다.
+  if (status !== 'active') {
+    const { data: target } = await admin.from('users').select('is_admin').eq('id', id).maybeSingle()
+    if (target?.is_admin) {
+      return NextResponse.json({ error: '관리자 계정은 정지/탈퇴 처리할 수 없습니다' }, { status: 403 })
+    }
+  }
+
   const { error } = await admin.from('users').update({ status }).eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 

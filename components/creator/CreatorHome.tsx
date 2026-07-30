@@ -9,6 +9,7 @@ import ReviewerBannerCarousel from '../shared/ReviewerBannerCarousel'
 import ItemDiscoveryFlow from './ItemDiscoveryFlow'
 import { useAgentBubble } from '../agent/AgentBubbleContext'
 import CoachTour from '../onboarding/CoachTour'
+import { createClient } from '@/lib/supabase/client'
 
 const CREATOR_COACH_STEPS = [
   {
@@ -46,12 +47,26 @@ export default function CreatorHome() {
   const [keyword, setKeyword] = useState('')
   const [step0Open, setStep0Open] = useState(false)
   const [discoveryOpen, setDiscoveryOpen] = useState(false)
+  // null=아직 확인 전(CoachTour 미마운트로 판단 전 오발동 방지)
+  const [creatorNeverOnboarded, setCreatorNeverOnboarded] = useState<boolean | null>(null)
 
   // 마법사 등 다른 곳에서 ?agent=explore로 들어오는 기존 링크 호환 —
   // 홈에 도착하면 바로 버블을 열어준다.
   useEffect(() => {
     if (searchParams.get('agent') === 'explore') agentBubble.open()
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // 계정 기준으로 크리에이터 역할을 처음 써보는지 확인 — 리뷰어로만 쓰던
+  // 계정이 크리에이터 화면을 처음 눌러도 온보딩이 뜨도록 한다.
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) { setCreatorNeverOnboarded(false); return }
+      supabase.from('users').select('creator_onboarded_at').eq('id', user.id).maybeSingle().then(({ data }) => {
+        setCreatorNeverOnboarded(!data?.creator_onboarded_at)
+      })
+    })
   }, [])
 
   const startValidation = () => {
@@ -134,7 +149,21 @@ export default function CreatorHome() {
         <ItemDiscoveryFlow keyword={keyword} onClose={() => setDiscoveryOpen(false)} />
       )}
 
-      <CoachTour steps={CREATOR_COACH_STEPS} storageKey="findfit_coach_seen_creator" accentColor="#F77019" />
+      {creatorNeverOnboarded !== null && (
+        <CoachTour
+          steps={CREATOR_COACH_STEPS}
+          storageKey="findfit_coach_seen_creator"
+          accentColor="#F77019"
+          forceShow={creatorNeverOnboarded || undefined}
+          onShown={() => {
+            fetch('/api/users/mark-onboarded', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ role: 'creator' }),
+            }).catch(() => {})
+          }}
+        />
+      )}
     </div>
   )
 }

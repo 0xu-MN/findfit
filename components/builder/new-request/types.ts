@@ -378,7 +378,9 @@ export function createEmptyDraft(): RequestFormData {
 
     evaluatorCount: 10,
     feePerEvaluator: 5000,
-    distributionMethod: 'later',
+    // 균등 분배만 우선 출시 — 나머지 배분 방식은 UI에 "도입 예정"으로
+    // 표시만 하고 선택은 막아둔다(Step6Pricing.tsx) — 기본값도 그에 맞춰 equal로.
+    distributionMethod: 'equal',
     deadlineDays: 10,
     targetReviewerRoles: [],
   }
