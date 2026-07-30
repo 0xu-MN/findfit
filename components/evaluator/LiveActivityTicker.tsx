@@ -69,6 +69,9 @@ const DEFAULT_TICKER_ITEMS: TickerItem[] = [
 export default function LiveActivityTicker() {
   const router = useRouter()
   const [items, setItems] = useState<TickerItem[]>(DEFAULT_TICKER_ITEMS)
+  // "현재 검증 진행 중" 배지가 1,248건 고정값이었다 — 실제 등록된
+  // 프로젝트 수를 반영하도록 수정.
+  const [activeCount, setActiveCount] = useState<number | null>(null)
 
   useEffect(() => {
     // 실제 등록된 크리에이터 프로젝트 가져오기
@@ -87,6 +90,11 @@ export default function LiveActivityTicker() {
             img: DEFAULT_TICKER_ITEMS[idx % DEFAULT_TICKER_ITEMS.length].img,
           }))
           setItems([...dbItems, ...DEFAULT_TICKER_ITEMS])
+          // /api/projects/feed의 all은 이미 status='active'인 프로젝트만
+          // 내려주므로(route.ts), 그대로 개수를 쓰면 된다.
+          setActiveCount(data.all.length)
+        } else {
+          setActiveCount(0)
         }
       })
       .catch(() => {})
@@ -96,11 +104,12 @@ export default function LiveActivityTicker() {
   const tickerContent = [...items, ...items]
 
   return (
-    <div className="rounded-3xl bg-white border border-[#1D1C1C]/10 p-4 shadow-[0_4px_24px_rgba(0,0,0,0.03)] flex items-center gap-4 overflow-hidden relative select-none">
-      {/* Label */}
-      <div className="flex items-center gap-2 shrink-0 bg-[#F5F7FA] px-3.5 py-2 rounded-2xl border border-[#1D1C1C]/5 z-10">
-        <Activity className="w-4 h-4 text-[#189DF7] animate-pulse" />
-        <span className="text-xs font-black text-[#1D1C1C] whitespace-nowrap">실시간 활동</span>
+    <div className="rounded-3xl bg-white border border-[#1D1C1C]/10 p-6 shadow-[0_4px_24px_rgba(0,0,0,0.03)] flex items-center gap-5 overflow-hidden relative select-none min-h-[128px]">
+      {/* Label — 아래 라운지 카드들과 시각적 비중이 맞도록 패딩/폰트를
+          키움(예전엔 이 섹션만 유독 작고 얇아 보였다). */}
+      <div className="flex flex-col items-center justify-center gap-1.5 shrink-0 bg-[#F5F7FA] px-5 py-4 rounded-2xl border border-[#1D1C1C]/5 z-10 min-w-[92px]">
+        <Activity className="w-5 h-5 text-[#189DF7] animate-pulse" />
+        <span className="text-[11px] font-black text-[#1D1C1C] whitespace-nowrap">실시간 활동</span>
       </div>
 
       {/* Marquee Continuous Flowing Track */}
@@ -110,21 +119,21 @@ export default function LiveActivityTicker() {
             <div
               key={`${act.id}-${index}`}
               onClick={() => act.projectId && router.push(`/evaluator/projects/${act.projectId}`)}
-              className={`flex items-center gap-3 p-2.5 px-4 rounded-2xl bg-[#F8F9FA] border border-[#1D1C1C]/5 hover:border-[#189DF7]/40 hover:bg-white transition-all shrink-0 shadow-sm ${
+              className={`flex items-center gap-3.5 p-3.5 px-5 rounded-2xl bg-[#F8F9FA] border border-[#1D1C1C]/5 hover:border-[#189DF7]/40 hover:bg-white transition-all shrink-0 shadow-sm ${
                 act.projectId ? 'cursor-pointer' : 'cursor-default'
               }`}
             >
-              <img src={act.img} alt="" className="w-10 h-10 rounded-xl object-cover" />
-              <div className="flex flex-col gap-0.5 min-w-0">
+              <img src={act.img} alt="" className="w-14 h-14 rounded-xl object-cover" />
+              <div className="flex flex-col gap-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded w-fit ${act.tagColor}`}>
+                  <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded w-fit ${act.tagColor}`}>
                     {act.tag}
                   </span>
                   <span className="text-[10px] text-[#999] font-medium">{act.time}</span>
                 </div>
-                <p className="text-[12px] font-bold text-[#1D1C1C] max-w-[220px] truncate">{act.title}</p>
+                <p className="text-[13px] font-bold text-[#1D1C1C] max-w-[240px] truncate">{act.title}</p>
                 {act.subtitle && (
-                  <p className="text-[10px] text-[#666] font-medium">{act.subtitle}</p>
+                  <p className="text-[11px] text-[#666] font-medium">{act.subtitle}</p>
                 )}
               </div>
             </div>
@@ -132,12 +141,15 @@ export default function LiveActivityTicker() {
         </div>
       </div>
 
-      {/* Active Count Badge */}
-      <div className="flex items-center gap-2.5 shrink-0 bg-[#F5F7FA] px-3 py-2 rounded-2xl border border-[#1D1C1C]/5 z-10 hidden sm:flex">
+      {/* Active Count Badge — 고정값(1,248건)이었던 걸 실제 등록된
+          프로젝트 수로 교체 */}
+      <div className="flex items-center gap-2.5 shrink-0 bg-[#F5F7FA] px-4 py-4 rounded-2xl border border-[#1D1C1C]/5 z-10 hidden sm:flex">
         <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
         <div className="flex flex-col">
           <span className="text-[9px] font-bold text-[#777]">현재 검증 진행 중</span>
-          <span className="text-xs font-black text-[#189DF7]">1,248건</span>
+          <span className="text-sm font-black text-[#189DF7]">
+            {activeCount === null ? '···' : `${activeCount.toLocaleString()}건`}
+          </span>
         </div>
       </div>
     </div>

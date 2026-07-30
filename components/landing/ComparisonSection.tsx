@@ -226,16 +226,19 @@ export default function ComparisonSection({ progress }: ComparisonSectionProps) 
             scale: overlayScale,
           }}
         >
-          <div className="w-full max-w-[820px] text-center p-10 md:p-16 rounded-3xl bg-black/80 border border-[#F77019]/40 backdrop-blur-2xl shadow-[0_0_70px_rgba(247,112,25,0.3)]">
+          <div className="w-full max-w-[980px] text-center p-10 md:p-16 rounded-3xl bg-black/80 border border-[#F77019]/40 backdrop-blur-2xl shadow-[0_0_70px_rgba(247,112,25,0.3)]">
             <span className="text-[#F77019] text-xs font-extrabold uppercase tracking-[0.3em] mb-5 block">
               Why FindFit
             </span>
-            {/* span에 block이 붙어있어서 닫는 따옴표(&rdquo;)가 항상 그
-                줄 밑으로 밀려나 2줄이어야 할 문장이 3줄로 보였다 —
-                inline으로 바꿔 같은 줄에 자연스럽게 붙게 수정. */}
-            <h2 className="text-2xl md:text-4xl lg:text-5xl font-black text-white leading-tight tracking-tight">
+            {/* 1) span에 block이 붙어있어서 닫는 따옴표가 항상 다음 줄로
+                밀려났던 문제(inline으로 수정, 이전 커밋) + 2) 그것만으로는
+                안 끝났던 이유 — 5xl 크기(lg 이상)에서 둘째 줄 문장 자체가
+                컨테이너 폭보다 길어서 저 혼자 또 줄바꿈되며 총 3줄이 됐다.
+                폰트 크기를 한 단계 낮추고 컨테이너 폭을 넓혀 둘째 줄이
+                한 줄 안에 들어오게 한다. */}
+            <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-black text-white leading-tight tracking-tight">
               &ldquo;FindFit 이전과 이후.<br />
-              <span className="bg-gradient-to-r from-[#F77019] via-[#FFA066] to-[#F77019] bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-[#F77019] via-[#FFA066] to-[#F77019] bg-clip-text text-transparent whitespace-nowrap">
                 당신이 듣게 되는 목소리가 달라집니다&rdquo;
               </span>
             </h2>

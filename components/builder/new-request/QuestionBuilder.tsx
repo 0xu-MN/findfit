@@ -42,15 +42,17 @@ export default function QuestionBuilder({ questions, onChange, max, allowedTypes
   const [ghostOptions, setGhostOptions] = useState<Record<string, string[]>>({})
   const [fetchingGhost, setFetchingGhost] = useState<string | null>(null)
 
-  const fetchGhostOptions = async (q: Question) => {
-    if (!q.text.trim() || !q.options) return
-    if (q.options.some((o) => o.trim())) return // 이미 뭔가 채워져 있으면 제안 안 함
+  // optionCount를 별도로 받는 이유 — "+ 선택지 추가"로 슬롯을 늘린
+  // 직후에는 q.options.length가 이미 새 길이라, 늘어난 개수만큼 다시
+  // 요청해야 새로 추가된 슬롯에도 제안이 채워진다.
+  const fetchGhostOptionsFor = async (q: Question, optionCount: number) => {
+    if (!q.text.trim()) return
     setFetchingGhost(q.id)
     try {
       const res = await fetch('/api/questions/suggest-options', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ questionText: q.text, questionType: q.type, optionCount: q.options.length }),
+        body: JSON.stringify({ questionText: q.text, questionType: q.type, optionCount }),
       })
       if (res.ok) {
         const body = await res.json()
@@ -59,6 +61,12 @@ export default function QuestionBuilder({ questions, onChange, max, allowedTypes
     } finally {
       setFetchingGhost(null)
     }
+  }
+
+  const fetchGhostOptions = async (q: Question) => {
+    if (!q.options) return
+    if (q.options.some((o) => o.trim())) return // 이미 뭔가 채워져 있으면 제안 안 함
+    await fetchGhostOptionsFor(q, q.options.length)
   }
 
   const applyGhostOptions = (qid: string) => {
@@ -107,10 +115,17 @@ export default function QuestionBuilder({ questions, onChange, max, allowedTypes
     const maxOptions = q.type === 'ab_test' ? 2 : q.type === 'keyword' ? 10 : 6
     if (q.options.length >= maxOptions) return
     const newIndex = q.options.length
-    updateQuestion(qid, { options: [...q.options, ''] })
+    const newOptions = [...q.options, '']
+    updateQuestion(qid, { options: newOptions })
     if (focusNew) {
       // the new input doesn't exist in the DOM until this render commits
       requestAnimationFrame(() => document.getElementById(`opt-${qid}-${newIndex}`)?.focus())
+    }
+    // 이 질문에 대해 이미 AI 제안 선지를 받아본 적 있으면(ghostOptions에
+    // 캐시돼 있으면), 새로 추가된 슬롯에는 제안이 없어서 그 슬롯만 비어
+    // 보이던 문제 — 늘어난 개수 기준으로 다시 요청해서 새 슬롯도 채운다.
+    if (ghostOptions[qid]) {
+      fetchGhostOptionsFor({ ...q, options: newOptions }, newOptions.length)
     }
   }
 

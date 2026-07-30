@@ -142,7 +142,11 @@ function LightPricing({
         <p className="text-[10px] text-[#999] font-bold">Light는 캐시 차감만 발생합니다 · 사례금 · 사전 승인 없음</p>
       </div>
 
-      <AccessMethodField data={data} onChange={onChange} required={false} />
+      {/* Light는 실제 제품/링크 없이도 빠른 방향성 검증이 목적이라, 웹링크
+          ·앱·배송 같은 "제품 접근 방식" 자체가 필요 없는 경우가 많다 —
+          이미 required=false였지만(선택사항), 그래도 계속 눈에 띄어서
+          안 써도 되는 항목이라는 게 명확하지 않았다. Light에서는 아예
+          숨긴다(원하면 Standard처럼 나중에 다시 켤 수 있게 코드는 유지). */}
 
       {/* 평가단 수 — 제한 없음, 자유 입력 */}
       <Field label="평가단 수" hint="제한 없음 · 자유 입력">

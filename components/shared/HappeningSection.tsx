@@ -52,11 +52,14 @@ export default function HappeningSection({ basePath, activityTicker }: Props) {
         지금 FindFit에서 일어나고 있어요
       </h2>
 
+      {/* 라운지/인사이트 등 다른 섹션과 동일한 Row 레이아웃(좌측 라벨
+          칼럼)을 써서, 실시간 동향만 유독 작고 붙어있는 느낌이 나던
+          문제를 맞춘다 — "더보기"는 없는 섹션이라 라벨만 재사용. */}
       {activityTicker && (
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-2">
+        <div className="grid grid-cols-1 md:grid-cols-[140px_1fr] gap-6 items-start">
+          <div className="pt-2 flex items-center gap-2 md:flex-col md:items-start">
             <span className="w-1.5 h-1.5 rounded-full bg-[#1CAE66] animate-pulse" />
-            <span className="text-[11px] font-black text-[#1CAE66]">실시간 동향</span>
+            <h3 className="text-xl font-black text-[#1D1C1C]">실시간 동향</h3>
           </div>
           {activityTicker}
         </div>
