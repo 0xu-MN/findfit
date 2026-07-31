@@ -521,6 +521,7 @@ export interface Database {
           status: MatchStatus
           accepted_at: string | null
           submitted_at: string | null
+          review_started_at: string | null
           shipping_status: ShippingStatus
           shipping_address: string | null
           received_confirmed_at: string | null
@@ -537,6 +538,7 @@ export interface Database {
           status?: MatchStatus
           accepted_at?: string | null
           submitted_at?: string | null
+          review_started_at?: string | null
           shipping_status?: ShippingStatus
           shipping_address?: string | null
           received_confirmed_at?: string | null

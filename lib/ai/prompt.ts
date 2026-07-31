@@ -254,6 +254,17 @@ ${[...requiredQuestions, ...alreadyAdded].map(q => `- ${q.question_text}`).join(
 ]`
 }
 
+// 리뷰어별 원문 인용/서술 요약에 쓸 익명 라벨("리뷰어 A"...) — 항상 같은
+// 순서(reviews 배열 순서)로 매겨서, Claude가 매번 다른 라벨을 지어내지
+// 않고 우리가 준 태그를 그대로 재사용하게 한다.
+function reviewerTag(index: number): string {
+  return `리뷰어 ${String.fromCharCode(65 + (index % 26))}`
+}
+
+function taggedAnswers(reviews: Review[]): { reviewer_tag: string; answers: Record<string, unknown> }[] {
+  return reviews.map((r, i) => ({ reviewer_tag: reviewerTag(i), answers: r.answers }))
+}
+
 // 응답자 인구통계 요약 — 성별/나이/직군 중 있는 값만 한 줄로 정리한다.
 // 값이 아예 없는 응답자가 섞여 있어도(성별 미입력 등) 괜찮은 만큼만 쓴다.
 function buildDemographicsSummary(reviews: Review[]): string {
@@ -265,7 +276,7 @@ function buildDemographicsSummary(reviews: Review[]): string {
       if (d.gender) parts.push(d.gender === 'male' ? '남성' : d.gender === 'female' ? '여성' : d.gender)
       if (d.age != null) parts.push(`${d.age}세`)
       if (d.jobDomain?.length) parts.push(d.jobDomain.join('/'))
-      return `응답자${i + 1}: ${parts.join(', ')}`
+      return `${reviewerTag(i)}: ${parts.join(', ')}`
     })
     .filter(Boolean)
   if (lines.length === 0) return ''
@@ -321,8 +332,9 @@ function buildStandardPrompt(reviews: Review[], project: ProjectForReport): stri
 [프로젝트] ${project.title} / ${project.psf_pmf_type.toUpperCase()} 모드
 [현재 단계] ${stage} — ${stageTone}
 [문제] ${project.problem ?? ''}  [솔루션] ${project.solution ?? ''}
-[${reviews.length}건의 응답]
-${JSON.stringify(reviews.map((r) => r.answers))}
+[${reviews.length}건의 응답 — 각 리뷰어는 reviewer_tag로 구분됩니다. 아래 새 필드들에서
+이 태그를 그대로 사용하세요(새로 지어내지 마세요)]
+${JSON.stringify(taggedAnswers(reviews))}
 ${buildDemographicsSummary(reviews)}
 [중요 — 아래 필드들에 대한 지침]
 1. recommendation을 먼저 스스로 판단하세요 ("continue"=계속 진행, "pivot"=방향 전환 검토,
@@ -347,6 +359,20 @@ ${buildDemographicsSummary(reviews)}
    빈도가 높다", "리텐션이 좋다" 같이 실측인 것처럼 들리는 표현을 쓰지 마세요.
    대신 "설문 기반 예상 재방문 의향(실제 반복사용 측정 아님)" 같은 정확한
    표현만 사용하세요.
+8. reviewer_narratives: 서술형 답변이 있는 리뷰어를 대상으로(없으면 최대한
+   특징적인 리뷰어 위주로) 최대 5명까지, 그 리뷰어가 실제로 한 말을 바탕으로
+   2~3문장 요약 + 그 리뷰어의 답변 중 가장 인상적인 원문 그대로(요약 아님)
+   1개를 인용하세요. 없는 말을 지어내지 마세요 — 실제 answers에 있는 문장만
+   인용 가능합니다.
+9. strongest_objection: 전체 응답 중 이 아이디어/솔루션에 대해 가장 강하게
+   반대하거나 우려를 표한 실제 답변 원문 1개를 그대로 인용하세요. 부정적인
+   응답이 전혀 없으면 null로 반환하세요(억지로 만들지 마세요).
+10. theme_frequency: 서술형 답변들에서 반복적으로 등장하는 주제/키워드를
+   최대 5개까지 뽑아 몇 명이 언급했는지 세고, 그 주제를 언급한 실제 원문
+   1~2개를 함께 제시하세요. 서술형 답변이 거의 없으면 빈 배열로 반환하세요.
+11. verbatim_quotes: 위 reviewer_narratives/strongest_objection과 겹치지 않는
+   원문 인용을 3~5개 추가로 뽑되(부족하면 있는 만큼만), 어떤 질문에 대한
+   답변인지(question_context)도 짧게 표시하세요.
 
 아래 JSON 형식으로만 반환하세요:
 {
@@ -358,6 +384,16 @@ ${buildDemographicsSummary(reviews)}
   "benchmark_comment": "동일 카테고리 평균 대비 코멘트",
   "action_plan": ["액션1", "액션2", "액션3"],
   "pivot_scenarios": ["시나리오1", "시나리오2"],
+  "reviewer_narratives": [
+    { "reviewer_tag": "리뷰어 A", "summary": "...", "notable_quote": "..." }
+  ],
+  "strongest_objection": { "quote": "...", "reviewer_tag": "리뷰어 B" } 또는 null,
+  "theme_frequency": [
+    { "theme": "...", "count": 0, "sample_quotes": ["...", "..."] }
+  ],
+  "verbatim_quotes": [
+    { "quote": "...", "reviewer_tag": "리뷰어 C", "question_context": "..." }
+  ],
   "competitor_references": [
     { "name": "...", "description": "..." }
   ],

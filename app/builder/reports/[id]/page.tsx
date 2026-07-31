@@ -5,7 +5,15 @@ import { useRouter } from 'next/navigation'
 import { use, useCallback, useEffect, useState } from 'react'
 
 import LightReportView from '@/components/report/LightReportView'
-import StandardReportView, { type QuestionSummaryItem } from '@/components/report/StandardReportView'
+import StandardReportView, {
+  type QuestionSummaryItem,
+  type PanelSummary,
+  type ResponseTimeSummary,
+  type ReviewerNarrative,
+  type StrongestObjection,
+  type ThemeFrequencyItem,
+  type VerbatimQuote,
+} from '@/components/report/StandardReportView'
 import ReportPaidSections, { type ReportPaidData } from '@/components/report/ReportPaidSections'
 import ExternalInterestCard from '@/components/report/ExternalInterestCard'
 import ReportGrowthTools from '@/components/report/ReportGrowthTools'
@@ -26,6 +34,12 @@ type ReportData = {
   action_plan?: string[]
   pivot_scenarios?: string[]
   question_summary?: QuestionSummaryItem[]
+  panel_summary?: PanelSummary
+  response_time_summary?: ResponseTimeSummary
+  reviewer_narratives?: ReviewerNarrative[]
+  strongest_objection?: StrongestObjection
+  theme_frequency?: ThemeFrequencyItem[]
+  verbatim_quotes?: VerbatimQuote[]
   competitor_references?: ReportPaidData['competitor_references']
   market_size?: ReportPaidData['market_size']
   positioning_map?: ReportPaidData['positioning_map']
@@ -49,6 +63,7 @@ type ProjectMeta = {
   title: string
   project_type: string | null
   stage: string | null
+  extra_data: { hypothesis?: string } | null
 }
 
 function makePsfPmf(stage: string | null): 'psf' | 'pmf' {
@@ -107,7 +122,7 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
     const supabase = createClient()
     supabase
       .from('projects')
-      .select('id, title, project_type, stage')
+      .select('id, title, project_type, stage, extra_data')
       .eq('id', projectId)
       .single()
       .then(({ data }) => {
@@ -164,7 +179,7 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
     <div className="min-h-[calc(100vh-80px)] pb-16">
       {/* 상단 바 — 좌측에 리포트 목록이 상시 떠 있으므로(app/builder/reports/layout.tsx)
           뒤로가기는 보조 수단으로만 남겨둔다 */}
-      <div className="sticky top-20 z-10 bg-[#F7F7F5]/95 backdrop-blur px-2 py-4 flex items-center gap-3">
+      <div className="sticky top-0 z-20 -mx-2 mb-2 bg-[#F7F7F5] px-2 py-4 flex items-center gap-3 border-b border-[#1D1C1C]/8 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
         <button
           onClick={() => router.back()}
           className="p-1.5 rounded-lg hover:bg-white transition-colors text-[#666]"
@@ -265,6 +280,18 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
               </span>
             </div>
 
+            {/* 이 프로젝트가 검증하려던 가설 — 등록 시 입력했지만 이번에
+                고치기 전까지 저장만 되고 어디서도 안 보였다. 리뷰어 응답과
+                나란히 볼 수 있도록 리포트 맨 위에 노출한다. */}
+            {project.extra_data?.hypothesis && (
+              <div className="rounded-3xl border border-[#1565C0]/20 bg-[#1565C0]/5 p-6 mb-4">
+                <p className="text-[9px] font-black text-[#1565C0] bg-[#1565C0]/10 inline-block px-2 py-0.5 rounded mb-2">
+                  이 프로젝트가 검증하려던 가설
+                </p>
+                <p className="text-[13px] font-bold text-[#1D1C1C] leading-relaxed">{project.extra_data.hypothesis}</p>
+              </div>
+            )}
+
             {isLight ? (
               <LightReportView
                 data={{
@@ -293,6 +320,12 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
                     key_insights: report.key_insights ?? [],
                     question_summary: report.question_summary ?? [],
                     confidence_tiers: report.confidence_tiers,
+                    panel_summary: report.panel_summary,
+                    response_time_summary: report.response_time_summary,
+                    reviewer_narratives: report.reviewer_narratives,
+                    strongest_objection: report.strongest_objection,
+                    theme_frequency: report.theme_frequency,
+                    verbatim_quotes: report.verbatim_quotes,
                   }}
                   mode={psfPmf}
                 />

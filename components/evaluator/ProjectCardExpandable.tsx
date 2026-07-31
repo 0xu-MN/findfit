@@ -486,6 +486,9 @@ function ReviewFormPanel({
           setQuestions([])
         } else {
           setQuestions(data ?? [])
+          // 문항을 실제로 열람한 시점 = 리뷰 세션 시작 — 응답 소요시간
+          // 계산용(이미 시작 시각이 있으면 서버에서 그냥 무시함).
+          fetch(`/api/reviews/${matchId}/start`, { method: 'POST' }).catch(() => {})
         }
         setLoading(false)
       })

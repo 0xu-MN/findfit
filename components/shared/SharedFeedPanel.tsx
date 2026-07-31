@@ -285,7 +285,7 @@ export default function SharedFeedPanel({ basePath }: Props) {
             onPrev={selectedIndex > 0 ? () => setSelectedId(allPosts[selectedIndex - 1].id) : undefined}
           />
           <div
-            className="w-full max-w-[1080px] max-h-[90vh] overflow-y-auto"
+            className="w-full max-w-[1080px] max-h-[90vh] overflow-y-auto rounded-[28px]"
             onClick={(e) => e.stopPropagation()}
           >
             <InsightDetailView

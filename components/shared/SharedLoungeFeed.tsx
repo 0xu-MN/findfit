@@ -41,6 +41,8 @@ export type LoungePost = {
   liked_by_me?: boolean
 }
 
+export type LoungeComment = { id: string; author_nickname: string; body: string; created_at: string }
+
 export const loungePosts: LoungePost[] = [
   {
     id: 1,
@@ -165,6 +167,13 @@ export default function SharedLoungeFeed() {
   const [posts, setPosts] = useState<LoungePost[]>([])
   const [postsLoaded, setPostsLoaded] = useState(false)
   const [composerOpen, setComposerOpen] = useState(false)
+  // 리포스트("인용해서 다시 쓰기") 대상 — 있으면 컴포저가 원글을 인용문으로
+  // 미리 채워서 연다. 별도 repost 테이블 없이, 실제로 새 lounge_posts
+  // row로 남기는 방식이라 새 인프라 없이 진짜로 동작한다.
+  const [repostTarget, setRepostTarget] = useState<LoungePost | null>(null)
+  // 댓글은 눌렀을 때만 불러온다 — Map<postId, Comment[] | null>(null=아직 안 불러옴)
+  const [commentsByPost, setCommentsByPost] = useState<Record<string, LoungeComment[] | null>>({})
+  const [openCommentsFor, setOpenCommentsFor] = useState<string | null>(null)
 
   const loadPosts = async () => {
     const res = await fetch('/api/lounge/posts')
@@ -219,6 +228,7 @@ export default function SharedLoungeFeed() {
       setPosts((prev) => [newPost, ...prev])
     }
     setComposerOpen(false)
+    setRepostTarget(null)
   }
 
   const toggleLike = async (postId: LoungePost['id']) => {
@@ -227,6 +237,51 @@ export default function SharedLoungeFeed() {
       ? { ...p, liked_by_me: !p.liked_by_me, likes: p.likes + (p.liked_by_me ? -1 : 1) }
       : p))
     await fetch(`/api/lounge/posts/${postId}/like`, { method: 'POST' })
+  }
+
+  const toggleComments = async (postId: LoungePost['id']) => {
+    if (typeof postId !== 'string') return
+    const next = openCommentsFor === postId ? null : postId
+    setOpenCommentsFor(next)
+    if (next && commentsByPost[postId] === undefined) {
+      const res = await fetch(`/api/lounge/posts/${postId}/comments`)
+      const { comments } = await res.json()
+      setCommentsByPost((prev) => ({ ...prev, [postId]: comments ?? [] }))
+    }
+  }
+
+  const submitComment = async (postId: LoungePost['id'], body: string) => {
+    if (typeof postId !== 'string' || !body.trim()) return
+    const res = await fetch(`/api/lounge/posts/${postId}/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body: body.trim() }),
+    })
+    if (!res.ok) return
+    const { comment } = await res.json()
+    setCommentsByPost((prev) => ({ ...prev, [postId]: [...(prev[postId] ?? []), comment] }))
+    setPosts((prev) => prev.map((p) => p.id === postId ? { ...p, comments: p.comments + 1 } : p))
+  }
+
+  const [shareCopiedId, setShareCopiedId] = useState<LoungePost['id'] | null>(null)
+  const handleShare = (post: LoungePost) => {
+    if (typeof post.id !== 'string') return
+    navigator.clipboard?.writeText(`${post.author}: ${post.body}\n\n${window.location.href}`)
+    setShareCopiedId(post.id)
+    setTimeout(() => setShareCopiedId(null), 1800)
+  }
+
+  const handleRepost = (post: LoungePost) => {
+    if (typeof post.id !== 'string') return
+    setRepostTarget(post)
+    setComposerOpen(true)
+  }
+
+  const handleDelete = async (postId: LoungePost['id']) => {
+    if (typeof postId !== 'string') return
+    if (!window.confirm('이 글을 삭제할까요?')) return
+    const res = await fetch(`/api/lounge/posts/${postId}`, { method: 'DELETE' })
+    if (res.ok) setPosts((prev) => prev.filter((p) => p.id !== postId))
   }
 
   const displayPosts = postsLoaded && posts.length === 0 ? loungePosts : posts
@@ -244,7 +299,19 @@ export default function SharedLoungeFeed() {
             </p>
           ) : (
             displayPosts.map((p) => (
-              <LoungePostItem key={p.id} post={p} compact={!isExpanded} onLike={() => toggleLike(p.id)} />
+              <LoungePostItem
+                key={p.id}
+                post={p}
+                compact={!isExpanded}
+                onLike={() => toggleLike(p.id)}
+                onToggleComments={() => toggleComments(p.id)}
+                commentsOpen={openCommentsFor === p.id}
+                comments={typeof p.id === 'string' ? commentsByPost[p.id] : undefined}
+                onSubmitComment={(body) => submitComment(p.id, body)}
+                onShare={() => handleShare(p)}
+                shareCopied={shareCopiedId === p.id}
+                onRepost={() => handleRepost(p)}
+              />
             ))
           )}
         </div>
@@ -253,11 +320,16 @@ export default function SharedLoungeFeed() {
       {/* 우측 사이드바 — 프로필/글쓰기 바로가기/내 글 관리. 넓은 화면에서만
           보여준다(좁으면 기존처럼 단일 컬럼) */}
       {isExpanded && (
-        <LoungeSidebar nickname={nickname} myPosts={myPosts} onWriteClick={() => setComposerOpen(true)} />
+        <LoungeSidebar nickname={nickname} myPosts={myPosts} onWriteClick={() => setComposerOpen(true)} onDelete={handleDelete} />
       )}
 
       {composerOpen && (
-        <ComposerModal nickname={nickname} onClose={() => setComposerOpen(false)} onSubmit={submitPost} />
+        <ComposerModal
+          nickname={nickname}
+          quoting={repostTarget}
+          onClose={() => { setComposerOpen(false); setRepostTarget(null) }}
+          onSubmit={submitPost}
+        />
       )}
     </div>
   )
@@ -269,10 +341,12 @@ export default function SharedLoungeFeed() {
 
 function ComposerModal({
   nickname,
+  quoting,
   onClose,
   onSubmit,
 }: {
   nickname: string | null
+  quoting?: LoungePost | null
   onClose: () => void
   onSubmit: (body: string) => void
 }) {
@@ -289,11 +363,18 @@ function ComposerModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
-          <span className="text-[13px] font-black text-[#1D1C1C]">새 글 작성</span>
+          <span className="text-[13px] font-black text-[#1D1C1C]">{quoting ? '인용해서 다시 쓰기' : '새 글 작성'}</span>
           <button onClick={onClose} className="w-7 h-7 rounded-full text-[#999] hover:text-[#1D1C1C] hover:bg-[#F5F5F5] flex items-center justify-center transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
+
+        {quoting && (
+          <div className="rounded-2xl bg-[#F5F5F5] p-3 flex flex-col gap-0.5">
+            <span className="text-[10px] font-black text-[#1D1C1C]">{quoting.author}</span>
+            <p className="text-[11px] text-[#666] font-medium line-clamp-3">{quoting.body}</p>
+          </div>
+        )}
 
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-full bg-[#F77019] flex items-center justify-center text-white font-black text-xs flex-shrink-0">
@@ -316,7 +397,7 @@ function ComposerModal({
                 <CircleIcon><Sparkles className="w-3.5 h-3.5" /></CircleIcon>
               </div>
               <button
-                onClick={() => onSubmit(value)}
+                onClick={() => onSubmit(quoting ? `${value}\n\n인용: ${quoting.author}\n"${quoting.body}"` : value)}
                 disabled={!value.trim()}
                 className="px-4 py-1.5 rounded-full bg-[#F77019] text-white font-black hover:opacity-90 disabled:opacity-40 transition-all shadow-sm text-[11px]"
               >
@@ -330,7 +411,30 @@ function ComposerModal({
   )
 }
 
-function LoungePostItem({ post, compact, onLike }: { post: LoungePost; compact?: boolean; onLike?: () => void }) {
+function LoungePostItem({
+  post,
+  compact,
+  onLike,
+  onToggleComments,
+  commentsOpen,
+  comments,
+  onSubmitComment,
+  onShare,
+  shareCopied,
+  onRepost,
+}: {
+  post: LoungePost
+  compact?: boolean
+  onLike?: () => void
+  onToggleComments?: () => void
+  commentsOpen?: boolean
+  comments?: LoungeComment[] | null
+  onSubmitComment?: (body: string) => void
+  onShare?: () => void
+  shareCopied?: boolean
+  onRepost?: () => void
+}) {
+  const [commentInput, setCommentInput] = useState('')
   return (
     <article
       className={`flex gap-3 hover:bg-[#FAFAFA] transition-colors cursor-pointer ${compact ? 'p-3.5' : 'p-5'}`}
@@ -370,10 +474,49 @@ function LoungePostItem({ post, compact, onLike }: { post: LoungePost; compact?:
         {/* 액션 바 */}
         <div className="flex items-center gap-6 text-[#999]">
           <ActionIcon Icon={Heart} count={post.likes} hover="#E53935" active={post.liked_by_me} onClick={onLike} />
-          <ActionIcon Icon={MessageSquare} count={post.comments} hover="#1565C0" />
-          <ActionIcon Icon={Repeat2} count={0} hover="#2E7D32" />
-          <ActionIcon Icon={Share2} count={0} hover="#666" />
+          <ActionIcon Icon={MessageSquare} count={post.comments} hover="#1565C0" active={commentsOpen} onClick={onToggleComments} />
+          <ActionIcon Icon={Repeat2} hover="#2E7D32" onClick={onRepost} />
+          <ActionIcon Icon={Share2} hover="#666" onClick={onShare} label={shareCopied ? '복사됨!' : undefined} />
         </div>
+
+        {/* 실제 댓글 스레드 — lounge_comments 백엔드 연결 */}
+        {commentsOpen && (
+          <div className="flex flex-col gap-3 pt-3 pl-3 border-l-2 border-[#1565C0]/20">
+            {comments === undefined || comments === null ? (
+              <p className="text-[10px] font-bold text-[#999]">불러오는 중...</p>
+            ) : comments.length === 0 ? (
+              <p className="text-[10px] font-bold text-[#999]">첫 댓글을 남겨보세요</p>
+            ) : (
+              comments.map((c) => (
+                <div key={c.id} className="flex flex-col gap-0.5">
+                  <span className="text-[11px] font-black text-[#1D1C1C]">{c.author_nickname}</span>
+                  <p className="text-[11px] text-[#1D1C1C] font-medium leading-relaxed">{c.body}</p>
+                </div>
+              ))
+            )}
+            <div className="flex items-center gap-2 mt-1" onClick={(e) => e.stopPropagation()}>
+              <input
+                type="text"
+                value={commentInput}
+                onChange={(e) => setCommentInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && commentInput.trim()) {
+                    onSubmitComment?.(commentInput)
+                    setCommentInput('')
+                  }
+                }}
+                placeholder="댓글 작성..."
+                className="flex-1 bg-[#F5F5F5] rounded-full px-4 py-1.5 outline-none text-[11px] text-[#1D1C1C] placeholder-[#999]"
+              />
+              <button
+                onClick={() => { if (commentInput.trim()) { onSubmitComment?.(commentInput); setCommentInput('') } }}
+                className="w-7 h-7 rounded-full text-[#999] hover:text-[#F77019] flex items-center justify-center flex-shrink-0"
+              >
+                <Send className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* 인라인 답글 */}
         {post.replies && post.replies.length > 0 && (
@@ -432,10 +575,12 @@ function LoungeSidebar({
   nickname,
   myPosts,
   onWriteClick,
+  onDelete,
 }: {
   nickname: string | null
   myPosts: LoungePost[]
   onWriteClick: () => void
+  onDelete: (postId: LoungePost['id']) => void
 }) {
   return (
     <div className="w-[300px] flex-shrink-0 flex flex-col gap-4">
@@ -465,9 +610,18 @@ function LoungeSidebar({
         ) : (
           <div className="flex flex-col gap-2">
             {myPosts.map((p) => (
-              <div key={p.id} className="flex flex-col gap-1 p-2.5 rounded-xl hover:bg-[#FAFAFA] transition-colors cursor-pointer">
-                <span className="text-[11px] font-bold text-[#1D1C1C] line-clamp-1">{p.body}</span>
-                <span className="text-[9px] text-[#999] font-medium">{p.time}</span>
+              <div key={p.id} className="flex items-start gap-2 p-2.5 rounded-xl hover:bg-[#FAFAFA] transition-colors">
+                <div className="flex-1 min-w-0 flex flex-col gap-1">
+                  <span className="text-[11px] font-bold text-[#1D1C1C] line-clamp-1">{p.body}</span>
+                  <span className="text-[9px] text-[#999] font-medium">{p.time}</span>
+                </div>
+                <button
+                  onClick={() => onDelete(p.id)}
+                  title="삭제"
+                  className="text-[9px] font-bold text-[#999] hover:text-red-500 flex-shrink-0 px-1.5 py-0.5 rounded transition-colors"
+                >
+                  삭제
+                </button>
               </div>
             ))}
           </div>
@@ -496,6 +650,7 @@ function ActionIcon({
   small,
   active,
   onClick,
+  label,
 }: {
   Icon: React.ComponentType<{ className?: string }>
   count?: number
@@ -503,6 +658,7 @@ function ActionIcon({
   small?: boolean
   active?: boolean
   onClick?: () => void
+  label?: string
 }) {
   return (
     <button
@@ -514,9 +670,11 @@ function ActionIcon({
       onMouseLeave={(e) => { if (!active) e.currentTarget.style.color = '' }}
     >
       <Icon className={small ? 'w-3 h-3' : 'w-3.5 h-3.5'} />
-      {count !== undefined && count > 0 && (
+      {label ? (
+        <span className={`font-bold ${small ? 'text-[9px]' : 'text-[10px]'}`}>{label}</span>
+      ) : count !== undefined && count > 0 ? (
         <span className={`font-bold ${small ? 'text-[9px]' : 'text-[10px]'}`}>{count}</span>
-      )}
+      ) : null}
     </button>
   )
 }

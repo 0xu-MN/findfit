@@ -148,6 +148,18 @@ export async function submitProject(data: RequestFormData): Promise<SubmitProjec
         validationGoal: data.validationGoal,
         hypothesis: data.hypothesis,
         targetReviewerRoles: data.targetReviewerRoles,
+        // 2026-08-01: lightQuestionStyle과 첨부 메타데이터(파일명/영상 URL/
+        // 공개여부)는 지금까지 폼에서 입력받고도 제출 시 그냥 버려지고
+        // 있었다 — 유실만 막아둔다. 참고: 이미지/문서는 지금도 실제 파일
+        // 업로드(Storage) 자체가 구현돼 있지 않아서 파일명 문자열만 남고
+        // 실물 파일은 어차피 없다 — 별도 작업으로 다뤄야 함.
+        lightQuestionStyle: data.lightQuestionStyle,
+        attachments: {
+          imageNames: data.imageNames,
+          documentNames: data.documentNames,
+          videoUrl: data.videoUrl,
+          visibility: data.visibility,
+        },
       },
     })
     .select('id')

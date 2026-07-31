@@ -15,10 +15,19 @@ export default function InsightModalNav({
   onNext?: () => void
   onPrev?: () => void
 }) {
+  // 이 버튼들은 배경 오버레이(뒤에서 클릭 시 닫히는 div) 안에 형제로
+  // 떠 있어서, stopPropagation 없이 누르면 클릭 이벤트가 오버레이까지
+  // 버블링돼 onNext/onPrev가 실제로 다음 글을 연 직후 오버레이의
+  // "배경 클릭 시 닫기" 핸들러가 또 실행돼 모달이 바로 꺼졌다.
+  const stop = (fn: () => void) => (e: React.MouseEvent) => {
+    e.stopPropagation()
+    fn()
+  }
+
   return (
     <>
       <button
-        onClick={onClose}
+        onClick={stop(onClose)}
         title="닫기 (Esc)"
         className="fixed top-6 right-6 z-[210] w-12 h-12 rounded-full bg-white text-[#1D1C1C] shadow-[0_8px_24px_rgba(0,0,0,0.25)] flex items-center justify-center hover:scale-105 active:scale-95 transition-transform"
       >
@@ -27,7 +36,7 @@ export default function InsightModalNav({
 
       {onPrev && (
         <button
-          onClick={onPrev}
+          onClick={stop(onPrev)}
           title="이전 글 (←)"
           className="fixed left-3 md:left-8 top-1/2 -translate-y-1/2 z-[210] w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center text-white shadow-[0_8px_24px_rgba(247,112,25,0.35)] hover:scale-105 active:scale-95 transition-transform"
           style={{ background: 'linear-gradient(135deg, #F77019, #FF8F45)' }}
@@ -38,7 +47,7 @@ export default function InsightModalNav({
 
       {onNext && (
         <button
-          onClick={onNext}
+          onClick={stop(onNext)}
           title="다음 글 (→)"
           className="fixed right-3 md:right-8 top-1/2 -translate-y-1/2 z-[210] w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center text-white shadow-[0_8px_24px_rgba(247,112,25,0.35)] hover:scale-105 active:scale-95 transition-transform"
           style={{ background: 'linear-gradient(135deg, #F77019, #FF8F45)' }}

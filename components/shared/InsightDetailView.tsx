@@ -30,6 +30,10 @@ export default function InsightDetailView({ postId, basePath, onClose, onNext, o
   const [likeCount, setLikeCount] = useState(0)
   const [saved, setSaved] = useState(false)
   const [comments, setComments] = useState<Comment[] | null>(null)
+  // 댓글은 열기 전까지 목록을 안 불러오지만(openComments), 새로고침 직후
+  // 패널이 닫힌 채로 시작해서 "댓글이 사라졌다"고 오해하기 쉬웠다 —
+  // 상세 조회 응답에 이미 포함된 개수(comment_count)로 버튼에 항상 표시.
+  const [commentCount, setCommentCount] = useState(0)
   const [showComments, setShowComments] = useState(false)
   const [commentInput, setCommentInput] = useState('')
   const [postingComment, setPostingComment] = useState(false)
@@ -69,6 +73,7 @@ export default function InsightDetailView({ postId, basePath, onClose, onNext, o
       setLiked(Boolean(data.liked_by_me))
       setLikeCount(data.like_count ?? 0)
       setSaved(Boolean(data.scrapped_by_me))
+      setCommentCount(data.comment_count ?? 0)
       setLoading(false)
     }
     load()
@@ -116,6 +121,7 @@ export default function InsightDetailView({ postId, basePath, onClose, onNext, o
     if (res.ok) {
       const { comment } = await res.json()
       setComments((prev) => [...(prev ?? []), comment])
+      setCommentCount((c) => c + 1)
       setCommentInput('')
     }
   }
@@ -262,7 +268,13 @@ export default function InsightDetailView({ postId, basePath, onClose, onNext, o
             activeColor="#1565C0"
             onClick={toggleSave}
           />
-          <RailButton icon={MessageSquare} label="댓글" active={showComments} activeColor="#2E7D32" onClick={openComments} />
+          <RailButton
+            icon={MessageSquare}
+            label={`댓글${commentCount > 0 ? ` ${commentCount}` : ''}`}
+            active={showComments}
+            activeColor="#2E7D32"
+            onClick={openComments}
+          />
           <RailButton icon={Share2} label={shareCopied ? '복사됨!' : '공유'} onClick={handleShare} />
         </div>
       </div>

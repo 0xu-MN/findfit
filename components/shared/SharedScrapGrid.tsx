@@ -86,7 +86,7 @@ export default function SharedScrapGrid({ basePath }: Props) {
             onNext={selectedIndex < posts.length - 1 ? () => setSelectedId(posts[selectedIndex + 1].id) : undefined}
             onPrev={selectedIndex > 0 ? () => setSelectedId(posts[selectedIndex - 1].id) : undefined}
           />
-          <div className="w-full max-w-[1080px] max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-[1080px] max-h-[90vh] overflow-y-auto rounded-[28px]" onClick={(e) => e.stopPropagation()}>
             <InsightDetailView
               postId={posts[selectedIndex].id}
               basePath={basePath}

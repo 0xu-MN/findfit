@@ -4,7 +4,26 @@ import ConfidenceBadge, { type ConfidenceTier } from './ConfidenceBadge'
 
 export type QuestionSummaryItem = {
   question_text: string
-  options: { label: string; pct: number }[]
+  options: { label: string; count: number; total: number; pct: number }[]
+}
+
+export type ReviewerNarrative = { reviewer_tag: string; summary: string; notable_quote: string }
+export type StrongestObjection = { quote: string; reviewer_tag: string } | null
+export type ThemeFrequencyItem = { theme: string; count: number; sample_quotes: string[] }
+export type VerbatimQuote = { quote: string; reviewer_tag: string; question_context: string }
+export type ResponseTimeSummary = {
+  sample_size: number
+  avg_minutes: number | null
+  fastest_minutes: number | null
+  slowest_minutes: number | null
+  suspiciously_fast_count: number
+}
+
+export type PanelSummary = {
+  total_reviewers: number
+  jobs: { label: string; count: number }[]
+  genders: { label: string; count: number }[]
+  age_buckets: { label: string; count: number }[]
 }
 
 // 무료 티어에 항상 노출되는 부분만 담당 — PSF 스코어 게이지 +
@@ -22,6 +41,12 @@ type StandardReportData = {
     score_baseline: ConfidenceTier
     usage_frequency_note: ConfidenceTier
   }
+  panel_summary?: PanelSummary
+  response_time_summary?: ResponseTimeSummary
+  reviewer_narratives?: ReviewerNarrative[]
+  strongest_objection?: StrongestObjection
+  theme_frequency?: ThemeFrequencyItem[]
+  verbatim_quotes?: VerbatimQuote[]
 }
 
 const RECOMMENDATION_LABELS: Record<string, { label: string; color: string; bg: string }> = {
@@ -98,7 +123,9 @@ export default function StandardReportView({ data, mode }: { data: StandardRepor
                           style={{ width: `${o.pct}%` }}
                         />
                       </div>
-                      <span className="text-[11px] font-bold text-[#1D1C1C] w-9 text-right shrink-0">{o.pct}%</span>
+                      <span className="text-[11px] font-bold text-[#1D1C1C] w-24 text-right shrink-0">
+                        {o.pct}% <span className="text-[#999] font-medium">({o.total}명 중 {o.count}명)</span>
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -118,6 +145,128 @@ export default function StandardReportView({ data, mode }: { data: StandardRepor
           </div>
         </div>
       )}
+
+      {/* 패널 프로필 — AI가 아니라 실제 인구통계 집계. domain_tags가 아직
+          거의 안 채워져 있어서(2026-07-31 기준) 직군 쪽은 빌 수 있다 —
+          채워진 값이 있을 때만 각 그룹을 보여준다. */}
+      {data.panel_summary && data.panel_summary.total_reviewers > 0 && (
+        <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
+          <h3 className="text-sm font-black mb-4">참여 패널 프로필 ({data.panel_summary.total_reviewers}명)</h3>
+          <div className="flex flex-col gap-3">
+            <PanelGroupRow label="직군" items={data.panel_summary.jobs} emptyNote="아직 직군을 입력한 리뷰어가 없어요" />
+            <PanelGroupRow label="성별" items={data.panel_summary.genders} emptyNote="성별 정보 없음" />
+            <PanelGroupRow label="연령대" items={data.panel_summary.age_buckets} emptyNote="연령대 정보 없음" />
+          </div>
+          {data.response_time_summary && data.response_time_summary.sample_size > 0 && (
+            <div className="mt-4 pt-4 border-t border-[#1D1C1C]/8 flex items-center gap-4 flex-wrap">
+              <span className="text-[10px] font-bold text-[#666]">
+                평균 응답 소요시간 <span className="text-[#1D1C1C] font-black">{data.response_time_summary.avg_minutes}분</span>
+              </span>
+              <span className="text-[10px] font-bold text-[#999]">
+                (최단 {data.response_time_summary.fastest_minutes}분 · 최장 {data.response_time_summary.slowest_minutes}분, {data.response_time_summary.sample_size}명 기준)
+              </span>
+              {data.response_time_summary.suspiciously_fast_count > 0 && (
+                <span className="text-[10px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded">
+                  ⚠ {data.response_time_summary.suspiciously_fast_count}명이 2분 미만으로 제출했어요
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 리뷰어별 서술 요약 + 원문 인용 */}
+      {(data.reviewer_narratives?.length ?? 0) > 0 && (
+        <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
+          <h3 className="text-sm font-black mb-4">리뷰어별 의견</h3>
+          <div className="flex flex-col gap-4">
+            {data.reviewer_narratives!.map((n, i) => (
+              <div key={i} className="rounded-2xl bg-[#F5F5F5] p-4">
+                <p className="text-[10px] font-black text-[#F77019] mb-1.5">{n.reviewer_tag}</p>
+                <p className="text-[11px] font-bold text-[#1D1C1C] mb-2">{n.summary}</p>
+                {n.notable_quote && (
+                  <p className="text-[11px] text-[#666] italic border-l-2 border-[#F77019]/40 pl-3">
+                    &ldquo;{n.notable_quote}&rdquo;
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 가장 강한 반대/우려 의견 */}
+      {data.strongest_objection && (
+        <div className="rounded-3xl border border-red-200 bg-red-50 p-8">
+          <h3 className="text-sm font-black mb-3 text-red-700">가장 강한 우려 의견</h3>
+          <p className="text-[11px] font-bold text-red-800 italic mb-1.5">&ldquo;{data.strongest_objection.quote}&rdquo;</p>
+          <p className="text-[10px] font-black text-red-500">— {data.strongest_objection.reviewer_tag}</p>
+        </div>
+      )}
+
+      {/* 반복되는 주제 */}
+      {(data.theme_frequency?.length ?? 0) > 0 && (
+        <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
+          <h3 className="text-sm font-black mb-4">반복되는 주제</h3>
+          <div className="flex flex-col gap-3">
+            {data.theme_frequency!.map((t, i) => (
+              <div key={i} className="rounded-2xl bg-[#F5F5F5] p-4">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-[11px] font-black text-[#1D1C1C]">{t.theme}</span>
+                  <span className="text-[9px] font-bold text-[#999]">{t.count}명 언급</span>
+                </div>
+                {t.sample_quotes?.map((q, qi) => (
+                  <p key={qi} className="text-[10px] text-[#666] italic">&ldquo;{q}&rdquo;</p>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 원문 인용 모음 */}
+      {(data.verbatim_quotes?.length ?? 0) > 0 && (
+        <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
+          <h3 className="text-sm font-black mb-4">리뷰어 원문 인용</h3>
+          <div className="flex flex-col gap-3">
+            {data.verbatim_quotes!.map((v, i) => (
+              <div key={i} className="border-l-2 border-[#1D1C1C]/10 pl-3">
+                <p className="text-[11px] text-[#1D1C1C] italic">&ldquo;{v.quote}&rdquo;</p>
+                <p className="text-[9px] font-bold text-[#999] mt-1">{v.reviewer_tag} · {v.question_context}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PanelGroupRow({
+  label,
+  items,
+  emptyNote,
+}: {
+  label: string
+  items: { label: string; count: number }[]
+  emptyNote: string
+}) {
+  if (items.length === 0) {
+    return (
+      <div className="flex items-center gap-2 text-[10px] font-bold text-[#999]">
+        <span className="w-12 shrink-0 text-[#666]">{label}</span>
+        <span>{emptyNote}</span>
+      </div>
+    )
+  }
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      <span className="w-12 shrink-0 text-[10px] font-bold text-[#666]">{label}</span>
+      {items.map((it, i) => (
+        <span key={i} className="text-[10px] font-bold text-[#1D1C1C] bg-[#F5F5F5] px-2 py-1 rounded-lg">
+          {it.label} {it.count}명
+        </span>
+      ))}
     </div>
   )
 }
