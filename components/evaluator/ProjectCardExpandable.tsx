@@ -15,6 +15,8 @@ import {
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { MIN_SHORT_ANSWER_LENGTH, CARELESS_ANSWER_PATTERN } from '@/lib/reviewValidation'
+import { PSF_1_EXPERIENCED_OPTIONS } from '@/components/builder/new-request/types'
 
 export type AccessInfo = { url?: string; appStoreUrl?: string; playStoreUrl?: string }
 
@@ -68,8 +70,6 @@ type Question = {
   allow_multiple: boolean | null
 }
 
-const CARELESS_ANSWER_PATTERN = /^[.,!?~…\s]*$/
-const MIN_SHORT_ANSWER_LENGTH = 5
 
 const TYPE_META: Record<string, { label: string; color: string }> = {
   light: { label: 'Light', color: '#1CAE66' },
@@ -469,6 +469,10 @@ function ReviewFormPanel({
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // 리포트의 panel_summary(직군별 인원 집계)가 domain_tags 미입력으로 거의
+  // 항상 비어 있었다 — 리뷰 제출 전에 채워두게 유도한다(서버에서도 이중
+  // 확인하지만, 여기선 폼을 다 채운 뒤 막히는 것보다 먼저 알려주는 게 낫다).
+  const [domainTagsMissing, setDomainTagsMissing] = useState(false)
 
   useEffect(() => {
     supabase
@@ -492,6 +496,18 @@ function ReviewFormPanel({
         }
         setLoading(false)
       })
+
+    supabase.auth.getUser().then(({ data: { user } }: { data: { user: { id: string } | null } }) => {
+      if (!user) return
+      supabase
+        .from('reviewer_profiles')
+        .select('domain_tags')
+        .eq('user_id', user.id)
+        .maybeSingle()
+        .then(({ data }: { data: { domain_tags: string[] | null } | null }) => {
+          setDomainTagsMissing(!data?.domain_tags || data.domain_tags.length === 0)
+        })
+    })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -521,8 +537,21 @@ function ReviewFormPanel({
       setError('질문을 불러오지 못했어요. 새로고침 후 다시 시도해주세요.')
       return
     }
+    if (domainTagsMissing) {
+      setError('제출 전에 계정 설정에서 관심 직군을 먼저 선택해주세요.')
+      return
+    }
 
-    const unanswered = questions.find((q) => !answers[q.id]?.trim())
+    // psf-severity는 psf-1 답변에 따라 화면에서 숨겨질 수 있으므로(위 렌더
+    // 로직 참고) 숨겨진 경우엔 필수 답변 체크에서도 제외한다.
+    const psf1Question = questions.find((qq) => qq.question_key === 'psf-1')
+    const psf1AnswerForCheck = psf1Question ? answers[psf1Question.id] : undefined
+    const severityHidden = !psf1AnswerForCheck || !PSF_1_EXPERIENCED_OPTIONS.includes(psf1AnswerForCheck)
+
+    const unanswered = questions.find((q) => {
+      if (q.question_key === 'psf-severity' && severityHidden) return false
+      return !answers[q.id]?.trim()
+    })
     if (unanswered) {
       setError('모든 질문에 답변해주세요')
       scrollToQuestion(unanswered.id)
@@ -613,6 +642,17 @@ function ReviewFormPanel({
       )}
 
       {(questions ?? []).map((q, i) => {
+        // psf-severity("그 문제를 겪었을 때 얼마나 불편하셨나요")는 psf-1에서
+        // "겪어본 적 있다"고 답한 사람에게만 의미가 있다 — 그렇지 않으면
+        // 아예 숨긴다(필수 답변 체크에서도 제외, 아래 unanswered 로직 참고).
+        if (q.question_key === 'psf-severity') {
+          const psf1 = questions?.find((qq) => qq.question_key === 'psf-1')
+          const psf1Answer = psf1 ? answers[psf1.id] : undefined
+          if (!psf1Answer || !PSF_1_EXPERIENCED_OPTIONS.includes(psf1Answer)) {
+            return null
+          }
+        }
+
         // PSF 고정 문항(psf-1/psf-2/psf-3)은 "이 문제", "이런 솔루션"처럼
         // 지시어로만 돼 있어서, 실제 프로젝트의 문제/솔루션이 뭔지 리뷰어가
         // 전혀 모른 채 질문만 보게 되는 문제가 있었다 — 어떤 문제·솔루션을
@@ -804,15 +844,30 @@ function ReviewFormPanel({
       {error && (
         <div className="flex flex-col items-center gap-1.5">
           <p className="text-[11px] font-bold text-red-500 text-center">{error}</p>
-          {error.includes('휴대폰 인증') && (
+          {(error.includes('휴대폰 인증') || error.includes('관심 직군')) && (
             <button
               type="button"
               onClick={() => router.push('/evaluator/settings')}
               className="text-[11px] font-black text-[#189DF7] hover:underline"
             >
-              지금 바로 인증하러 가기 →
+              {error.includes('관심 직군') ? '지금 바로 직군 선택하러 가기 →' : '지금 바로 인증하러 가기 →'}
             </button>
           )}
+        </div>
+      )}
+
+      {domainTagsMissing && !error && (
+        <div className="rounded-xl bg-[#F5A623]/10 border border-[#F5A623]/30 px-3 py-2.5 flex flex-col items-center gap-1">
+          <p className="text-[11px] font-bold text-[#8a5c00] text-center">
+            제출 전에 관심 직군을 선택하면 리포트에 더 정확한 응답자 분석이 반영돼요
+          </p>
+          <button
+            type="button"
+            onClick={() => router.push('/evaluator/settings')}
+            className="text-[11px] font-black text-[#189DF7] hover:underline"
+          >
+            지금 바로 직군 선택하러 가기 →
+          </button>
         </div>
       )}
 

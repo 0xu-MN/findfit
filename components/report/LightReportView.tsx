@@ -4,6 +4,7 @@ type LightReportData = {
   winner: 'A' | 'B' | null
   ratio_summary: string
   key_comments: string[]
+  verbatim_quotes?: { quote: string; reviewer_tag: string }[]
   one_line_recommendation: string
 }
 
@@ -55,6 +56,21 @@ export default function LightReportView({ data }: { data: LightReportData }) {
             {data.key_comments.map((c, i) => (
               <div key={i} className="rounded-xl bg-[#F5F5F5] px-4 py-3">
                 <p className="text-[11px] font-bold text-[#666]">"{c}"</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 원문 인용 — 요약이 아니라 실제 리뷰어가 쓴 문장 그대로 */}
+      {data.verbatim_quotes && data.verbatim_quotes.length > 0 && (
+        <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
+          <h3 className="text-sm font-black mb-4">리뷰어 원문 인용</h3>
+          <div className="flex flex-col gap-3">
+            {data.verbatim_quotes.map((q, i) => (
+              <div key={i} className="rounded-xl bg-[#F5F5F5] px-4 py-3 flex flex-col gap-1">
+                <p className="text-[11px] font-bold text-[#666]">"{q.quote}"</p>
+                <span className="text-[9px] font-black text-[#999]">— {q.reviewer_tag}</span>
               </div>
             ))}
           </div>

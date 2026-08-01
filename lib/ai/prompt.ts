@@ -20,6 +20,11 @@ export type ProjectForReport = {
   problem?: string
   solution?: string
   questions?: { question_text: string; meta?: { phase?: string } }[]
+  // 타겟 적합도 자기평가(target-fit) 기준으로 나눈 Sean Ellis 비율 —
+  // pivot_scenarios가 "타겟군 내에서도 낮으면 솔루션 피벗, 타겟군 밖에서만
+  // 낮으면 타겟 좁히기 피벗"을 순수 판단이 아니라 실제 세분화 데이터로
+  // 근거 삼을 수 있게 프롬프트에 원문 그대로 전달한다.
+  seanEllisSegments?: { inTargetPct: number | null; outOfTargetPct: number | null }
 }
 
 export type QuestionTemplate = {
@@ -285,6 +290,18 @@ function buildDemographicsSummary(reviews: Review[]): string {
     `표본이 너무 적어 의미 없으면 억지로 분석하지 마세요.\n`
 }
 
+// 타겟 적합도 자기평가(target-fit)로 나눈 Sean Ellis 비율 — pivot_scenarios가
+// "타겟군 내에서도 낮으면 솔루션 피벗, 타겟군 밖에서만 낮으면 타겟 좁히기
+// 피벗"을 순수 판단이 아니라 실제 세분화 데이터를 근거로 판단하게 한다.
+function buildSeanEllisSegmentsSummary(segments?: { inTargetPct: number | null; outOfTargetPct: number | null }): string {
+  if (!segments || (segments.inTargetPct == null && segments.outOfTargetPct == null)) return ''
+  return `\n[타겟 적합도 세분화 — Sean Ellis "매우 실망" 비율]\n` +
+    `타겟군 내(자기평가 4~5점): ${segments.inTargetPct ?? '표본 부족'}%\n` +
+    `타겟군 밖(자기평가 1~2점): ${segments.outOfTargetPct ?? '표본 부족'}%\n` +
+    `이 두 수치가 크게 차이나면 pivot_scenarios에 반영하세요(예: 타겟군 내에서도 낮으면\n` +
+    `솔루션 자체를 재검토, 타겟군 밖에서만 낮으면 타겟을 더 좁히는 방향).\n`
+}
+
 export function buildPrompt(reviews: Review[], project: ProjectForReport): string {
   if (project.project_type === 'light') return buildLightPrompt(reviews, project)
   if (project.project_type === 'deep') return buildDeepPrompt(reviews, project)
@@ -293,8 +310,9 @@ export function buildPrompt(reviews: Review[], project: ProjectForReport): strin
 
 function buildLightPrompt(reviews: Review[], _project: ProjectForReport): string {
   return `당신은 빠른 의사결정을 돕는 분석가입니다.
-[${reviews.length}건의 응답]
-${JSON.stringify(reviews.map((r) => r.answers))}
+[${reviews.length}건의 응답 — 각 리뷰어는 reviewer_tag로 구분됩니다. verbatim_quotes에서
+이 태그를 그대로 사용하세요(새로 지어내지 마세요)]
+${JSON.stringify(taggedAnswers(reviews))}
 ${buildDemographicsSummary(reviews)}
 [중요] Light 티어는 설계상 소수 응답(보통 2~5명)으로 빠른 방향성만 확인하는
 용도입니다. "표본이 적다", "통계적으로 유의하지 않다", "n=30 이상 추가로
@@ -307,8 +325,13 @@ ${buildDemographicsSummary(reviews)}
   "winner": "A" 또는 "B" 또는 null,
   "ratio_summary": "A 64% / B 36%",
   "key_comments": ["주관식 응답 중 인상적인 코멘트 2~3개"],
+  "verbatim_quotes": [
+    { "quote": "실제 답변 원문 그대로(요약 아님)", "reviewer_tag": "리뷰어 A" }
+  ],
   "one_line_recommendation": "한 줄 추천"
-}`
+}
+verbatim_quotes는 실제 서술형 답변 중 2~3개를 그대로 인용하세요(없으면 빈 배열).
+없는 말을 지어내지 마세요 — key_comments와 겹쳐도 괜찮습니다.`
 }
 
 const STAGE_TONE: Record<ProjectStage, string> = {
@@ -336,24 +359,37 @@ function buildStandardPrompt(reviews: Review[], project: ProjectForReport): stri
 이 태그를 그대로 사용하세요(새로 지어내지 마세요)]
 ${JSON.stringify(taggedAnswers(reviews))}
 ${buildDemographicsSummary(reviews)}
+${buildSeanEllisSegmentsSummary(project.seanEllisSegments)}
 [중요 — 아래 필드들에 대한 지침]
 1. recommendation을 먼저 스스로 판단하세요 ("continue"=계속 진행, "pivot"=방향 전환 검토,
    "stop"=재검토 필요). action_plan은 위 [현재 단계] 톤에 맞게 실제 프로젝트 내용을
    반영해 3개 작성하세요(고정 문구를 그대로 쓰지 말고 이 서비스에 맞게 구체화).
+   theme_frequency(10번 항목)를 먼저 스스로 계산한 뒤, 언급 빈도가 높은 주제부터
+   우선순위를 매겨서 action_plan 순서를 정하세요 — 그 주제가 실제 서술형 응답과
+   무관하면(예: 서술형이 거의 없는 경우) 순수 판단으로 대체해도 됩니다. 각 action_plan
+   항목의 evidence 필드에 "N명이 이 문제를 언급함" 같은 근거를 넣거나, 근거가 없는
+   판단 기반 항목이면 null로 반환하세요(억지로 숫자를 지어내지 마세요).
 2. pivot_scenarios는 recommendation과 무관하게 2개 작성하세요. recommendation이
    "continue"면 "추가로 시도해볼 만한 성장 시나리오" 톤으로, "pivot"/"stop"이면
    "방향 전환 시나리오" 톤으로 작성하세요(제목은 화면에서 recommendation을 보고
    따로 정하니, 여기서는 내용만 그 톤에 맞게 작성).
-3. market_size, positioning_map, competitor_references는 실제 시장조사 데이터가
-   아니라 당신의 일반 지식을 바탕으로 한 추정치입니다. 반드시 market_size.note와
-   positioning_map.note에 "AI 추정치이며 실제 시장조사를 대체하지 않는다"는 취지를
-   담으세요. 항상 생성하세요(단계 무관).
+3. market_size, positioning_map, competitor_references는 웹검색 도구를 사용할 수
+   있다면 실제 검색 결과를 근거로 답하고, 검색으로 확인되지 않아 당신의 일반
+   지식으로 추정한 부분은 반드시 "추정" 또는 "추측"이라고 명시하세요. 웹검색을
+   쓸 수 없거나 검색 결과가 부실하면 market_size.note와 positioning_map.note에
+   "AI 추정치이며 실제 시장조사를 대체하지 않는다"는 취지를 담으세요. 항상
+   생성하세요(단계 무관). 응답 데이터에 "지금은 이 문제를 어떻게 해결하고
+   계신가요(기존 대안)" 문항(psf-alternatives) 답변이 있다면, competitor_references
+   작성 시 그 실제 응답 분포를 검색 결과보다도 우선 근거로 삼고(예: "응답자 중
+   N명이 기존 앱/서비스를 사용한다고 답함"), 그 분포에서 드러나지 않는 부분만
+   검색·추정으로 보완하세요.
 4. positioning_map.competitors에 실제 서비스명을 넣어도 되지만, "~는 별로다" 같은
    단정적 문구는 피하고 "일반적으로 알려진 포지션 기준으로 보면" 정도의 완곡한
    톤으로 note를 작성하세요.
 5. unit_economics는 ${ueEligible ? '이 프로젝트가 베타/출시 단계이므로 반드시 생성' : '이 프로젝트가 아직 베타 이전 단계라 실사용 비용 구조를 추정할 근거가 없으니 null로 반환'}하세요.
    생성한다면 basis_note에 이것도 AI 추정치임을 명시하세요.
 6. gtm_strategies(4개)와 scaleup_roadmap(4단계)는 ${gtmScaleupEligible ? '이 프로젝트가 베타/출시 단계이니, 위에서 스스로 판단한 recommendation이 "continue"일 때만 생성하고, 그 외에는 둘 다 null로 반환' : '이 프로젝트가 아직 베타 이전 단계이니 둘 다 null로 반환'}하세요.
+   ${gtmScaleupEligible ? '응답 데이터에 "이 서비스를 어디서 처음 알게 되셨나요"(유입 경로) 문항 답변이 있다면, gtm_strategies는 그 실제 채널 분포를 우선 근거로 삼아 "이미 효과가 검증된 채널을 강화" 같은 전략을 포함하고, 데이터에 없는 새 채널 제안만 AI 추정으로 보완하세요. "어떤 기능이 없어지면 가장 아쉬우신가요"(이탈 위험 기능) 답변이 있다면, scaleup_roadmap의 우선순위를 그 실제 응답에서 가장 많이 언급된 기능부터 정하세요(순수 AI 추측으로 대체하지 마세요).' : ''}
 7. FindFit은 리뷰를 1회 제출로 마감하는 원샷 구조라 실제 반복사용(리텐션)을
    추적하지 않습니다. benchmark_comment나 key_insights에서 "재방문율", "사용
    빈도가 높다", "리텐션이 좋다" 같이 실측인 것처럼 들리는 표현을 쓰지 마세요.
@@ -382,7 +418,9 @@ ${buildDemographicsSummary(reviews)}
   "key_insights": ["인사이트1", "인사이트2", "인사이트3", "인사이트4", "인사이트5"],
   "pattern_analysis": "공통 패턴 분석 텍스트",
   "benchmark_comment": "동일 카테고리 평균 대비 코멘트",
-  "action_plan": ["액션1", "액션2", "액션3"],
+  "action_plan": [
+    { "action": "언급 빈도가 가장 높은 주제부터 우선순위", "evidence": "3명이 언급함" 또는 null }
+  ],
   "pivot_scenarios": ["시나리오1", "시나리오2"],
   "reviewer_narratives": [
     { "reviewer_tag": "리뷰어 A", "summary": "...", "notable_quote": "..." }

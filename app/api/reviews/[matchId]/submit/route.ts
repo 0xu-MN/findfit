@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { generateAndSaveReport } from '@/lib/ai/generateReport'
 import { callClaude } from '@/lib/ai/claude'
 import { buildProjectSummaryPrompt } from '@/lib/ai/prompt'
+import { MIN_SHORT_ANSWER_LENGTH, CARELESS_ANSWER_PATTERN } from '@/lib/reviewValidation'
 
 // 리뷰 제출 전체 파이프라인을 서버 트랜잭션 성격으로 하나의 라우트에 묶는다
 // (C-1): 이전엔 브라우저가 review_answers insert → project_matches 갱신 →
@@ -39,6 +40,18 @@ export async function POST(
       return NextResponse.json({ error: '휴대폰 인증 후 리뷰를 제출할 수 있어요. 계정 설정에서 인증해주세요.' }, { status: 403 })
     }
 
+    // 리포트의 panel_summary(직군별 인원 집계)가 domain_tags 미입력으로
+    // 거의 항상 비어 있었다(2026-07-31 확인: 5명 중 0명) — 매칭이 수락된
+    // 리뷰어는 리뷰 제출 전에 반드시 관심 직군을 채우도록 게이트를 건다.
+    const { data: profile } = await supabase
+      .from('reviewer_profiles')
+      .select('domain_tags')
+      .eq('user_id', user.id)
+      .maybeSingle()
+    if (!profile?.domain_tags || profile.domain_tags.length === 0) {
+      return NextResponse.json({ error: '리뷰 제출 전에 관심 직군을 먼저 선택해주세요. 계정 설정에서 선택할 수 있어요.' }, { status: 403 })
+    }
+
     // project_matches RLS(reviewer_id=auth.uid())가 이미 본인 row만 보이도록
     // 걸러주지만, matchId가 애초에 남의 것이면 select 자체가 0건 → 아래에서 404.
     const { data: match } = await supabase
@@ -70,12 +83,12 @@ export async function POST(
 
     const { data: questions } = await supabase
       .from('review_questions')
-      .select('id')
+      .select('id, question_type')
       .eq('project_id', projectId)
 
-    const questionIds = new Set((questions ?? []).map((q: { id: string }) => q.id))
+    const questionById = new Map((questions ?? []).map((q: { id: string; question_type: string }) => [q.id, q]))
     const answerRows = Object.entries(answers)
-      .filter(([qId]) => questionIds.has(qId))
+      .filter(([qId]) => questionById.has(qId))
       .map(([qId, text]) => ({
         project_id: projectId,
         reviewer_id: user.id,
@@ -85,6 +98,20 @@ export async function POST(
 
     if (answerRows.length === 0) {
       return NextResponse.json({ error: '유효한 답변이 없습니다' }, { status: 400 })
+    }
+
+    // 서술형 단답/성의없는 답변 차단 — 지금까지 프론트(ProjectCardExpandable.tsx의
+    // MIN_SHORT_ANSWER_LENGTH/CARELESS_ANSWER_PATTERN)에만 있었고 서버엔
+    // 없어서, 화면을 안 거치고 이 API를 직접 호출하면 그대로 우회됐다.
+    // 검증 기준은 프론트와 반드시 동일하게 유지할 것.
+    const careless = answerRows.find((row) => {
+      const q = questionById.get(row.question_id)
+      if (q?.question_type !== 'short_answer') return false
+      const text = row.answer_text.trim()
+      return text.length < MIN_SHORT_ANSWER_LENGTH || CARELESS_ANSWER_PATTERN.test(text)
+    })
+    if (careless) {
+      return NextResponse.json({ error: '서술형 답변을 조금 더 구체적으로 작성해주세요 (최소 5자)' }, { status: 400 })
     }
 
     const { error: insertErr } = await supabase.from('review_answers').insert(answerRows)

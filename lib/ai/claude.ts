@@ -9,14 +9,21 @@ const MODEL_SLUGS = {
 
 export type ClaudeTier = keyof typeof MODEL_SLUGS
 
+export type ClaudeSource = { url: string; title: string | null }
+
 export async function callClaude(
   prompt: string,
   tier: ClaudeTier = 'sonnet',
-  options?: { maxTokens?: number }
+  options?: { maxTokens?: number; useWebSearch?: boolean }
 ): Promise<Record<string, unknown> | unknown[]> {
   if (!process.env.ANTHROPIC_API_KEY) {
     return getMockResponse(prompt)
   }
+
+  // 웹검색은 응답 지연/비용이 늘어나므로 심층 리포트(유료 섹션) 생성처럼
+  // 명시적으로 켠 호출에서만, sonnet 등급에서만 켠다 — 무료 섹션/챗봇류
+  // 가벼운 호출에는 절대 켜지 않는다.
+  const useWebSearch = Boolean(options?.useWebSearch) && tier === 'sonnet'
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -29,6 +36,9 @@ export async function callClaude(
       model: MODEL_SLUGS[tier],
       max_tokens: options?.maxTokens ?? 2000,
       messages: [{ role: 'user', content: prompt }],
+      ...(useWebSearch
+        ? { tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }] }
+        : {}),
     }),
   })
 
@@ -40,12 +50,21 @@ export async function callClaude(
   // (리포트 생성처럼 긴 구조화 출력)에서 확장 사고(thinking) 블록을 먼저
   // 반환하는 경우가 있어 content[0]이 thinking이면 text가 빈 문자열이 되고
   // JSON.parse('')가 "Unexpected end of JSON input"만 던져서 원인을 알 수
-  // 없었다 — 실제 text 타입 블록을 찾아서 쓴다.
+  // 없었다 — 실제 text 타입 블록을 찾아서 쓴다. 웹검색을 켰을 때는 text
+  // 블록이 여러 개(검색 라운드마다) 나올 수 있어 마지막 text 블록을 쓴다
+  // (최종 답변은 항상 검색 이후에 오는 마지막 text).
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const textBlock = data.content?.find((c: any) => c.type === 'text')
+  const textBlocks = (data.content ?? []).filter((c: any) => c.type === 'text')
+  const textBlock = textBlocks[textBlocks.length - 1]
   const text: string = textBlock?.text ?? ''
+
+  // 웹검색으로 실제 참고한 출처 URL — text 블록의 citations와
+  // web_search_tool_result 블록의 결과 목록 양쪽에서 모아 중복 제거한다.
+  const sources = useWebSearch ? extractSources(data.content ?? []) : []
+
+  let parsed: Record<string, unknown> | unknown[]
   try {
-    return JSON.parse(extractJson(text))
+    parsed = JSON.parse(extractJson(text))
   } catch (parseErr) {
     // max_tokens에 걸려 응답이 중간에 잘리면 JSON.parse가 "Unexpected end of
     // JSON input"만 던져서 원인을 알 수 없었다 — stop_reason을 함께 노출해
@@ -57,6 +76,35 @@ export async function callClaude(
         : `Claude 응답 JSON 파싱 실패: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`
     )
   }
+
+  // 배열 응답(문항 제안 등)은 sources를 붙일 자리가 없으니 그대로 반환하고,
+  // 객체 응답에만 _sources를 얹어 generateReport.ts가 report_data.sources로
+  // 옮겨 담을 수 있게 한다.
+  if (sources.length > 0 && !Array.isArray(parsed)) {
+    parsed._sources = sources
+  }
+  return parsed
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractSources(contentBlocks: any[]): ClaudeSource[] {
+  const seen = new Map<string, ClaudeSource>()
+  for (const block of contentBlocks) {
+    // 텍스트 블록에 달린 인용(citations) — 문장 단위로 어떤 검색 결과를
+    // 근거로 썼는지 표시된다.
+    if (Array.isArray(block.citations)) {
+      for (const c of block.citations) {
+        if (c?.url && !seen.has(c.url)) seen.set(c.url, { url: c.url, title: c.title ?? null })
+      }
+    }
+    // web_search_tool_result 블록 — 실제 검색 결과 목록 자체.
+    if (block.type === 'web_search_tool_result' && Array.isArray(block.content)) {
+      for (const r of block.content) {
+        if (r?.url && !seen.has(r.url)) seen.set(r.url, { url: r.url, title: r.title ?? null })
+      }
+    }
+  }
+  return Array.from(seen.values()).slice(0, 8)
 }
 
 // Gemini와 달리 Claude Messages API는 강제 JSON 모드가 없어서, 프롬프트에서

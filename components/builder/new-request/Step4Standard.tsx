@@ -7,7 +7,17 @@ import PsfLockedBlock from './PsfLockedBlock'
 import Textarea from './PolishableTextarea'
 import QuestionBuilder from './QuestionBuilder'
 import { generateId } from './storage'
-import { PSF_MAX_WRITABLE, SEAN_ELLIS_QUESTION, STD_DEEP_MAX_WRITABLE, type Question, type RequestFormData } from './types'
+import {
+  PSF_MAX_WRITABLE,
+  SEAN_ELLIS_QUESTION,
+  STD_DEEP_MAX_WRITABLE,
+  TARGET_FIT_QUESTION,
+  VAN_WESTENDORP_QUESTIONS,
+  PMF_ACQUISITION_CHANNEL_QUESTION,
+  PMF_CHURN_FEATURE_QUESTION,
+  type Question,
+  type RequestFormData,
+} from './types'
 
 type QuestionSuggestion = {
   question_text: string
@@ -204,6 +214,18 @@ export default function Step4Standard({ data, onChange }: Props) {
           showFixed={isPsf ? undefined : SEAN_ELLIS_QUESTION}
         />
         {isPsf && <PsfLockedBlock />}
+        {!isPsf && (
+          <PsfLockedBlock
+            questions={[PMF_ACQUISITION_CHANNEL_QUESTION, PMF_CHURN_FEATURE_QUESTION]}
+            title="PMF 실사용 검증 질문 · 자동 포함 (삭제·수정 불가)"
+            desc="실제 유입 경로와 이탈 위험 기능을 AI 추정이 아니라 실제 응답 데이터로 확인하기 위해 자동 포함돼요."
+          />
+        )}
+        <PsfLockedBlock
+          questions={[TARGET_FIT_QUESTION, ...VAN_WESTENDORP_QUESTIONS]}
+          title="공통 검증 질문 · 자동 포함 (삭제·수정 불가)"
+          desc="타겟 적합도 자기평가와 가격 민감도(Van Westendorp) 4문항은 PSF/PMF 모두 리포트 품질을 위해 자동으로 포함돼요."
+        />
       </div>
 
       {/* 토스트 */}

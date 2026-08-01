@@ -24,9 +24,13 @@ export type ConfidenceTiers = {
   usage_frequency_note: ConfidenceTier
 }
 
+// 언급 빈도 근거를 함께 붙이도록 구조를 바꿨다(예전엔 string[]) — 옛
+// 리포트(이 필드 생기기 전 생성분) 호환을 위해 string도 계속 허용한다.
+export type ActionPlanItem = { action: string; evidence?: string | null } | string
+
 export type ReportPaidData = {
   key_insights: string[] // 전체 배열 — 2번부터만 렌더링
-  action_plan: string[]
+  action_plan: ActionPlanItem[]
   pivot_scenarios: string[]
   competitor_references: CompetitorRef[]
   market_size: MarketSize
@@ -35,6 +39,7 @@ export type ReportPaidData = {
   gtm_strategies: GtmStrategy[] | null
   scaleup_roadmap: ScaleupPhase[] | null
   confidence_tiers?: ConfidenceTiers
+  sources?: { url: string; title: string | null }[]
 }
 
 export default function ReportPaidSections({
@@ -78,14 +83,25 @@ export default function ReportPaidSections({
       {data.action_plan?.length > 0 && (
         <Card title="다음 액션">
           <div className="flex flex-col gap-2">
-            {data.action_plan.map((a, i) => (
-              <div key={i} className="flex items-center gap-3 rounded-xl bg-[#F77019]/5 border border-[#F77019]/10 px-4 py-3">
-                <span className="w-5 h-5 rounded-full bg-[#F77019] text-white text-[10px] font-black flex items-center justify-center shrink-0">
-                  {i + 1}
-                </span>
-                <p className="text-[11px] font-bold text-[#1D1C1C]">{a}</p>
-              </div>
-            ))}
+            {data.action_plan.map((a, i) => {
+              const action = typeof a === 'string' ? a : a.action
+              const evidence = typeof a === 'string' ? null : a.evidence
+              return (
+                <div key={i} className="flex items-start gap-3 rounded-xl bg-[#F77019]/5 border border-[#F77019]/10 px-4 py-3">
+                  <span className="w-5 h-5 rounded-full bg-[#F77019] text-white text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">
+                    {i + 1}
+                  </span>
+                  <div className="flex flex-col gap-1">
+                    <p className="text-[11px] font-bold text-[#1D1C1C]">{action}</p>
+                    {evidence && (
+                      <span className="text-[9px] font-black text-[#F77019] bg-[#F77019]/10 px-1.5 py-0.5 rounded w-fit">
+                        근거: {evidence}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </Card>
       )}
@@ -165,8 +181,10 @@ export default function ReportPaidSections({
         </Card>
       )}
 
-      {/* Unit Economics — beta/launched 단계만 */}
-      {data.unit_economics && (
+      {/* Unit Economics — 크리에이터가 재무 정보(판매가/원가/마케팅예산)를
+          입력한 경우에만 실제 계산치가 나온다. 미입력이면 AI가 지어내지
+          않고 null로 두므로, 안내만 보여준다. */}
+      {data.unit_economics ? (
         <Card title="Unit Economics · 수익성 분석">
           <div className="grid grid-cols-3 gap-3">
             <UeStat label="예상 CAC" value={data.unit_economics.cac} />
@@ -175,6 +193,13 @@ export default function ReportPaidSections({
           </div>
           <p className="mt-3 text-[10px] font-bold text-[#999] bg-[#F5F5F5] rounded-xl px-4 py-3 leading-relaxed">
             {data.unit_economics.basis_note}
+          </p>
+        </Card>
+      ) : (
+        <Card title="Unit Economics · 수익성 분석">
+          <p className="text-[11px] font-bold text-[#999] text-center py-4">
+            재무 정보(예상 판매가·원가·마케팅 예산)를 입력하면 계산됩니다. 등록 마법사의
+            비용 확인 단계에서 입력할 수 있어요.
           </p>
         </Card>
       )}
@@ -236,6 +261,24 @@ export default function ReportPaidSections({
             ))}
           </div>
         </Card>
+      )}
+
+      {/* 웹검색 출처 각주 — 시장규모/경쟁사레퍼런스/GTM 생성 시 실제 검색한 URL */}
+      {data.sources && data.sources.length > 0 && (
+        <div className="rounded-2xl border border-[#1D1C1C]/8 bg-[#FAFAFA] p-4 flex flex-col gap-1.5">
+          <p className="text-[9px] font-black text-[#999]">출처</p>
+          {data.sources.map((s, i) => (
+            <a
+              key={i}
+              href={s.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[10px] font-bold text-[#189DF7] hover:underline truncate"
+            >
+              {s.title ?? s.url}
+            </a>
+          ))}
+        </div>
       )}
     </div>
   )

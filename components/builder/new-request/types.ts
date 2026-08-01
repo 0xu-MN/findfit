@@ -16,6 +16,7 @@ export type QuestionType =
   | 'multiple_choice'
   | 'short_answer'
   | 'likert'
+  | 'likert_5'
   | 'ab_test'
   | 'keyword'
   | 'yes_no'
@@ -111,6 +112,12 @@ export type RequestFormData = {
   distributionMethod: DistributionMethod
   deadlineDays: number // Light: 5, Standard/Deep: 10 (Deep은 experienceDeadline 이상)
   targetReviewerRoles: string[] // 원하는 평가단 직군 (PM/개발자/마케터/디자이너/창업자/투자자/일반소비자)
+
+  // Step 6 — 재무 정보(선택) — 입력하면 리포트의 unit_economics(LTV/CAC)를
+  // AI 추정이 아니라 실제 계산으로 대체한다. 0이면 "미입력"으로 취급.
+  expectedPrice: number
+  expectedCost: number
+  marketingBudget: number
 }
 
 export const CATEGORIES = ['앱', '게임', '웹', 'SaaS', '커머스', '헬스', '에듀', '핀테크', '푸드', '부동산', '기타']
@@ -287,6 +294,63 @@ export const SEAN_ELLIS_QUESTION: Question = {
   isFixed: true,
 }
 
+// PMF 전용(베타/출시 단계만) — 실제 유입 경로와 이탈 위험 기능을 AI 추정이
+// 아니라 실제 응답 데이터로 대체하기 위한 고정 문항 2개.
+export const PMF_ACQUISITION_CHANNEL_QUESTION: Question = {
+  id: 'pmf-acquisition-channel',
+  type: 'multiple_choice',
+  text: '이 서비스를 어디서 처음 알게 되셨나요?',
+  options: ['검색(구글/네이버 등)', 'SNS(인스타그램/트위터 등)', '지인 추천', '커뮤니티/카페', '광고', '기타'],
+  isFixed: true,
+}
+export const PMF_CHURN_FEATURE_QUESTION: Question = {
+  id: 'pmf-churn-feature',
+  type: 'short_answer',
+  text: '이 서비스에서 어떤 기능이 없어지면 가장 아쉬우시겠어요?',
+  isFixed: true,
+}
+
+// 타겟 적합도 자기평가 — PSF/PMF 공통, Standard 등록 시 항상 자동 포함.
+// 리포트에서 Sean Ellis류 지표를 "타겟군 내"/"타겟군 밖" 응답자로 분리
+// 집계하는 데 쓴다(4점 이상=타겟군 내, 2점 이하=타겟군 밖, 3점=경계).
+export const TARGET_FIT_QUESTION: Question = {
+  id: 'target-fit',
+  type: 'likert_5',
+  text: '나는 이 제품의 타겟 사용자에 해당한다',
+  isFixed: true,
+}
+export const TARGET_FIT_IN_TARGET_MIN_SCORE = 4
+export const TARGET_FIT_OUT_OF_TARGET_MAX_SCORE = 2
+
+// Van Westendorp 가격 민감도 4문항 — Standard 등록 시 항상 자동 포함(단답형
+// 금액 입력). 중앙값/수용 가격대는 리포트 생성 시 순수 계산으로 집계한다.
+export const VAN_WESTENDORP_QUESTIONS: Question[] = [
+  {
+    id: 'vw-too-cheap',
+    type: 'short_answer',
+    text: '이 제품/서비스가 얼마면 "너무 싸서 품질이 의심스럽다"고 느끼시겠어요? (숫자만 입력, 원 단위)',
+    isFixed: true,
+  },
+  {
+    id: 'vw-cheap',
+    type: 'short_answer',
+    text: '이 제품/서비스가 얼마면 "저렴하다"고 느끼시겠어요? (숫자만 입력, 원 단위)',
+    isFixed: true,
+  },
+  {
+    id: 'vw-expensive',
+    type: 'short_answer',
+    text: '이 제품/서비스가 얼마면 "비싸지기 시작한다"고 느끼시겠어요? (숫자만 입력, 원 단위)',
+    isFixed: true,
+  },
+  {
+    id: 'vw-too-expensive',
+    type: 'short_answer',
+    text: '이 제품/서비스가 얼마면 "너무 비싸서 안 사겠다"고 느끼시겠어요? (숫자만 입력, 원 단위)',
+    isFixed: true,
+  },
+]
+
 // PSF 단계(아이디어/프로토타입)에서 Standard에 자동 포함되는 필수 질문 4개
 export const PSF_STANDARD_QUESTIONS: Question[] = [
   {
@@ -316,7 +380,26 @@ export const PSF_STANDARD_QUESTIONS: Question[] = [
     options: ['매일', '주 1~2회', '월 1~2회', '거의 없음'],
     isFixed: true,
   },
+  {
+    id: 'psf-severity',
+    type: 'likert_5',
+    text: '그 문제를 겪었을 때 얼마나 불편하셨나요?',
+    isFixed: true,
+  },
+  {
+    id: 'psf-alternatives',
+    type: 'multiple_choice',
+    text: '지금은 이 문제를 어떻게 해결하고 계신가요? (기존 대안)',
+    options: ['특별한 대안 없이 그냥 참는다', '구글링/커뮤니티에서 검색', '기존 앱·서비스를 사용', '지인에게 물어봄', '기타'],
+    isFixed: true,
+  },
 ]
+
+// psf-severity는 psf-1에서 "문제를 겪어본 적이 있다"고 답한 사람에게만
+// 의미가 있다 — psf-1의 어떤 답변이 "겪어본 적 있음"에 해당하는지 여기
+// 한 곳에서 정의해서, 리뷰어 화면(ProjectCardExpandable)의 조건부 노출
+// 로직과 리포트 집계 양쪽에서 같은 기준을 쓰게 한다.
+export const PSF_1_EXPERIENCED_OPTIONS = ['자주 겪는다', '가끔 겪는다']
 
 // 질문 개수 제한 없음 — 예전엔 Light 5개 / Standard(PSF) 5개 / Standard(PMF) 9개로
 // 하드캡을 걸어뒀는데, 실제로 검증하려는 내용에 따라 필요한 문항 수가 다르니
@@ -383,6 +466,10 @@ export function createEmptyDraft(): RequestFormData {
     distributionMethod: 'equal',
     deadlineDays: 10,
     targetReviewerRoles: [],
+
+    expectedPrice: 0,
+    expectedCost: 0,
+    marketingBudget: 0,
   }
 }
 

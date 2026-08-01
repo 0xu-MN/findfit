@@ -406,6 +406,50 @@ function StdDeepPricing({
         </div>
       </Field>
 
+      {/* 재무 정보(선택) — 입력하면 리포트의 유닛 이코노믹스(LTV/CAC)가
+          AI 추정이 아니라 실제 계산으로 대체된다. 입력하지 않으면 리포트에
+          "재무 정보를 입력하면 계산됩니다" 안내만 표시(AI가 지어내지 않음). */}
+      <Field label="재무 정보 (선택)" hint="입력하면 리포트에 실제 LTV/CAC가 계산돼요 · 미입력 시 생략">
+        <div className="grid grid-cols-3 gap-2">
+          <div className="flex flex-col gap-1">
+            <span className="text-[9px] font-bold text-[#999]">예상 판매가(원)</span>
+            <input
+              type="number"
+              min={0}
+              step={100}
+              value={data.expectedPrice || ''}
+              onChange={(e) => onChange({ expectedPrice: Math.max(0, Number(e.target.value) || 0) })}
+              placeholder="예: 9900"
+              className="h-10 rounded-xl bg-[#F5F5F5] border-none outline-none px-3 text-[11px] font-bold"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-[9px] font-bold text-[#999]">예상 원가/단위(원)</span>
+            <input
+              type="number"
+              min={0}
+              step={100}
+              value={data.expectedCost || ''}
+              onChange={(e) => onChange({ expectedCost: Math.max(0, Number(e.target.value) || 0) })}
+              placeholder="예: 3000"
+              className="h-10 rounded-xl bg-[#F5F5F5] border-none outline-none px-3 text-[11px] font-bold"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-[9px] font-bold text-[#999]">월 마케팅 예산(원)</span>
+            <input
+              type="number"
+              min={0}
+              step={10000}
+              value={data.marketingBudget || ''}
+              onChange={(e) => onChange({ marketingBudget: Math.max(0, Number(e.target.value) || 0) })}
+              placeholder="예: 500000"
+              className="h-10 rounded-xl bg-[#F5F5F5] border-none outline-none px-3 text-[11px] font-bold"
+            />
+          </div>
+        </div>
+      </Field>
+
       {/* AI 리포트 안내 (레벨 기반 자동) */}
       <div className="rounded-xl bg-[#1565C0]/5 border border-[#1565C0]/15 p-3 flex items-start gap-2">
         <Lock className="w-3.5 h-3.5 text-[#1565C0] flex-shrink-0 mt-0.5" />

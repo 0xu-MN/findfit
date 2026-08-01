@@ -3,6 +3,10 @@ import { getPsfPmfType } from '@/lib/utils/psfPmf'
 import {
   PSF_STANDARD_QUESTIONS,
   SEAN_ELLIS_QUESTION,
+  TARGET_FIT_QUESTION,
+  VAN_WESTENDORP_QUESTIONS,
+  PMF_ACQUISITION_CHANNEL_QUESTION,
+  PMF_CHURN_FEATURE_QUESTION,
   type AccessMethod,
   type Question,
   type RequestFormData,
@@ -63,12 +67,19 @@ function buildQuestionRows(data: RequestFormData, psfPmfType: PsfPmfType): {
 
   if (data.projectType === 'standard') {
     if (psfPmfType === 'psf') {
-      // PSF 단계: 필수 4개 문항이 앞에 자동 포함
+      // PSF 단계: 필수 문항들이 앞에 자동 포함
       fixedLead.push(...PSF_STANDARD_QUESTIONS)
     } else {
-      // PMF 단계: Sean Ellis 문항이 마지막에 자동 포함
-      fixedTail.push(SEAN_ELLIS_QUESTION)
+      // PMF 단계: Sean Ellis + 실제 유입경로/이탈위험기능 문항이 마지막에 자동 포함
+      fixedTail.push(SEAN_ELLIS_QUESTION, PMF_ACQUISITION_CHANNEL_QUESTION, PMF_CHURN_FEATURE_QUESTION)
     }
+    // 타겟 적합도 자기평가 — PSF/PMF 공통, Sean Ellis류 지표를 타겟군
+    // 내/외로 분리 집계하는 데 쓰인다.
+    fixedLead.push(TARGET_FIT_QUESTION)
+    // Van Westendorp 가격 4문항 — PSF/PMF 공통. 항상 포함(스펙상 "선택"이지만
+    // 등록 마법사에 별도 토글 UI가 아직 없어 우선 항상 포함, 값 미기입 시
+    // 리포트 집계 단계에서 자연히 제외됨).
+    fixedTail.push(...VAN_WESTENDORP_QUESTIONS)
   }
 
   // 커스텀 문항 (data.questions에는 고정 문항이 들어있지 않음 — UI에서 별도 표시)
@@ -154,6 +165,16 @@ export async function submitProject(data: RequestFormData): Promise<SubmitProjec
         // 업로드(Storage) 자체가 구현돼 있지 않아서 파일명 문자열만 남고
         // 실물 파일은 어차피 없다 — 별도 작업으로 다뤄야 함.
         lightQuestionStyle: data.lightQuestionStyle,
+        // 재무 정보(선택) — 셋 다 0(미입력)이면 저장하지 않는다. generateReport.ts가
+        // 이 값의 존재 여부로 unit_economics를 실제 계산할지 null로 둘지 판단한다.
+        financials:
+          data.expectedPrice > 0 || data.expectedCost > 0 || data.marketingBudget > 0
+            ? {
+                expectedPrice: data.expectedPrice,
+                expectedCost: data.expectedCost,
+                marketingBudget: data.marketingBudget,
+              }
+            : null,
         attachments: {
           imageNames: data.imageNames,
           documentNames: data.documentNames,

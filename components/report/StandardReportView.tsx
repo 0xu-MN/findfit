@@ -47,6 +47,14 @@ type StandardReportData = {
   strongest_objection?: StrongestObjection
   theme_frequency?: ThemeFrequencyItem[]
   verbatim_quotes?: VerbatimQuote[]
+  sean_ellis_segments?: { inTargetPct: number | null; outOfTargetPct: number | null }
+  van_westendorp?: {
+    too_cheap_median: number | null
+    cheap_median: number | null
+    expensive_median: number | null
+    too_expensive_median: number | null
+    acceptable_price_range: [number, number] | null
+  } | null
 }
 
 const RECOMMENDATION_LABELS: Record<string, { label: string; color: string; bg: string }> = {
@@ -104,6 +112,44 @@ export default function StandardReportView({ data, mode }: { data: StandardRepor
           )}
         </div>
       </div>
+
+      {/* 타겟 적합도 세분화 + Van Westendorp 가격 — 둘 다 AI 호출 없는 순수 집계 */}
+      {(data.sean_ellis_segments?.inTargetPct != null || data.sean_ellis_segments?.outOfTargetPct != null || data.van_westendorp) && (
+        <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex flex-col gap-5">
+          {(data.sean_ellis_segments?.inTargetPct != null || data.sean_ellis_segments?.outOfTargetPct != null) && (
+            <div>
+              <h3 className="text-sm font-black mb-2.5">타겟 적합도별 핵심 만족도</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl bg-[#F5F5F5] px-4 py-3">
+                  <p className="text-[9px] font-black text-[#999] mb-1">타겟군 내 응답자</p>
+                  <p className="text-lg font-black text-[#1D1C1C]">
+                    {data.sean_ellis_segments?.inTargetPct ?? '-'}{data.sean_ellis_segments?.inTargetPct != null && '%'}
+                  </p>
+                </div>
+                <div className="rounded-xl bg-[#F5F5F5] px-4 py-3">
+                  <p className="text-[9px] font-black text-[#999] mb-1">타겟군 밖 응답자</p>
+                  <p className="text-lg font-black text-[#1D1C1C]">
+                    {data.sean_ellis_segments?.outOfTargetPct ?? '-'}{data.sean_ellis_segments?.outOfTargetPct != null && '%'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          {data.van_westendorp && (
+            <div>
+              <h3 className="text-sm font-black mb-2.5">가격 민감도 (Van Westendorp)</h3>
+              {data.van_westendorp.acceptable_price_range ? (
+                <p className="text-[11px] font-bold text-[#666]">
+                  수용 가능 가격대: {data.van_westendorp.acceptable_price_range[0].toLocaleString()}원 ~{' '}
+                  {data.van_westendorp.acceptable_price_range[1].toLocaleString()}원
+                </p>
+              ) : (
+                <p className="text-[11px] font-bold text-[#999]">응답이 부족해 수용 가격대를 계산할 수 없어요.</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 문항별 응답 요약 — AI가 아니라 실제 답변 집계 */}
       {data.question_summary?.length > 0 && (

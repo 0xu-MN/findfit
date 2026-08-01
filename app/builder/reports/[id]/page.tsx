@@ -31,7 +31,7 @@ type ReportData = {
   key_insights?: string[]
   pattern_analysis?: string
   benchmark_comment?: string
-  action_plan?: string[]
+  action_plan?: ReportPaidData['action_plan']
   pivot_scenarios?: string[]
   question_summary?: QuestionSummaryItem[]
   panel_summary?: PanelSummary
@@ -47,6 +47,15 @@ type ReportData = {
   gtm_strategies?: ReportPaidData['gtm_strategies']
   scaleup_roadmap?: ReportPaidData['scaleup_roadmap']
   confidence_tiers?: ReportPaidData['confidence_tiers']
+  sources?: ReportPaidData['sources']
+  sean_ellis_segments?: { inTargetPct: number | null; outOfTargetPct: number | null }
+  van_westendorp?: {
+    too_cheap_median: number | null
+    cheap_median: number | null
+    expensive_median: number | null
+    too_expensive_median: number | null
+    acceptable_price_range: [number, number] | null
+  } | null
 }
 
 // ai_reports 테이블의 최상위 컬럼(PSF 서브스코어 + verdict) — report_data
@@ -298,6 +307,7 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
                   winner: (report.winner ?? null) as 'A' | 'B' | null,
                   ratio_summary: report.ratio_summary ?? '',
                   key_comments: report.key_comments ?? [],
+                  verbatim_quotes: report.verbatim_quotes ?? [],
                   one_line_recommendation: report.one_line_recommendation ?? '',
                 }}
               />
@@ -326,6 +336,8 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
                     strongest_objection: report.strongest_objection,
                     theme_frequency: report.theme_frequency,
                     verbatim_quotes: report.verbatim_quotes,
+                    sean_ellis_segments: report.sean_ellis_segments,
+                    van_westendorp: report.van_westendorp,
                   }}
                   mode={psfPmf}
                 />
@@ -371,6 +383,7 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
                         gtm_strategies: report.gtm_strategies ?? null,
                         scaleup_roadmap: report.scaleup_roadmap ?? null,
                         confidence_tiers: report.confidence_tiers,
+                        sources: report.sources,
                       }}
                       recommendation={report.recommendation ?? 'pivot'}
                     />
