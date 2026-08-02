@@ -9,9 +9,11 @@ import {
   Clock,
   FileText,
   ListChecks,
+  MessageSquareText,
   Package,
   Trash2,
   Users,
+  Wallet,
   X,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
@@ -39,6 +41,7 @@ type ProjectRow = {
   access_method: AccessMethod
   created_at: string
   deadline: string | null
+  extra_data: { financials?: { expectedPrice: number; expectedCost: number; marketingBudget: number } | null } | null
 }
 
 type QuestionRow = {
@@ -81,6 +84,12 @@ export default function ProjectDetailPage({ projectId }: Props) {
   const [closing, setClosing] = useState<'force_early' | 'proceed_short' | 'complete_start' | null>(null)
   const [extending, setExtending] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  // 재무 정보(예상 판매가/원가/마케팅 예산) — 등록 마법사에서만 입력받던 걸
+  // 이미 등록된 프로젝트에도 나중에 추가/수정할 수 있게 한다(리포트의 Unit
+  // Economics 계산에 쓰임). 값이 있으면 그걸로 폼을 채우고, 없으면 빈 폼.
+  const [editingFinancials, setEditingFinancials] = useState(false)
+  const [financialsForm, setFinancialsForm] = useState({ expectedPrice: '', expectedCost: '', marketingBudget: '' })
+  const [savingFinancials, setSavingFinancials] = useState(false)
 
   const load = useCallback(async () => {
     const supabase = createClient()
@@ -88,7 +97,7 @@ export default function ProjectDetailPage({ projectId }: Props) {
       supabase
         .from('projects')
         .select(
-          'id, title, one_liner, categories, stage, project_type, status, problem, solution, alternative_limit, target_age_range, target_jobs, target_count, completed_count, access_method, created_at, deadline'
+          'id, title, one_liner, categories, stage, project_type, status, problem, solution, alternative_limit, target_age_range, target_jobs, target_count, completed_count, access_method, created_at, deadline, extra_data'
         )
         .eq('id', projectId)
         .single(),
@@ -114,6 +123,35 @@ export default function ProjectDetailPage({ projectId }: Props) {
   }, [load])
 
   const [deleting, setDeleting] = useState(false)
+
+  const openFinancialsEdit = () => {
+    const f = project?.extra_data?.financials
+    setFinancialsForm({
+      expectedPrice: f?.expectedPrice ? String(f.expectedPrice) : '',
+      expectedCost: f?.expectedCost ? String(f.expectedCost) : '',
+      marketingBudget: f?.marketingBudget ? String(f.marketingBudget) : '',
+    })
+    setEditingFinancials(true)
+  }
+
+  const saveFinancials = async () => {
+    setSavingFinancials(true)
+    const res = await fetch(`/api/projects/${projectId}/financials`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        expectedPrice: Number(financialsForm.expectedPrice) || 0,
+        expectedCost: Number(financialsForm.expectedCost) || 0,
+        marketingBudget: Number(financialsForm.marketingBudget) || 0,
+      }),
+    })
+    setSavingFinancials(false)
+    if (res.ok) {
+      const { financials } = await res.json()
+      setProject((p) => (p ? { ...p, extra_data: { ...(p.extra_data ?? {}), financials } } : p))
+      setEditingFinancials(false)
+    }
+  }
 
   // 모집 중(active)이거나 이미 리뷰 단계(reviewing)인 프로젝트는 이미
   // 리뷰어 사례금이 걸려있을 수 있어서, 네이티브 confirm() 대신 환불 불가를
@@ -255,7 +293,7 @@ export default function ProjectDetailPage({ projectId }: Props) {
               </span>
             )}
             <span
-              className={`text-[9px] font-black px-2 py-0.5 rounded ml-auto ${
+              className={`text-[11px] font-black px-3 py-1.5 rounded-lg ml-auto ${
                 project.status === 'pending_review'
                   ? 'bg-[#999]/10 text-[#666]'
                   : project.status === 'rejected'
@@ -534,14 +572,22 @@ export default function ProjectDetailPage({ projectId }: Props) {
         ) : null}
 
         {allDone ? (
-          <button
-            onClick={() => router.push(`/builder/reports/${project.id}`)}
-            className="w-full py-3 rounded-xl bg-[#F77019] text-white text-[12px] font-black flex items-center justify-center gap-2 hover:bg-[#e0621a] transition-colors"
-          >
-            <BarChart3 className="w-4 h-4" />
-            AI 리포트 보기
-            <ChevronRight className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => router.push(`/builder/reports/${project.id}`)}
+              className="flex-1 py-3 rounded-xl bg-[#F77019] text-white text-[12px] font-black flex items-center justify-center gap-1.5 hover:bg-[#e0621a] transition-colors"
+            >
+              <BarChart3 className="w-4 h-4" />
+              AI 리포트 보기
+            </button>
+            <button
+              onClick={() => router.push(`/builder/reports/${project.id}/raw`)}
+              className="flex-1 py-3 rounded-xl border border-[#1D1C1C]/12 text-[#1D1C1C] text-[12px] font-black flex items-center justify-center gap-1.5 hover:bg-[#F5F5F5] transition-colors"
+            >
+              <MessageSquareText className="w-4 h-4" />
+              리뷰어 의견 보기
+            </button>
+          </div>
         ) : (
           <div className="rounded-xl bg-[#1565C0]/5 border border-[#1565C0]/15 p-3">
             <p className="text-[10px] font-bold text-[#1565C0]">
@@ -600,6 +646,76 @@ export default function ProjectDetailPage({ projectId }: Props) {
         )}
       </div>
 
+      {/* 재무 정보 — 리포트의 Unit Economics 계산에 쓰인다. 등록 마법사에서
+          안 채웠거나 나중에 값이 바뀐 경우, 여기서 언제든 입력/수정할 수
+          있게 한다(Light는 Unit Economics 자체가 안 나오므로 제외). */}
+      {project.project_type !== 'light' && (
+        <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-6 flex flex-col gap-4 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Wallet className="w-4 h-4 text-[#666]" />
+              <h2 className="text-sm font-black">재무 정보 (선택)</h2>
+            </div>
+            {!editingFinancials && (
+              <button
+                onClick={openFinancialsEdit}
+                className="text-[10px] font-black text-[#F77019] hover:underline"
+              >
+                {project.extra_data?.financials ? '수정' : '입력하기'}
+              </button>
+            )}
+          </div>
+          <p className="text-[10px] font-bold text-[#999] -mt-2">
+            리포트의 Unit Economics(CAC/LTV) 계산에 쓰여요. 안 채우면 그 섹션이 비어있게 나와요.
+          </p>
+
+          {editingFinancials ? (
+            <div className="flex flex-col gap-3">
+              <div className="grid grid-cols-3 gap-3">
+                <NumberField
+                  label="예상 판매가(원)"
+                  value={financialsForm.expectedPrice}
+                  onChange={(v) => setFinancialsForm((f) => ({ ...f, expectedPrice: v }))}
+                />
+                <NumberField
+                  label="예상 원가(원)"
+                  value={financialsForm.expectedCost}
+                  onChange={(v) => setFinancialsForm((f) => ({ ...f, expectedCost: v }))}
+                />
+                <NumberField
+                  label="월 마케팅 예산(원)"
+                  value={financialsForm.marketingBudget}
+                  onChange={(v) => setFinancialsForm((f) => ({ ...f, marketingBudget: v }))}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={saveFinancials}
+                  disabled={savingFinancials}
+                  className="px-4 py-2 rounded-xl bg-[#F77019] text-white text-[11px] font-black hover:bg-[#e0621a] disabled:opacity-60 transition-colors"
+                >
+                  {savingFinancials ? '저장 중...' : '저장'}
+                </button>
+                <button
+                  onClick={() => setEditingFinancials(false)}
+                  className="px-4 py-2 rounded-xl border border-[#1D1C1C]/12 text-[#666] text-[11px] font-black hover:bg-[#F5F5F5] transition-colors"
+                >
+                  취소
+                </button>
+              </div>
+            </div>
+          ) : project.extra_data?.financials ? (
+            <div className="grid grid-cols-3 gap-3">
+              <FinancialStat label="예상 판매가" value={project.extra_data.financials.expectedPrice} />
+              <FinancialStat label="예상 원가" value={project.extra_data.financials.expectedCost} />
+              <FinancialStat label="월 마케팅 예산" value={project.extra_data.financials.marketingBudget} />
+            </div>
+          ) : (
+            <p className="text-[10px] font-bold text-[#999]">아직 입력하지 않았어요.</p>
+          )}
+        </div>
+      )}
+
       {/* 검증 질문 */}
       {questions.length > 0 && (
         <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-6 flex flex-col gap-4 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
@@ -637,13 +753,22 @@ export default function ProjectDetailPage({ projectId }: Props) {
       {/* 하단 액션 */}
       <div className="flex items-center gap-3 pb-8">
         {allDone ? (
-          <button
-            onClick={() => router.push(`/builder/reports/${project.id}`)}
-            className="flex-1 py-3 rounded-xl bg-[#F77019] text-white text-[12px] font-black flex items-center justify-center gap-2 hover:bg-[#e0621a] transition-colors"
-          >
-            <BarChart3 className="w-4 h-4" />
-            AI 리포트 보기
-          </button>
+          <>
+            <button
+              onClick={() => router.push(`/builder/reports/${project.id}`)}
+              className="flex-1 py-3 rounded-xl bg-[#F77019] text-white text-[12px] font-black flex items-center justify-center gap-2 hover:bg-[#e0621a] transition-colors"
+            >
+              <BarChart3 className="w-4 h-4" />
+              AI 리포트 보기
+            </button>
+            <button
+              onClick={() => router.push(`/builder/reports/${project.id}/raw`)}
+              className="flex-1 py-3 rounded-xl border border-[#1D1C1C]/12 text-[#1D1C1C] text-[12px] font-black flex items-center justify-center gap-2 hover:bg-[#F5F5F5] transition-colors"
+            >
+              <MessageSquareText className="w-4 h-4" />
+              리뷰어 의견 보기
+            </button>
+          </>
         ) : (
           <div className="flex-1 flex items-center gap-2 py-3 rounded-xl bg-[#F5F5F5] px-4">
             <Clock className="w-4 h-4 text-[#999]" />
@@ -663,6 +788,31 @@ function InfoField({ label, children }: { label: string; children: React.ReactNo
     <div className="flex flex-col gap-1.5">
       <span className="text-[10px] font-black text-[#999] uppercase tracking-wider">{label}</span>
       {children}
+    </div>
+  )
+}
+
+function NumberField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <label className="flex flex-col gap-1.5">
+      <span className="text-[9px] font-bold text-[#999]">{label}</span>
+      <input
+        type="number"
+        min={0}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="0"
+        className="h-10 rounded-xl border border-[#1D1C1C]/12 px-3 text-[12px] font-bold outline-none focus:border-[#F77019]"
+      />
+    </label>
+  )
+}
+
+function FinancialStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-xl bg-[#F5F5F5] p-3 flex flex-col gap-1">
+      <span className="text-[9px] font-bold text-[#999]">{label}</span>
+      <span className="text-[12px] font-black text-[#1D1C1C]">{value.toLocaleString('ko-KR')}원</span>
     </div>
   )
 }

@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import {
+  CheckCircle2,
   FolderKanban,
   Info,
   Loader2,
@@ -30,7 +31,7 @@ function fmt(n: number) {
   return n.toLocaleString('ko-KR')
 }
 
-type View = 'projects' | 'reports'
+type View = 'projects' | 'reports' | 'completed'
 
 // 예전엔 "프로젝트 목록"과 "리포트 목록"이 완전히 분리된 페이지였는데,
 // 하나의 작업공간으로 합쳤다 — 좌측 미니 메뉴로 전환하고(라우팅 없음),
@@ -97,6 +98,7 @@ export default function ProjectsWorkspace() {
         {[
           { key: 'projects' as const, label: '프로젝트', icon: FolderKanban },
           { key: 'reports' as const, label: '리포트', icon: FileTextIcon },
+          { key: 'completed' as const, label: '완료된 프로젝트', icon: CheckCircle2 },
         ].map((item) => (
           <button
             key={item.key}
@@ -151,7 +153,13 @@ export default function ProjectsWorkspace() {
             </div>
 
             {/* 리스트 영역 */}
-            {view === 'projects' ? <ProjectListPage /> : <ReportListPage />}
+            {view === 'projects' ? (
+              <ProjectListPage />
+            ) : view === 'completed' ? (
+              <ProjectListPage initialStatusFilter="completed" />
+            ) : (
+              <ReportListPage />
+            )}
           </>
         )}
       </div>

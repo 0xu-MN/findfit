@@ -328,6 +328,24 @@ export async function generateAndSaveReport(projectId: string, supabase: any) {
   const sources = (aiResult._sources as { url: string; title: string | null }[] | undefined) ?? []
   delete aiResult._sources
 
+  // reviewer_narratives에 실제 인구통계(성별/나이/직군)를 코드로 붙인다 —
+  // AI는 reviewer_tag만 알고 성별/나이/직군은 모르므로(프롬프트에 안 줌),
+  // "리뷰어 A"가 reviews[0]과 같은 순서라는 점(reviewerTag 명명 규칙,
+  // lib/ai/prompt.ts와 동일)을 이용해 매칭한다. 리포트 화면(리뷰어 원본
+  // 보기 페이지와 동일한 정보)을 더 풍성하게 보여주기 위함 — AI 호출 추가 없음.
+  if (Array.isArray(aiResult.reviewer_narratives)) {
+    aiResult.reviewer_narratives = (aiResult.reviewer_narratives as { reviewer_tag?: string }[]).map((n) => {
+      const idx = tagToIndex(n.reviewer_tag)
+      const demo = idx !== null ? reviews[idx]?.demographics : undefined
+      return {
+        ...n,
+        gender: demo?.gender === 'male' ? '남성' : demo?.gender === 'female' ? '여성' : null,
+        age: demo?.age ?? null,
+        jobDomain: demo?.jobDomain ?? [],
+      }
+    })
+  }
+
   // 6) ai_reports upsert
   const row = {
     project_id: projectId,
@@ -490,6 +508,14 @@ function buildResponseTimeSummary(
     slowest_minutes: Math.round(Math.max(...durations) * 10) / 10,
     suspiciously_fast_count: durations.filter((d) => d < SUSPICIOUSLY_FAST_MINUTES).length,
   }
+}
+
+// "리뷰어 A" → 0, "리뷰어 B" → 1 ... lib/ai/prompt.ts의 reviewerTag()와 반드시
+// 동일한 규칙(순서대로 A, B, C...)을 따라야 매칭이 맞는다.
+function tagToIndex(tag: string | undefined): number | null {
+  if (!tag) return null
+  const m = tag.match(/^리뷰어 ([A-Z])$/)
+  return m ? m[1].charCodeAt(0) - 65 : null
 }
 
 function avg(nums: (number | null)[]): number | null {

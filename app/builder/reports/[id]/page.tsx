@@ -187,10 +187,12 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
   return (
     <div className="min-h-[calc(100vh-80px)] pb-16">
       {/* 상단 바 — 좌측에 리포트 목록이 상시 떠 있으므로(app/builder/reports/layout.tsx)
-          뒤로가기는 보조 수단으로만 남겨둔다 */}
+          뒤로가기는 보조 수단으로만 남겨둔다. 프로젝트 상세로 고정 이동시켜서
+          "리뷰어 의견 보기" 페이지와 서로의 뒤로가기를 번갈아 누르며 두 화면
+          사이만 왔다갔다 하던 문제를 없앤다(history.back() 대신 명시적 이동). */}
       <div className="sticky top-0 z-20 -mx-2 mb-2 bg-[#F7F7F5] px-2 py-4 flex items-center gap-3 border-b border-[#1D1C1C]/8 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
         <button
-          onClick={() => router.back()}
+          onClick={() => router.push(`/builder/projects/${projectId}`)}
           className="p-1.5 rounded-lg hover:bg-white transition-colors text-[#666]"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -205,6 +207,12 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
           )}
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => router.push(`/builder/reports/${projectId}/raw`)}
+            className="text-[10px] font-black text-[#666] hover:text-[#F77019] transition-colors px-2 py-1 rounded-lg hover:bg-[#F77019]/5"
+          >
+            리뷰어 의견 보기
+          </button>
           {!loading && report && (
             <button
               onClick={() => fetchReport(true)}
@@ -386,6 +394,8 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
                         sources: report.sources,
                       }}
                       recommendation={report.recommendation ?? 'pivot'}
+                      projectId={projectId}
+                      onFinancialsSaved={() => fetchReport(true)}
                     />
                   )}
                 </div>

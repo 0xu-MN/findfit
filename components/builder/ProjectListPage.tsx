@@ -1,6 +1,6 @@
 'use client'
 
-import { MoreHorizontal, Plus, Search, FileText, LayoutGrid, List, Trash2 } from 'lucide-react'
+import { BarChart3, MessageSquareText, MoreHorizontal, Plus, Search, FileText, LayoutGrid, List, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
@@ -30,9 +30,19 @@ function relativeTime(iso: string): string {
   return new Date(iso).toLocaleDateString('ko-KR')
 }
 
-export default function ProjectListPage() {
+export default function ProjectListPage({
+  initialStatusFilter = 'all',
+}: {
+  // ProjectsWorkspace 좌측 "완료된 프로젝트" 메뉴에서 이 필터를 미리 선택된
+  // 상태로 열기 위함 — 그 메뉴 항목은 별도 페이지가 아니라 이 리스트를
+  // completed로 미리 필터링해서 보여주는 것뿐이다.
+  initialStatusFilter?: 'all' | 'draft' | 'inProgress' | 'analyzing' | 'completed'
+} = {}) {
   const router = useRouter()
   const [viewMode, setViewMode] = useState<'board' | 'list'>('board')
+  // 완료된 프로젝트만 따로 모아 볼 수 있는 필터 — board 뷰에선 해당 컬럼만
+  // 남기고, list 뷰에선 행을 필터링한다.
+  const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'inProgress' | 'analyzing' | 'completed'>(initialStatusFilter)
   const [drafts, setDrafts] = useState<RequestFormData[]>([])
   const [projects, setProjects] = useState<ProjectRow[]>([])
   const [reportedIds, setReportedIds] = useState<Set<string>>(new Set())
@@ -138,10 +148,33 @@ export default function ProjectListPage() {
         </div>
       </div>
 
+      {/* 상태별 필터 탭 — "완료된 프로젝트만 모아서 보기" 요청 반영. board 뷰는
+          해당 컬럼만 남기고, list 뷰는 행을 필터링한다. */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {[
+          { key: 'all' as const, label: '전체', count: draftCount + inProgressCount + analyzing.length + completed.length },
+          { key: 'draft' as const, label: '작성 중', count: draftCount },
+          { key: 'inProgress' as const, label: '진행 중', count: inProgress.length },
+          { key: 'analyzing' as const, label: '결과 분석 중', count: analyzing.length },
+          { key: 'completed' as const, label: '완료됨', count: completed.length },
+        ].map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setStatusFilter(t.key)}
+            className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors ${
+              statusFilter === t.key ? 'bg-[#1D1C1C] text-white' : 'bg-[#F5F5F5] text-[#666] hover:bg-[#EEEEEE]'
+            }`}
+          >
+            {t.label} {t.count}
+          </button>
+        ))}
+      </div>
+
       {/* View Mode Switching: Board vs List */}
       {viewMode === 'board' ? (
         <div className="flex items-start gap-6 w-full h-full pb-8 flex-wrap">
           {/* 작성 중 */}
+          {(statusFilter === 'all' || statusFilter === 'draft') && (
           <div className="flex-1 min-w-[220px] flex flex-col gap-3">
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-1.5">
@@ -193,8 +226,10 @@ export default function ProjectListPage() {
               </button>
             </div>
           </div>
+          )}
 
           {/* 진행 중 */}
+          {(statusFilter === 'all' || statusFilter === 'inProgress') && (
           <div className="flex-1 min-w-[220px] flex flex-col gap-3">
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-1.5">
@@ -250,8 +285,10 @@ export default function ProjectListPage() {
               })}
             </div>
           </div>
+          )}
 
           {/* 결과 분석 중 */}
+          {(statusFilter === 'all' || statusFilter === 'analyzing') && (
           <div className="flex-1 min-w-[220px] flex flex-col gap-3">
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-1.5">
@@ -267,13 +304,12 @@ export default function ProjectListPage() {
 
             <div className="flex flex-col gap-3">
               {hydrated && analyzing.map((s) => (
-                <button
+                <div
                   key={s.id}
-                  onClick={() => router.push(`/builder/reports/${s.id}`)}
-                  className="bg-white border border-[#1D1C1C]/5 rounded-xl p-4 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer group text-left"
+                  className="bg-white border border-[#1D1C1C]/5 rounded-xl p-4 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow group text-left"
                 >
                   <div className="flex items-start justify-between mb-1">
-                    <h3 className="text-xs font-extrabold group-hover:text-[#F77019] transition-colors line-clamp-1 pr-4">
+                    <h3 className="text-xs font-extrabold line-clamp-1 pr-4">
                       {s.title || '(제목 미작성)'}
                     </h3>
                     <div className="flex items-center gap-1 shrink-0">
@@ -294,12 +330,28 @@ export default function ProjectListPage() {
                     <span>응답 수집률</span>
                     <span className="text-[#F77019]">{s.completed_count} / {s.target_count}</span>
                   </div>
-                </button>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => router.push(`/builder/reports/${s.id}`)}
+                      className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-[#F77019] text-white text-[10px] font-black hover:bg-[#e0621a] transition-colors"
+                    >
+                      <BarChart3 className="w-3.5 h-3.5" /> 리포트
+                    </button>
+                    <button
+                      onClick={() => router.push(`/builder/reports/${s.id}/raw`)}
+                      className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg border border-[#1D1C1C]/12 text-[#1D1C1C] text-[10px] font-black hover:bg-[#F5F5F5] transition-colors"
+                    >
+                      <MessageSquareText className="w-3.5 h-3.5" /> 리뷰 원본
+                    </button>
+                  </div>
+                </div>
               ))}
             </div>
           </div>
+          )}
 
           {/* 완료됨 */}
+          {(statusFilter === 'all' || statusFilter === 'completed') && (
           <div className="flex-1 min-w-[220px] flex flex-col gap-3">
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-1.5">
@@ -315,13 +367,12 @@ export default function ProjectListPage() {
 
             <div className="flex flex-col gap-3">
               {hydrated && completed.map((s) => (
-                <button
+                <div
                   key={s.id}
-                  onClick={() => router.push(`/builder/reports/${s.id}`)}
-                  className="bg-white border border-[#1D1C1C]/5 rounded-xl p-4 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer group text-left"
+                  className="bg-white border border-[#1D1C1C]/5 rounded-xl p-4 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow group text-left"
                 >
                   <div className="flex items-start justify-between mb-1">
-                    <h3 className="text-xs font-extrabold group-hover:text-[#F77019] transition-colors line-clamp-1 pr-4">
+                    <h3 className="text-xs font-extrabold line-clamp-1 pr-4">
                       {s.title || '(제목 미작성)'}
                     </h3>
                     <div className="flex items-center gap-1 shrink-0">
@@ -338,7 +389,21 @@ export default function ProjectListPage() {
                       </span>
                     </div>
                   </div>
-                </button>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => router.push(`/builder/reports/${s.id}`)}
+                      className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-[#F77019] text-white text-[10px] font-black hover:bg-[#e0621a] transition-colors"
+                    >
+                      <BarChart3 className="w-3.5 h-3.5" /> 리포트
+                    </button>
+                    <button
+                      onClick={() => router.push(`/builder/reports/${s.id}/raw`)}
+                      className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg border border-[#1D1C1C]/12 text-[#1D1C1C] text-[10px] font-black hover:bg-[#F5F5F5] transition-colors"
+                    >
+                      <MessageSquareText className="w-3.5 h-3.5" /> 리뷰 원본
+                    </button>
+                  </div>
+                </div>
               ))}
 
               {hydrated && completed.length === 0 && (
@@ -349,6 +414,7 @@ export default function ProjectListPage() {
               )}
             </div>
           </div>
+          )}
         </div>
       ) : (
         /* 리스트형 테이블 뷰 */
@@ -363,7 +429,7 @@ export default function ProjectListPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#1D1C1C]/5 text-xs">
-              {drafts.map((d) => (
+              {(statusFilter === 'all' || statusFilter === 'draft') && drafts.map((d) => (
                 <tr key={d.id} onClick={() => openDraft(d.id)} className="hover:bg-[#F8F9FA] cursor-pointer transition-colors">
                   <td className="py-3.5 px-5 font-bold text-[#1D1C1C]">{d.productName || '(제목 미작성)'}</td>
                   <td className="py-3.5 px-5"><span className="text-[10px] font-bold bg-[#EEE] text-[#666] px-2 py-0.5 rounded">작성 중</span></td>
@@ -373,19 +439,41 @@ export default function ProjectListPage() {
                   </td>
                 </tr>
               ))}
-              {projects.map((p) => (
+              {(statusFilter === 'all' || statusFilter === 'inProgress') && inProgress.map((p) => (
                 <tr key={p.id} onClick={() => router.push(`/builder/projects/${p.id}`)} className="hover:bg-[#F8F8F8] cursor-pointer transition-colors">
                   <td className="py-3.5 px-5 font-bold text-[#1D1C1C]">{p.title}</td>
-                  <td className="py-3.5 px-5">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                      p.completed_count >= p.target_count ? 'bg-[#2E7D32]/10 text-[#2E7D32]' : 'bg-[#F77019]/10 text-[#F77019]'
-                    }`}>
-                      {p.completed_count >= p.target_count ? '완료됨' : '진행 중'}
-                    </span>
-                  </td>
+                  <td className="py-3.5 px-5"><span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#F77019]/10 text-[#F77019]">진행 중</span></td>
                   <td className="py-3.5 px-5 text-center font-bold text-[#555]">{p.completed_count} / {p.target_count}</td>
                   <td className="py-3.5 px-5 text-right">
                     <button onClick={(e) => handleDeleteProject(e, p.id)} className="p-1 text-[#CCC] hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                  </td>
+                </tr>
+              ))}
+              {(statusFilter === 'all' || statusFilter === 'analyzing') && analyzing.map((p) => (
+                <tr key={p.id} className="hover:bg-[#F8F8F8] transition-colors">
+                  <td className="py-3.5 px-5 font-bold text-[#1D1C1C]">{p.title}</td>
+                  <td className="py-3.5 px-5"><span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#F77019]/10 text-[#F77019]">수집 완료</span></td>
+                  <td className="py-3.5 px-5 text-center font-bold text-[#555]">{p.completed_count} / {p.target_count}</td>
+                  <td className="py-3.5 px-5 text-right">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <button onClick={() => router.push(`/builder/reports/${p.id}`)} className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#F77019] text-white text-[11px] font-black hover:bg-[#e0621a] transition-colors"><BarChart3 className="w-3.5 h-3.5" /> 리포트</button>
+                      <button onClick={() => router.push(`/builder/reports/${p.id}/raw`)} className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-[#1D1C1C]/12 text-[#1D1C1C] text-[11px] font-black hover:bg-[#F5F5F5] transition-colors"><MessageSquareText className="w-3.5 h-3.5" /> 리뷰 원본</button>
+                      <button onClick={(e) => handleDeleteProject(e, p.id)} className="p-1 text-[#CCC] hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {(statusFilter === 'all' || statusFilter === 'completed') && completed.map((p) => (
+                <tr key={p.id} className="hover:bg-[#F8F8F8] transition-colors">
+                  <td className="py-3.5 px-5 font-bold text-[#1D1C1C]">{p.title}</td>
+                  <td className="py-3.5 px-5"><span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#2E7D32]/10 text-[#2E7D32]">완료됨</span></td>
+                  <td className="py-3.5 px-5 text-center font-bold text-[#555]">{p.completed_count} / {p.target_count}</td>
+                  <td className="py-3.5 px-5 text-right">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <button onClick={() => router.push(`/builder/reports/${p.id}`)} className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#F77019] text-white text-[11px] font-black hover:bg-[#e0621a] transition-colors"><BarChart3 className="w-3.5 h-3.5" /> 리포트</button>
+                      <button onClick={() => router.push(`/builder/reports/${p.id}/raw`)} className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-[#1D1C1C]/12 text-[#1D1C1C] text-[11px] font-black hover:bg-[#F5F5F5] transition-colors"><MessageSquareText className="w-3.5 h-3.5" /> 리뷰 원본</button>
+                      <button onClick={(e) => handleDeleteProject(e, p.id)} className="p-1 text-[#CCC] hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                    </div>
                   </td>
                 </tr>
               ))}

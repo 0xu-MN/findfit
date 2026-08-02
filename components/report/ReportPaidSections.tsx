@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import ConfidenceBadge, { type ConfidenceTier } from './ConfidenceBadge'
 
 type CompetitorRef = { name: string; description: string }
@@ -45,9 +46,18 @@ export type ReportPaidData = {
 export default function ReportPaidSections({
   data,
   recommendation,
+  projectId,
+  onFinancialsSaved,
 }: {
   data: ReportPaidData
   recommendation: 'continue' | 'pivot' | 'stop'
+  // 등록 마법사나 프로젝트 상세 화면에서만 입력할 수 있던 재무 정보(예상
+  // 판매가/원가/마케팅 예산)를 리포트 화면에서도 바로 입력할 수 있게 한다 —
+  // 두 화면 다 같은 API(/api/projects/[id]/financials)로 저장되므로 어느
+  // 쪽에서 입력해도 같은 값을 공유한다. 저장 후 onFinancialsSaved로 부모가
+  // 리포트를 재생성해서 Unit Economics에 즉시 반영되게 한다.
+  projectId?: string
+  onFinancialsSaved?: () => void
 }) {
   const remainingInsights = (data.key_insights ?? []).slice(1)
   const pivotTitle = recommendation === 'continue' ? '추가 성장 시나리오' : '피봇 시나리오'
@@ -197,10 +207,14 @@ export default function ReportPaidSections({
         </Card>
       ) : (
         <Card title="Unit Economics · 수익성 분석">
-          <p className="text-[11px] font-bold text-[#999] text-center py-4">
-            재무 정보(예상 판매가·원가·마케팅 예산)를 입력하면 계산됩니다. 등록 마법사의
-            비용 확인 단계에서 입력할 수 있어요.
-          </p>
+          {projectId ? (
+            <FinancialsInlineForm projectId={projectId} onSaved={onFinancialsSaved} />
+          ) : (
+            <p className="text-[11px] font-bold text-[#999] text-center py-4">
+              재무 정보(예상 판매가·원가·마케팅 예산)를 입력하면 계산됩니다. 프로젝트 상세
+              화면에서도 입력할 수 있어요.
+            </p>
+          )}
         </Card>
       )}
 
@@ -301,6 +315,83 @@ function UeStat({ label, value, highlight }: { label: string; value: string; hig
     <div className="rounded-2xl bg-[#F5F5F5] p-4 text-center flex flex-col gap-1.5">
       <span className="text-[10px] font-bold text-[#666]">{label}</span>
       <span className={`text-lg font-black ${highlight ? 'text-green-600' : 'text-[#1D1C1C]'}`}>{value}</span>
+    </div>
+  )
+}
+
+function FinancialsInlineForm({ projectId, onSaved }: { projectId: string; onSaved?: () => void }) {
+  const [form, setForm] = useState({ expectedPrice: '', expectedCost: '', marketingBudget: '' })
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  const save = async () => {
+    setSaving(true)
+    const res = await fetch(`/api/projects/${projectId}/financials`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        expectedPrice: Number(form.expectedPrice) || 0,
+        expectedCost: Number(form.expectedCost) || 0,
+        marketingBudget: Number(form.marketingBudget) || 0,
+      }),
+    })
+    setSaving(false)
+    if (res.ok) {
+      setSaved(true)
+      // 저장만으로는 기존 리포트의 unit_economics가 자동으로 안 바뀐다
+      // (생성 시점에 계산돼서 저장된 값이라) — 부모가 재생성까지 이어서
+      // 호출해야 이 화면에 바로 반영된다.
+      onSaved?.()
+    }
+  }
+
+  if (saved) {
+    return (
+      <p className="text-[11px] font-bold text-[#2E7D32] text-center py-4">
+        저장했어요. 리포트를 다시 계산하고 있어요 — 잠시 후 이 자리에 결과가 나와요.
+      </p>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-[10px] font-bold text-[#999]">
+        재무 정보(예상 판매가·원가·마케팅 예산)를 입력하면 CAC/LTV가 계산돼요. 여기서 입력하면
+        프로젝트 상세 화면에도 그대로 반영돼요.
+      </p>
+      <div className="grid grid-cols-3 gap-3">
+        <input
+          type="number"
+          min={0}
+          placeholder="예상 판매가(원)"
+          value={form.expectedPrice}
+          onChange={(e) => setForm((f) => ({ ...f, expectedPrice: e.target.value }))}
+          className="h-10 rounded-xl border border-[#1D1C1C]/12 px-3 text-[12px] font-bold outline-none focus:border-[#F77019]"
+        />
+        <input
+          type="number"
+          min={0}
+          placeholder="예상 원가(원)"
+          value={form.expectedCost}
+          onChange={(e) => setForm((f) => ({ ...f, expectedCost: e.target.value }))}
+          className="h-10 rounded-xl border border-[#1D1C1C]/12 px-3 text-[12px] font-bold outline-none focus:border-[#F77019]"
+        />
+        <input
+          type="number"
+          min={0}
+          placeholder="월 마케팅 예산(원)"
+          value={form.marketingBudget}
+          onChange={(e) => setForm((f) => ({ ...f, marketingBudget: e.target.value }))}
+          className="h-10 rounded-xl border border-[#1D1C1C]/12 px-3 text-[12px] font-bold outline-none focus:border-[#F77019]"
+        />
+      </div>
+      <button
+        onClick={save}
+        disabled={saving}
+        className="self-start px-4 py-2 rounded-xl bg-[#F77019] text-white text-[11px] font-black hover:bg-[#e0621a] disabled:opacity-60 transition-colors"
+      >
+        {saving ? '저장 중...' : '저장하고 리포트에 반영'}
+      </button>
     </div>
   )
 }

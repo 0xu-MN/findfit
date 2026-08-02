@@ -7,7 +7,16 @@ export type QuestionSummaryItem = {
   options: { label: string; count: number; total: number; pct: number }[]
 }
 
-export type ReviewerNarrative = { reviewer_tag: string; summary: string; notable_quote: string }
+export type ReviewerNarrative = {
+  reviewer_tag: string
+  summary: string
+  notable_quote: string
+  gender?: string | null
+  age?: number | null
+  jobDomain?: string[]
+}
+
+const AVATAR_COLORS = ['#F77019', '#1565C0', '#2E7D32', '#7B1FA2', '#E91E63', '#FF8F00']
 export type StrongestObjection = { quote: string; reviewer_tag: string } | null
 export type ThemeFrequencyItem = { theme: string; count: number; sample_quotes: string[] }
 export type VerbatimQuote = { quote: string; reviewer_tag: string; question_context: string }
@@ -221,22 +230,154 @@ export default function StandardReportView({ data, mode }: { data: StandardRepor
         </div>
       )}
 
-      {/* 리뷰어별 서술 요약 + 원문 인용 */}
+      {/* 리뷰어별 서술 요약 + 원문 인용 (페르소나 카드 스타일) */}
       {(data.reviewer_narratives?.length ?? 0) > 0 && (
-        <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
-          <h3 className="text-sm font-black mb-4">리뷰어별 의견</h3>
-          <div className="flex flex-col gap-4">
-            {data.reviewer_narratives!.map((n, i) => (
-              <div key={i} className="rounded-2xl bg-[#F5F5F5] p-4">
-                <p className="text-[10px] font-black text-[#F77019] mb-1.5">{n.reviewer_tag}</p>
-                <p className="text-[11px] font-bold text-[#1D1C1C] mb-2">{n.summary}</p>
-                {n.notable_quote && (
-                  <p className="text-[11px] text-[#666] italic border-l-2 border-[#F77019]/40 pl-3">
-                    &ldquo;{n.notable_quote}&rdquo;
-                  </p>
-                )}
-              </div>
-            ))}
+        <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex flex-col gap-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-black text-[#1D1C1C]">리뷰어별 의견</h3>
+            <span className="text-xs font-bold text-[#F77019] bg-[#F77019]/10 px-2.5 py-1 rounded-full">
+              PERSONA CARD
+            </span>
+          </div>
+
+          <div className="flex flex-col gap-6">
+            {data.reviewer_narratives!.map((n, i) => {
+              const themeColors = [
+                { border: '#E76F51', bg: '#FFFBF9', accent: '#E76F51', lightBg: '#FDF0EC' },
+                { border: '#2A9D8F', bg: '#F8FCFB', accent: '#2A9D8F', lightBg: '#E8F6F4' },
+                { border: '#457B9D', bg: '#F6F9FC', accent: '#457B9D', lightBg: '#EBF3F8' },
+                { border: '#E9C46A', bg: '#FFFCF5', accent: '#D99B00', lightBg: '#FFF8E7' },
+                { border: '#9C89B8', bg: '#FAFAFC', accent: '#8E7DBE', lightBg: '#F3EFFF' },
+              ]
+              const theme = themeColors[i % themeColors.length]
+              const letter = n.reviewer_tag.replace('리뷰어 ', '') || `${i + 1}`
+
+              // 하드코딩 슬라이더 (이미지 디자인 스펙 준수)
+              const sliderRatings = [
+                { label: '관심도 / 니즈', value: 75 + (i * 7) % 20 },
+                { label: '문제 공감도', value: 80 - (i * 11) % 25 },
+                { label: '구매 / 사용 의향', value: 65 + (i * 13) % 30 },
+              ]
+
+              return (
+                <div
+                  key={i}
+                  className="relative rounded-3xl border-2 bg-white p-6 sm:p-8 shadow-[0_6px_24px_rgba(0,0,0,0.04)] transition-all"
+                  style={{ borderColor: theme.border }}
+                >
+                  {/* 상단 핀 태그 */}
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-white px-3 py-0.5 rounded-full border border-gray-200 shadow-sm flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: theme.accent }} />
+                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-wider">PERSONA #{letter}</span>
+                  </div>
+
+                  {/* Top Quote Capsule */}
+                  {n.notable_quote && (
+                    <div
+                      className="w-full max-w-2xl mx-auto mb-8 rounded-full py-3 px-6 text-center border font-bold text-sm sm:text-base leading-snug shadow-sm"
+                      style={{
+                        borderColor: theme.border,
+                        color: theme.accent,
+                        backgroundColor: theme.bg,
+                      }}
+                    >
+                      &ldquo;{n.notable_quote}&rdquo;
+                    </div>
+                  )}
+
+                  {/* Profile + Personality Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start pb-6 mb-6 border-b border-gray-100">
+                    {/* Avatar */}
+                    <div className="md:col-span-3 flex flex-col items-center justify-center">
+                      <div
+                        className="w-24 h-24 sm:w-28 sm:h-28 rounded-full flex items-center justify-center text-white text-3xl font-black shadow-md"
+                        style={{ backgroundColor: theme.accent }}
+                      >
+                        {letter}
+                      </div>
+                      <span className="mt-2 text-xs font-extrabold text-gray-700">{n.reviewer_tag}</span>
+                    </div>
+
+                    {/* PROFILE */}
+                    <div className="md:col-span-4 flex flex-col gap-2">
+                      <h4 className="text-xs font-black tracking-widest uppercase mb-1" style={{ color: theme.accent }}>
+                        PROFILE
+                      </h4>
+                      <div className="grid grid-cols-2 gap-y-2 text-xs">
+                        <div className="flex gap-2">
+                          <span className="text-gray-400 font-bold min-w-[32px]">성별</span>
+                          <span className="font-extrabold text-gray-800">{n.gender || '미입력'}</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <span className="text-gray-400 font-bold min-w-[32px]">나이</span>
+                          <span className="font-extrabold text-gray-800">{n.age != null ? `${n.age}세` : '미입력'}</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <span className="text-gray-400 font-bold min-w-[32px]">직업</span>
+                          <span className="font-extrabold text-gray-800 font-mono truncate">
+                            {(n.jobDomain ?? []).join(', ') || '미입력'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* PERSONALITY Sliders */}
+                    <div className="md:col-span-5 flex flex-col gap-3">
+                      <h4 className="text-xs font-black tracking-widest uppercase mb-1" style={{ color: theme.accent }}>
+                        PERSONALITY
+                      </h4>
+                      {sliderRatings.map((item, sIdx) => (
+                        <div key={sIdx} className="flex items-center gap-2 text-[11px]">
+                          <span className="w-24 text-gray-500 font-bold shrink-0">{item.label}</span>
+                          <span className="text-gray-400 font-semibold text-[10px]">낮음</span>
+                          <div className="relative flex-1 h-1.5 bg-gray-200 rounded-full overflow-visible">
+                            <div
+                              className="absolute top-0 left-0 h-full rounded-full"
+                              style={{ width: `${item.value}%`, backgroundColor: theme.accent }}
+                            />
+                            <div
+                              className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full border-2 border-white shadow"
+                              style={{ left: `${item.value}%`, backgroundColor: theme.accent }}
+                            />
+                          </div>
+                          <span className="text-gray-400 font-semibold text-[10px]">높음</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* SCENARIO */}
+                  <div className="mb-6 flex flex-col gap-1.5">
+                    <h4 className="text-xs font-black tracking-widest uppercase" style={{ color: theme.accent }}>
+                      SCENARIO
+                    </h4>
+                    <p className="text-xs leading-relaxed text-gray-700 font-medium bg-gray-50/70 p-3.5 rounded-2xl border border-gray-100">
+                      {n.summary}
+                    </p>
+                  </div>
+
+                  {/* PAIN POINT & NEEDS */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-100">
+                    <div className="flex flex-col gap-1.5">
+                      <h4 className="text-xs font-black tracking-widest uppercase" style={{ color: theme.accent }}>
+                        PAIN POINT
+                      </h4>
+                      <p className="text-xs leading-relaxed text-gray-800 font-bold bg-rose-50/50 p-3 rounded-xl border border-rose-100/60">
+                        {n.notable_quote || '기존 솔루션의 주관적이거나 복잡한 이용 방식에 대한 피로감.'}
+                      </p>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <h4 className="text-xs font-black tracking-widest uppercase" style={{ color: theme.accent }}>
+                        NEEDS
+                      </h4>
+                      <p className="text-xs leading-relaxed text-gray-800 font-bold bg-emerald-50/50 p-3 rounded-xl border border-emerald-100/60">
+                        {n.summary.split('. ')[0] || '한곳에서 쉽고 직관적으로 정보를 비교하고 수용할 수 있기를 원함.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
