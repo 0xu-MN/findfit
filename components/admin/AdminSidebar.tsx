@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   Users, FileText, Wallet, CheckSquare, Newspaper, Image as ImageIcon,
-  BarChart3, LogOut, LayoutDashboard, Sun, Moon,
+  BarChart3, LogOut, LayoutDashboard, Sun, Moon, MessagesSquare,
 } from 'lucide-react'
 
 const NAV_ITEMS = [
@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { href: '/admin/distributions', label: '정산 관리', icon: Wallet },
   { href: '/admin/evaluators', label: '유저 관리', icon: Users },
   { href: '/admin/insights', label: '인사이트 관리', icon: Newspaper },
+  { href: '/admin/lounge', label: '라운지 관리', icon: MessagesSquare },
   { href: '/admin/banners', label: '배너 광고 관리', icon: ImageIcon },
   { href: '/admin/stats', label: '활동 통계', icon: BarChart3 },
 ]

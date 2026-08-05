@@ -1,5 +1,6 @@
 'use client'
 
+import { User } from 'lucide-react'
 import ConfidenceBadge, { type ConfidenceTier } from './ConfidenceBadge'
 
 export type QuestionSummaryItem = {
@@ -17,6 +18,28 @@ export type ReviewerNarrative = {
 }
 
 const AVATAR_COLORS = ['#F77019', '#1565C0', '#2E7D32', '#7B1FA2', '#E91E63', '#FF8F00']
+
+// 성별별 프로필 이미지 3장씩 — 리뷰어별로 랜덤 배정한다. 매 렌더마다 바뀌면
+// 화면이 깜빡이는 것처럼 보이므로, reviewer_tag를 시드로 한 해시로 "리뷰어당
+// 하나로 고정된 랜덤"을 만든다(리포트를 다시 열어도 같은 리뷰어는 같은 사진).
+const MALE_AVATARS = ['/avatars/male-1.png', '/avatars/male-2.png', '/avatars/male-3.png']
+const FEMALE_AVATARS = ['/avatars/female-1.png', '/avatars/female-2.png', '/avatars/female-3.png']
+
+function hashSeed(seed: string): number {
+  let h = 0
+  for (let i = 0; i < seed.length; i++) {
+    h = (h * 31 + seed.charCodeAt(i)) >>> 0
+  }
+  return h
+}
+
+// 성별 미입력이면 남/여 사진 중 아무거나 잘못 보여주는 대신, 사진 없음(빈
+// 아이콘) 처리한다 — 실제로 모르는 정보를 사진으로 지어내지 않기 위함.
+function pickAvatar(gender: string | null | undefined, seed: string): string | null {
+  const pool = gender === '남성' ? MALE_AVATARS : gender === '여성' ? FEMALE_AVATARS : null
+  if (!pool) return null
+  return pool[hashSeed(seed) % pool.length]
+}
 export type StrongestObjection = { quote: string; reviewer_tag: string } | null
 export type ThemeFrequencyItem = { theme: string; count: number; sample_quotes: string[] }
 export type VerbatimQuote = { quote: string; reviewer_tag: string; question_context: string }
@@ -290,10 +313,18 @@ export default function StandardReportView({ data, mode }: { data: StandardRepor
                     {/* Avatar */}
                     <div className="md:col-span-3 flex flex-col items-center justify-center">
                       <div
-                        className="w-24 h-24 sm:w-28 sm:h-28 rounded-full flex items-center justify-center text-white text-3xl font-black shadow-md"
-                        style={{ backgroundColor: theme.accent }}
+                        className="w-32 h-32 sm:w-36 sm:h-36 rounded-full overflow-hidden shadow-md border-2 flex items-center justify-center bg-gray-100"
+                        style={{ borderColor: theme.accent }}
                       >
-                        {letter}
+                        {(() => {
+                          const avatarSrc = pickAvatar(n.gender, n.reviewer_tag || String(i))
+                          return avatarSrc ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={avatarSrc} alt={n.reviewer_tag} className="w-full h-full object-cover" />
+                          ) : (
+                            <User className="w-12 h-12 sm:w-14 sm:h-14 text-gray-300" strokeWidth={1.5} />
+                          )
+                        })()}
                       </div>
                       <span className="mt-2 text-xs font-extrabold text-gray-700">{n.reviewer_tag}</span>
                     </div>

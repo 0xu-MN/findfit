@@ -235,7 +235,7 @@ export default function InsightDetailView({ postId, basePath, onClose, onNext, o
                   <input
                     value={commentInput}
                     onChange={(e) => setCommentInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && submitComment()}
+                    onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && submitComment()}
                     placeholder="댓글을 입력하세요"
                     className="flex-1 h-9 rounded-lg bg-[#F5F5F5] px-3 text-[11px] font-bold outline-none focus:ring-1 focus:ring-[#F77019]"
                   />

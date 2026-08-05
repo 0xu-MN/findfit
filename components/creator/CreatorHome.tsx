@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { Search, TrendingUp, FileEdit } from 'lucide-react'
+import { Search, FileEdit } from 'lucide-react'
 import Step0Modal from '../builder/new-request/Step0Modal'
 import HappeningSection from '../shared/HappeningSection'
 import ReviewerBannerCarousel from '../shared/ReviewerBannerCarousel'
@@ -18,9 +18,9 @@ const CREATOR_COACH_STEPS = [
     text: '검증하고 싶은 제품·서비스 키워드를 입력하면, 비슷한 아이템을 찾아 등록까지 이어줘요.',
   },
   {
-    target: '[data-coach="creator-trend"]',
-    title: '요즘 뜨는 아이템도 확인해요',
-    text: '실제 검색 트렌드를 참고해 어떤 아이디어가 요즘 주목받는지 미리 볼 수 있어요.',
+    target: '[data-coach="creator-register"]',
+    title: '이미 아이디어가 있다면 바로 등록하세요',
+    text: '이미 완성된 아이디어가 있다면 검색 없이 바로 프로젝트 등록으로 이동할 수 있어요.',
   },
   {
     target: '[data-coach="role-toggle"]',
@@ -34,8 +34,6 @@ const CREATOR_COACH_STEPS = [
     placement: 'top' as const,
   },
 ]
-
-const TREND_CHIP = '강아지 간식'
 
 // 크리에이터 "홈" — 예전엔 대시보드 위젯(한눈에 보기 등)이었지만, 그 위젯들은
 // 프로젝트 탭(ProjectsWorkspace)으로 옮기고 여기는 검증 시작 입력창 +
@@ -109,15 +107,12 @@ export default function CreatorHome() {
             </button>
           </div>
           <button
-            data-coach="creator-trend"
-            onClick={() => { setKeyword(TREND_CHIP); setStep0Open(true) }}
-            className="h-16 px-5 rounded-3xl border-2 border-[#1565C0]/20 bg-[#1565C0]/5 flex items-center gap-2 flex-shrink-0 hover:bg-[#1565C0]/10 transition-colors"
+            data-coach="creator-register"
+            onClick={() => router.push('/builder/new-request?skipIntro=1')}
+            className="h-16 px-6 rounded-3xl bg-[#F77019] text-white flex items-center gap-2 flex-shrink-0 hover:opacity-90 transition-opacity shadow-sm"
           >
-            <TrendingUp className="w-4 h-4 text-[#1565C0]" />
-            <div className="flex flex-col items-start">
-              <span className="text-[9px] font-bold text-[#1565C0]/70">트렌드</span>
-              <span className="text-[12px] font-black text-[#1565C0]">{TREND_CHIP}</span>
-            </div>
+            <FileEdit className="w-4 h-4" />
+            <span className="text-[12px] font-black">프로젝트 등록하기</span>
           </button>
         </div>
 

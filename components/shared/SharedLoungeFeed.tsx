@@ -39,6 +39,11 @@ export type LoungePost = {
   // 아래 정적 seed 데이터(HappeningSection 미리보기용)는 장식용이라
   // 백엔드 row가 없어서 상호작용 대상이 아니다.
   liked_by_me?: boolean
+  // "내가 쓴 글" 판정을 닉네임 문자열 비교로 하면, 서버가 쓰는
+  // users.nickname(DB 컬럼)과 클라이언트가 읽는 auth user_metadata.name이
+  // 서로 어긋나는 경우(닉네임 나중에 변경 등) 매칭이 실패해서 "내가 쓴 글"이
+  // 하나도 안 잡히는 버그가 있었다 — author_id로 본인 여부를 판정한다.
+  authorId?: string
 }
 
 export type LoungeComment = { id: string; author_nickname: string; body: string; created_at: string }
@@ -153,10 +158,12 @@ export default function SharedLoungeFeed() {
   const isExpanded = hasProvider ? ctxExpanded : widthExpanded
 
   const [nickname, setNickname] = useState<string | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
       setNickname(user?.user_metadata?.name ?? user?.email?.split('@')[0] ?? null)
+      setUserId(user?.id ?? null)
     })
   }, [])
 
@@ -179,7 +186,7 @@ export default function SharedLoungeFeed() {
     const res = await fetch('/api/lounge/posts')
     const { posts: data } = await res.json()
     const mapped: LoungePost[] = (data ?? []).map((p: {
-      id: string; author_nickname: string; body: string; created_at: string
+      id: string; author_id: string; author_nickname: string; body: string; created_at: string
       like_count: number; comment_count: number; liked_by_me: boolean
     }) => ({
       id: p.id,
@@ -193,6 +200,7 @@ export default function SharedLoungeFeed() {
       likes: p.like_count,
       comments: p.comment_count,
       liked_by_me: p.liked_by_me,
+      authorId: p.author_id,
     }))
     setPosts(mapped)
     setPostsLoaded(true)
@@ -224,6 +232,7 @@ export default function SharedLoungeFeed() {
         likes: 0,
         comments: 0,
         liked_by_me: false,
+        authorId: p.author_id,
       }
       setPosts((prev) => [newPost, ...prev])
     }
@@ -285,7 +294,7 @@ export default function SharedLoungeFeed() {
   }
 
   const displayPosts = postsLoaded && posts.length === 0 ? loungePosts : posts
-  const myPosts = displayPosts.filter((p) => nickname && p.author === nickname)
+  const myPosts = displayPosts.filter((p) => userId && p.authorId === userId)
 
   return (
     <div ref={containerRef} className="w-full h-full flex gap-6 select-none text-[#1D1C1C] min-w-0 animate-fade-in">
@@ -500,7 +509,12 @@ function LoungePostItem({
                 value={commentInput}
                 onChange={(e) => setCommentInput(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && commentInput.trim()) {
+                  // 한글 입력 중 Enter로 조합을 확정하는 도중(IME composing)에도
+                  // 이 핸들러가 같이 발동해서, 아직 조합 중이던 마지막 글자가
+                  // 그대로 한 번 더 찍혀 보내지는 버그가 있었다("ㅎㅇ" + Enter →
+                  // "ㅎㅇㅇ"). isComposing이 true인 동안은 무시하고 조합이 끝난
+                  // 다음 Enter에서만 전송한다.
+                  if (e.key === 'Enter' && !e.nativeEvent.isComposing && commentInput.trim()) {
                     onSubmitComment?.(commentInput)
                     setCommentInput('')
                   }
