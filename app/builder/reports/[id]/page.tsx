@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowLeft, BarChart3, RefreshCw } from 'lucide-react'
+import { ArrowLeft, BarChart3, Download, RefreshCw } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { use, useCallback, useEffect, useState } from 'react'
 
@@ -8,6 +8,7 @@ import LightReportView from '@/components/report/LightReportView'
 import StandardReportView, {
   type QuestionSummaryItem,
   type PanelSummary,
+  type DemographicBreakdownItem,
   type ResponseTimeSummary,
   type ReviewerNarrative,
   type StrongestObjection,
@@ -35,6 +36,7 @@ type ReportData = {
   pivot_scenarios?: string[]
   question_summary?: QuestionSummaryItem[]
   panel_summary?: PanelSummary
+  demographic_breakdown?: DemographicBreakdownItem[]
   response_time_summary?: ResponseTimeSummary
   reviewer_narratives?: ReviewerNarrative[]
   strongest_objection?: StrongestObjection
@@ -206,13 +208,22 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 print:hidden">
           <button
             onClick={() => router.push(`/builder/reports/${projectId}/raw`)}
             className="text-[10px] font-black text-[#666] hover:text-[#F77019] transition-colors px-2 py-1 rounded-lg hover:bg-[#F77019]/5"
           >
             리뷰어 의견 보기
           </button>
+          {!loading && report && (
+            <button
+              onClick={() => window.print()}
+              className="flex items-center gap-1.5 text-[10px] font-black text-[#666] hover:text-[#F77019] transition-colors px-2 py-1 rounded-lg hover:bg-[#F77019]/5"
+            >
+              <Download className="w-3 h-3" />
+              PDF로 저장
+            </button>
+          )}
           {!loading && report && (
             <button
               onClick={() => fetchReport(true)}
@@ -297,6 +308,12 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
               </span>
             </div>
 
+            {/* 목차 — 리포트가 길어질 때(Standard) 원하는 섹션으로 바로
+                이동할 수 있게. 실제로 안 뜬 섹션의 링크를 눌러도 그냥 아무
+                일도 안 일어날 뿐이라 항상 전체 후보를 보여준다(조건부로
+                일부만 보여주려면 report_data를 다시 훑어야 해서 단순화). */}
+            {!isLight && <ReportTableOfContents />}
+
             {/* 이 프로젝트가 검증하려던 가설 — 등록 시 입력했지만 이번에
                 고치기 전까지 저장만 되고 어디서도 안 보였다. 리뷰어 응답과
                 나란히 볼 수 있도록 리포트 맨 위에 노출한다. */}
@@ -339,6 +356,7 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
                     question_summary: report.question_summary ?? [],
                     confidence_tiers: report.confidence_tiers,
                     panel_summary: report.panel_summary,
+                    demographic_breakdown: report.demographic_breakdown,
                     response_time_summary: report.response_time_summary,
                     reviewer_narratives: report.reviewer_narratives,
                     strongest_objection: report.strongest_objection,
@@ -488,7 +506,7 @@ function VerdictBanner({
           {meta.label}
         </span>
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {subscores.map((s) => (
           <div key={s.label} className="rounded-2xl bg-white/70 px-3 py-2.5 flex flex-col gap-1">
             <span className="text-[9px] font-bold text-[#666]">{s.label}</span>
@@ -497,6 +515,46 @@ function VerdictBanner({
               {s.value !== null && '%'}
             </span>
           </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+const TOC_SECTIONS: { id: string; label: string }[] = [
+  { id: 'report-score', label: '점수/판정' },
+  { id: 'report-question-summary', label: '문항별 응답' },
+  { id: 'report-demographic-breakdown', label: '성별 응답 차이' },
+  { id: 'report-key-insights', label: '핵심 인사이트' },
+  { id: 'report-panel-profile', label: '참여 패널' },
+  { id: 'report-reviewer-narratives', label: '리뷰어별 의견' },
+  { id: 'report-themes', label: '반복 주제' },
+  { id: 'report-quotes', label: '원문 인용' },
+  { id: 'report-more-insights', label: '추가 인사이트' },
+  { id: 'report-action-plan', label: '액션 플랜' },
+  { id: 'report-pivot', label: '성장/피봇' },
+  { id: 'report-market-size', label: '시장 규모' },
+  { id: 'report-positioning', label: '포지셔닝' },
+  { id: 'report-unit-economics', label: 'Unit Economics' },
+  { id: 'report-references', label: '참고 레퍼런스' },
+]
+
+// 리포트가 길어지면 원하는 섹션을 스크롤로 찾기 어려워서 추가 — 실제로
+// 렌더 안 된 섹션의 링크를 눌러도 해당 id가 DOM에 없어 그냥 무시된다
+// (에러 없이 조용히 아무 일도 안 일어남).
+function ReportTableOfContents() {
+  return (
+    <div className="print:hidden rounded-2xl border border-[#1D1C1C]/8 bg-white px-4 py-3 mb-4 flex items-center gap-2 overflow-x-auto">
+      <span className="text-[10px] font-black text-[#999] shrink-0">목차</span>
+      <div className="flex items-center gap-1.5">
+        {TOC_SECTIONS.map((s) => (
+          <a
+            key={s.id}
+            href={`#${s.id}`}
+            className="text-[10px] font-bold text-[#666] hover:text-[#F77019] hover:bg-[#F77019]/5 px-2.5 py-1 rounded-lg transition-colors whitespace-nowrap"
+          >
+            {s.label}
+          </a>
         ))}
       </div>
     </div>

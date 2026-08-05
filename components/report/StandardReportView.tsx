@@ -1,6 +1,7 @@
 'use client'
 
-import { User } from 'lucide-react'
+import { useState } from 'react'
+import { ChevronDown, ChevronUp, User } from 'lucide-react'
 import ConfidenceBadge, { type ConfidenceTier } from './ConfidenceBadge'
 
 export type QuestionSummaryItem = {
@@ -58,6 +59,11 @@ export type PanelSummary = {
   age_buckets: { label: string; count: number }[]
 }
 
+export type DemographicBreakdownItem = {
+  question_text: string
+  by_gender: { gender: string; total: number; options: { label: string; count: number; pct: number }[] }[]
+}
+
 // 무료 티어에 항상 노출되는 부분만 담당 — PSF 스코어 게이지 +
 // 문항별 응답 요약(review_answers 직접 집계) + 인사이트 1번.
 // 인사이트 2~5번 이후 전부는 ReportPaidSections.tsx(유료/베타 무료 열람)가 담당.
@@ -74,6 +80,7 @@ type StandardReportData = {
     usage_frequency_note: ConfidenceTier
   }
   panel_summary?: PanelSummary
+  demographic_breakdown?: DemographicBreakdownItem[]
   response_time_summary?: ResponseTimeSummary
   reviewer_narratives?: ReviewerNarrative[]
   strongest_objection?: StrongestObjection
@@ -95,8 +102,13 @@ const RECOMMENDATION_LABELS: Record<string, { label: string; color: string; bg: 
   stop:     { label: '지금 방향은 다시 생각해봐야 해요', color: 'text-red-700', bg: 'bg-red-50 border-red-200' },
 }
 
+const NARRATIVES_PREVIEW_COUNT = 5
+
 export default function StandardReportView({ data, mode }: { data: StandardReportData; mode: 'psf' | 'pmf' }) {
   const rec = RECOMMENDATION_LABELS[data.recommendation] ?? RECOMMENDATION_LABELS.continue
+  // 리뷰어가 많아지면 "리뷰어별 의견" 카드가 한없이 길어질 수 있어서, 5명
+  // 까지만 먼저 보여주고 나머지는 더보기로 펼친다.
+  const [showAllNarratives, setShowAllNarratives] = useState(false)
   const firstInsight = data.key_insights?.[0]
   const tiers = data.confidence_tiers ?? {
     sean_ellis: 'verified' as const,
@@ -107,13 +119,13 @@ export default function StandardReportView({ data, mode }: { data: StandardRepor
   return (
     <div className="flex flex-col gap-4">
       {/* 스코어 + 판정 */}
-      <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
+      <div id="report-score" className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
         <div className="flex items-center gap-2 mb-6">
           <span className="text-[9px] font-black bg-[#F77019]/10 text-[#F77019] px-2 py-0.5 rounded">Standard</span>
           <h3 className="text-sm font-black">{mode === 'psf' ? '아이디어 검증' : '실사용 만족도 검증'} 리포트</h3>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
           <ScoreGauge label={mode === 'psf' ? '아이디어 검증 점수' : '실사용 만족도 점수'} value={data.psf_score} />
           <ScoreGauge
             label="핵심 만족도 지수"
@@ -151,7 +163,7 @@ export default function StandardReportView({ data, mode }: { data: StandardRepor
           {(data.sean_ellis_segments?.inTargetPct != null || data.sean_ellis_segments?.outOfTargetPct != null) && (
             <div>
               <h3 className="text-sm font-black mb-2.5">타겟 적합도별 핵심 만족도</h3>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="rounded-xl bg-[#F5F5F5] px-4 py-3">
                   <p className="text-[9px] font-black text-[#999] mb-1">타겟군 내 응답자</p>
                   <p className="text-lg font-black text-[#1D1C1C]">
@@ -185,7 +197,7 @@ export default function StandardReportView({ data, mode }: { data: StandardRepor
 
       {/* 문항별 응답 요약 — AI가 아니라 실제 답변 집계 */}
       {data.question_summary?.length > 0 && (
-        <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
+        <div id="report-question-summary" className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
           <h3 className="text-sm font-black mb-4">문항별 응답 요약</h3>
           <div className="flex flex-col gap-5">
             {data.question_summary.map((q, i) => (
@@ -213,9 +225,38 @@ export default function StandardReportView({ data, mode }: { data: StandardRepor
         </div>
       )}
 
+      {/* 성별에 따른 응답 차이 — 최소 2개 성별 그룹이 각각 2명 이상 응답한
+          문항만 표시된다(데이터가 부족하면 비교 자체가 무의미하므로). */}
+      {(data.demographic_breakdown?.length ?? 0) > 0 && (
+        <div id="report-demographic-breakdown" className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
+          <h3 className="text-sm font-black mb-1">성별에 따른 응답 차이</h3>
+          <p className="text-[10px] font-bold text-[#999] mb-4">응답자 중 성별을 입력한 인원만 집계했어요.</p>
+          <div className="flex flex-col gap-6">
+            {data.demographic_breakdown!.map((q, i) => (
+              <div key={i}>
+                <p className="text-[11px] font-bold text-[#666] mb-3">{q.question_text}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {q.by_gender.map((g, gi) => (
+                    <div key={gi} className="rounded-2xl bg-[#F5F5F5] p-3.5 flex flex-col gap-2">
+                      <span className="text-[10px] font-black text-[#1D1C1C]">{g.gender} ({g.total}명)</span>
+                      {g.options.map((o, oi) => (
+                        <div key={oi} className="flex items-center gap-2">
+                          <span className="text-[10px] text-[#666] flex-1 truncate">{o.label}</span>
+                          <span className="text-[10px] font-bold text-[#1D1C1C] shrink-0">{o.pct}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* 핵심 인사이트 — 1번만 무료 공개, 2~5번은 ReportPaidSections에서 */}
       {firstInsight && (
-        <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
+        <div id="report-key-insights" className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
           <h3 className="text-sm font-black mb-4">핵심 인사이트</h3>
           <div className="flex items-start gap-3 rounded-xl bg-[#F5F5F5] px-4 py-3">
             <span className="text-[10px] font-black text-[#F77019] bg-[#F77019]/10 px-1.5 py-0.5 rounded mt-0.5">1</span>
@@ -228,7 +269,7 @@ export default function StandardReportView({ data, mode }: { data: StandardRepor
           거의 안 채워져 있어서(2026-07-31 기준) 직군 쪽은 빌 수 있다 —
           채워진 값이 있을 때만 각 그룹을 보여준다. */}
       {data.panel_summary && data.panel_summary.total_reviewers > 0 && (
-        <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
+        <div id="report-panel-profile" className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
           <h3 className="text-sm font-black mb-4">참여 패널 프로필 ({data.panel_summary.total_reviewers}명)</h3>
           <div className="flex flex-col gap-3">
             <PanelGroupRow label="직군" items={data.panel_summary.jobs} emptyNote="아직 직군을 입력한 리뷰어가 없어요" />
@@ -255,7 +296,7 @@ export default function StandardReportView({ data, mode }: { data: StandardRepor
 
       {/* 리뷰어별 서술 요약 + 원문 인용 (페르소나 카드 스타일) */}
       {(data.reviewer_narratives?.length ?? 0) > 0 && (
-        <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex flex-col gap-6">
+        <div id="report-reviewer-narratives" className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex flex-col gap-6">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-black text-[#1D1C1C]">리뷰어별 의견</h3>
             <span className="text-xs font-bold text-[#F77019] bg-[#F77019]/10 px-2.5 py-1 rounded-full">
@@ -264,7 +305,7 @@ export default function StandardReportView({ data, mode }: { data: StandardRepor
           </div>
 
           <div className="flex flex-col gap-6">
-            {data.reviewer_narratives!.map((n, i) => {
+            {(showAllNarratives ? data.reviewer_narratives! : data.reviewer_narratives!.slice(0, NARRATIVES_PREVIEW_COUNT)).map((n, i) => {
               const themeColors = [
                 { border: '#E76F51', bg: '#FFFBF9', accent: '#E76F51', lightBg: '#FDF0EC' },
                 { border: '#2A9D8F', bg: '#F8FCFB', accent: '#2A9D8F', lightBg: '#E8F6F4' },
@@ -334,7 +375,7 @@ export default function StandardReportView({ data, mode }: { data: StandardRepor
                       <h4 className="text-xs font-black tracking-widest uppercase mb-1" style={{ color: theme.accent }}>
                         PROFILE
                       </h4>
-                      <div className="grid grid-cols-2 gap-y-2 text-xs">
+                      <div className="flex flex-col gap-2 text-xs">
                         <div className="flex gap-2">
                           <span className="text-gray-400 font-bold min-w-[32px]">성별</span>
                           <span className="font-extrabold text-gray-800">{n.gender || '미입력'}</span>
@@ -410,6 +451,18 @@ export default function StandardReportView({ data, mode }: { data: StandardRepor
               )
             })}
           </div>
+          {(data.reviewer_narratives?.length ?? 0) > NARRATIVES_PREVIEW_COUNT && (
+            <button
+              onClick={() => setShowAllNarratives((v) => !v)}
+              className="self-center flex items-center gap-1.5 text-[11px] font-black text-[#666] hover:text-[#F77019] transition-colors px-4 py-2 rounded-xl hover:bg-[#F5F5F5]"
+            >
+              {showAllNarratives ? (
+                <>접기 <ChevronUp className="w-3.5 h-3.5" /></>
+              ) : (
+                <>{data.reviewer_narratives!.length - NARRATIVES_PREVIEW_COUNT}명 더보기 <ChevronDown className="w-3.5 h-3.5" /></>
+              )}
+            </button>
+          )}
         </div>
       )}
 
@@ -424,7 +477,7 @@ export default function StandardReportView({ data, mode }: { data: StandardRepor
 
       {/* 반복되는 주제 */}
       {(data.theme_frequency?.length ?? 0) > 0 && (
-        <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
+        <div id="report-themes" className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
           <h3 className="text-sm font-black mb-4">반복되는 주제</h3>
           <div className="flex flex-col gap-3">
             {data.theme_frequency!.map((t, i) => (
@@ -444,7 +497,7 @@ export default function StandardReportView({ data, mode }: { data: StandardRepor
 
       {/* 원문 인용 모음 */}
       {(data.verbatim_quotes?.length ?? 0) > 0 && (
-        <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
+        <div id="report-quotes" className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
           <h3 className="text-sm font-black mb-4">리뷰어 원문 인용</h3>
           <div className="flex flex-col gap-3">
             {data.verbatim_quotes!.map((v, i) => (

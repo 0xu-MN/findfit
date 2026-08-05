@@ -48,6 +48,27 @@ export type LoungePost = {
 
 export type LoungeComment = { id: string; author_nickname: string; body: string; created_at: string }
 
+// 리포스트("인용해서 다시 쓰기")를 별도 테이블 없이 lounge_posts.body 문자열
+// 안에 원글을 함께 담아 저장한다 — 화면에서 "인용: 작성자\n따옴표..."라는
+// 어색한 일반 텍스트로 보이던 걸, 이 구분자로 파싱해서 실제 스레드/인용
+// 카드처럼 렌더링한다(parseQuotedBody). 구분자 자체가 사람이 쓸 일 없는
+// 특수문자 조합이라 실수로 오검출될 위험이 거의 없다.
+const QUOTE_DELIM = '\n\n§QUOTE§\n'
+
+function buildQuotedBody(value: string, quoting: LoungePost): string {
+  return `${value}${QUOTE_DELIM}${quoting.author}\n${quoting.body}`
+}
+
+function parseQuotedBody(body: string): { main: string; quotedAuthor: string; quotedBody: string } | null {
+  const idx = body.indexOf(QUOTE_DELIM)
+  if (idx === -1) return null
+  const main = body.slice(0, idx)
+  const rest = body.slice(idx + QUOTE_DELIM.length)
+  const nlIdx = rest.indexOf('\n')
+  if (nlIdx === -1) return null
+  return { main, quotedAuthor: rest.slice(0, nlIdx), quotedBody: rest.slice(nlIdx + 1) }
+}
+
 export const loungePosts: LoungePost[] = [
   {
     id: 1,
@@ -211,8 +232,13 @@ export default function SharedLoungeFeed() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // "올리기" 버튼에 제출 중 disabled 처리가 없어서, 클릭 두 번(또는 빠른
+  // 연타)이 요청 두 개로 그대로 나가 글이 두 개씩 올라가는 버그가 있었다 —
+  // 요청이 진행 중이면 새 제출을 막는다(ref라 리렌더 타이밍과 무관하게 즉시 반영).
+  const submittingPostRef = useRef(false)
   const submitPost = async (body: string) => {
-    if (!body.trim()) return
+    if (!body.trim() || submittingPostRef.current) return
+    submittingPostRef.current = true
     const res = await fetch('/api/lounge/posts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -236,6 +262,7 @@ export default function SharedLoungeFeed() {
       }
       setPosts((prev) => [newPost, ...prev])
     }
+    submittingPostRef.current = false
     setComposerOpen(false)
     setRepostTarget(null)
   }
@@ -406,7 +433,7 @@ function ComposerModal({
                 <CircleIcon><Sparkles className="w-3.5 h-3.5" /></CircleIcon>
               </div>
               <button
-                onClick={() => onSubmit(quoting ? `${value}\n\n인용: ${quoting.author}\n"${quoting.body}"` : value)}
+                onClick={() => onSubmit(quoting ? buildQuotedBody(value, quoting) : value)}
                 disabled={!value.trim()}
                 className="px-4 py-1.5 rounded-full bg-[#F77019] text-white font-black hover:opacity-90 disabled:opacity-40 transition-all shadow-sm text-[11px]"
               >
@@ -468,8 +495,29 @@ function LoungePostItem({
           <span className="text-[#999] font-medium">{post.time}</span>
         </div>
 
-        {/* 본문 */}
-        <p className="text-[12px] text-[#1D1C1C] font-medium leading-relaxed whitespace-pre-line">{post.body}</p>
+        {/* 본문 — 리포스트(인용)인 경우 원글을 스레드 형태의 카드로 따로 렌더링 */}
+        {(() => {
+          const quoted = parseQuotedBody(post.body)
+          if (!quoted) {
+            return <p className="text-[12px] text-[#1D1C1C] font-medium leading-relaxed whitespace-pre-line">{post.body}</p>
+          }
+          return (
+            <div className="flex flex-col gap-2.5">
+              {quoted.main.trim() && (
+                <p className="text-[12px] text-[#1D1C1C] font-medium leading-relaxed whitespace-pre-line">{quoted.main}</p>
+              )}
+              <div className="rounded-2xl border border-[#1D1C1C]/10 bg-[#FAFAFA] p-3 flex flex-col gap-1.5">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-5 h-5 rounded-full bg-[#999] flex items-center justify-center text-white text-[9px] font-black flex-shrink-0">
+                    {quoted.quotedAuthor[0]}
+                  </div>
+                  <span className="text-[10px] font-black text-[#1D1C1C]">{quoted.quotedAuthor}</span>
+                </div>
+                <p className="text-[11px] text-[#666] font-medium leading-relaxed whitespace-pre-line line-clamp-4">{quoted.quotedBody}</p>
+              </div>
+            </div>
+          )
+        })()}
 
         {/* 이미지 그리드 */}
         {post.images > 0 && (

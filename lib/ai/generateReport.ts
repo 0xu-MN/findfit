@@ -257,6 +257,9 @@ export async function generateAndSaveReport(projectId: string, supabase: any) {
   // 없어 제외)
   const question_summary = buildQuestionSummary(questions, answers)
 
+  // 성별에 따른 응답 차이 — AI 호출 없이 코드로 직접 집계.
+  const demographic_breakdown = buildDemographicBreakdown(questions, answers, genderById)
+
   // 응답 소요시간 — review_started_at(문항 최초 열람)과 submitted_at(제출)
   // 둘 다 있는 매칭만 계산 대상(2026-08-01 이전에 제출된 리뷰는 시작 시각이
   // 없어서 자동 제외됨). AI 호출 없이 코드로 직접 계산.
@@ -362,6 +365,7 @@ export async function generateAndSaveReport(projectId: string, supabase: any) {
       question_summary,
       confidence_tiers,
       panel_summary,
+      demographic_breakdown,
       response_time_summary,
       sean_ellis_segments: seanEllisSegments,
       van_westendorp,
@@ -449,6 +453,50 @@ function buildQuestionSummary(questions: QuestionRow[], answers: AnswerRow[]) {
       return { question_text: q.question_text, options }
     })
     .filter((q) => q.options.length > 0)
+}
+
+// 문항별 응답을 성별로 쪼개서 보여준다 — "20대 여성 타겟인데 실제로 어떤
+// 성별이 어떻게 답했는지"를 볼 수 있게 해달라는 요청. AI 호출 없이 순수
+// 집계. 데이터가 거의 안 채워져 있을 수 있어서(성별 미입력 다수), 최소
+// 2명 이상 응답한 성별 그룹만 보여주고, 애초에 성별이 2종류 이상 실제로
+// 갈리지 않으면(전원 같은 성별/미입력) 이 항목 자체를 생략한다.
+function buildDemographicBreakdown(
+  questions: QuestionRow[],
+  answers: AnswerRow[],
+  genderById: Map<string, string | null>
+) {
+  const genderGroups = questions
+    .filter((q) => BAR_CHART_TYPES.has(q.question_type))
+    .map((q) => {
+      const relevant = answers.filter((a) => a.question_id === q.id)
+      const byGender = new Map<string, Map<string, number>>()
+      const byGenderTotal = new Map<string, number>()
+      for (const a of relevant) {
+        const rawGender = a.reviewer_id ? genderById.get(a.reviewer_id) : null
+        if (!rawGender) continue // 미입력 응답자는 이 breakdown에서 제외
+        const gender = rawGender === 'male' ? '남성' : rawGender === 'female' ? '여성' : rawGender
+        const cleaned = a.answer_text.replace(/\s*\(이유:[^)]*\)\s*$/, '').trim()
+        byGenderTotal.set(gender, (byGenderTotal.get(gender) ?? 0) + 1)
+        const optionMap = byGender.get(gender) ?? new Map<string, number>()
+        for (const option of cleaned.split(',').map((s) => s.trim()).filter(Boolean)) {
+          optionMap.set(option, (optionMap.get(option) ?? 0) + 1)
+        }
+        byGender.set(gender, optionMap)
+      }
+      const by_gender = Array.from(byGender.entries())
+        .filter(([, opts]) => Array.from(opts.values()).reduce((s, n) => s + n, 0) >= 2)
+        .map(([gender, opts]) => {
+          const total = byGenderTotal.get(gender) ?? 0
+          const options = Array.from(opts.entries())
+            .map(([label, count]) => ({ label, count, pct: total > 0 ? Math.round((count / total) * 100) : 0 }))
+            .sort((a, b) => b.pct - a.pct)
+          return { gender, total, options }
+        })
+      return { question_text: q.question_text, by_gender }
+    })
+    .filter((q) => q.by_gender.length >= 2) // 최소 두 성별이 다 있어야 "차이"를 비교할 수 있음
+
+  return genderGroups
 }
 
 // 패널 프로필 집계 — 직군/성별/연령대별 인원수. Claude 호출 없이 순수 카운트.

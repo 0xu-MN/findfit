@@ -117,7 +117,7 @@ export default function Step6Pricing({ data, walletBalance, onChange }: Props) {
 }
 
 /* ─────────────────────────────────────────────────────── */
-/*  Light — 캐시 차감만                                       */
+/*  Light — 포인트 차감만                                       */
 /* ─────────────────────────────────────────────────────── */
 
 function LightPricing({
@@ -139,7 +139,7 @@ function LightPricing({
           <h2 className="text-lg font-black">비용 확인</h2>
           <span className="text-[9px] font-black bg-[#F77019]/10 text-[#F77019] px-2 py-0.5 rounded">Light</span>
         </div>
-        <p className="text-[10px] text-[#999] font-bold">Light는 캐시 차감만 발생합니다 · 사례금 · 사전 승인 없음</p>
+        <p className="text-[10px] text-[#999] font-bold">Light는 포인트 차감만 발생합니다 · 사례금 · 사전 승인 없음</p>
       </div>
 
       {/* Light는 실제 제품/링크 없이도 빠른 방향성 검증이 목적이라, 웹링크
@@ -183,7 +183,7 @@ function LightPricing({
       {/* 비용 요약 */}
       <div className="rounded-2xl bg-[#FAFAFA] border border-[#1D1C1C]/5 p-5 flex flex-col gap-2 text-[11px] font-bold">
         <Row label="플랫폼 이용료 (Light 고정)" value={`${fmt(LIGHT_CASH_COST)}C`} />
-        <Row label="잔여 캐시" value={`${fmt(remaining)}C`} valueClass={insufficient ? 'text-red-500' : 'text-[#666]'} />
+        <Row label="잔여 포인트" value={`${fmt(remaining)}C`} valueClass={insufficient ? 'text-red-500' : 'text-[#666]'} />
         <div className="h-[1px] bg-[#EEEEEE] my-1" />
         <Row label="사례금" value="없음" />
         <Row label="완료 기한" value={`최대 ${data.deadlineDays}일`} />
@@ -191,7 +191,7 @@ function LightPricing({
         {insufficient && (
           <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 mt-2">
             <p className="text-[10px] font-bold text-red-600">
-              ⚠ 캐시가 부족합니다. 부족분 {fmt(Math.abs(remaining))}C 충전이 필요합니다.
+              ⚠ 포인트가 부족합니다. 부족분 {fmt(Math.abs(remaining))}C 충전이 필요합니다.
             </p>
           </div>
         )}
@@ -213,7 +213,7 @@ function LightPricing({
 }
 
 /* ─────────────────────────────────────────────────────── */
-/*  Standard / Deep — 캐시 + PortOne 사전 승인                */
+/*  Standard / Deep — 포인트 + PortOne 사전 승인                */
 /* ─────────────────────────────────────────────────────── */
 
 function StdDeepPricing({
@@ -237,7 +237,7 @@ function StdDeepPricing({
           <h2 className="text-lg font-black">평가단 · 사례금 · 비용 확인</h2>
           <span className="text-[9px] font-black bg-[#F77019]/10 text-[#F77019] px-2 py-0.5 rounded">{projectMeta.title}</span>
         </div>
-        <p className="text-[10px] text-[#999] font-bold">캐시는 즉시 차감 · 사례금은 사전 승인 후 리뷰 완료 시 실제 청구</p>
+        <p className="text-[10px] text-[#999] font-bold">포인트는 즉시 차감 · 사례금은 사전 승인 후 리뷰 완료 시 실제 청구</p>
       </div>
 
       <AccessMethodField data={data} onChange={onChange} required />
@@ -466,8 +466,8 @@ function StdDeepPricing({
         <h3 className="text-[12px] font-black">비용 요약</h3>
 
         <div className="flex flex-col gap-2 text-[11px] font-bold">
-          <Row label={`캐시 차감 (1,800C × ${data.evaluatorCount}명)`} value={`${fmt(cost.cashCost)}C`} />
-          <Row label="잔여 캐시" value={`${fmt(remainingCash)}C`} valueClass={insufficientCash ? 'text-red-500' : 'text-[#666]'} />
+          <Row label={`포인트 차감 (1,800C × ${data.evaluatorCount}명)`} value={`${fmt(cost.cashCost)}C`} />
+          <Row label="잔여 포인트" value={`${fmt(remainingCash)}C`} valueClass={insufficientCash ? 'text-red-500' : 'text-[#666]'} />
 
           <div className="h-[1px] bg-[#EEEEEE] my-1" />
 
@@ -494,7 +494,7 @@ function StdDeepPricing({
         {insufficientCash && (
           <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2">
             <p className="text-[10px] font-bold text-red-600">
-              ⚠ 캐시가 부족합니다. 부족분 {fmt(Math.abs(remainingCash))}C 충전이 필요합니다.
+              ⚠ 포인트가 부족합니다. 부족분 {fmt(Math.abs(remainingCash))}C 충전이 필요합니다.
             </p>
           </div>
         )}

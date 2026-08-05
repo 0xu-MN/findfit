@@ -75,7 +75,7 @@ export default function ReportPaidSections({
     <div className="flex flex-col gap-4">
       {/* 인사이트 2~5 */}
       {remainingInsights.length > 0 && (
-        <Card title="추가 인사이트">
+        <Card title="추가 인사이트" id="report-more-insights">
           <div className="flex flex-col gap-2">
             {remainingInsights.map((ins, i) => (
               <div key={i} className="flex items-start gap-3 rounded-xl bg-[#F5F5F5] px-4 py-3">
@@ -91,7 +91,7 @@ export default function ReportPaidSections({
 
       {/* 액션 플랜 */}
       {data.action_plan?.length > 0 && (
-        <Card title="다음 액션">
+        <Card title="다음 액션" id="report-action-plan">
           <div className="flex flex-col gap-2">
             {data.action_plan.map((a, i) => {
               const action = typeof a === 'string' ? a : a.action
@@ -118,7 +118,7 @@ export default function ReportPaidSections({
 
       {/* 피봇 / 성장 시나리오 */}
       {data.pivot_scenarios?.length > 0 && (
-        <Card title={pivotTitle}>
+        <Card title={pivotTitle} id="report-pivot">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {data.pivot_scenarios.map((s, i) => (
               <div key={i} className="rounded-xl border-l-4 border-[#F77019] bg-[#F77019]/5 px-4 py-3">
@@ -131,7 +131,7 @@ export default function ReportPaidSections({
 
       {/* 시장 규모 TAM/SAM/SOM */}
       {data.market_size && (
-        <Card title="시장 규모 분석 · TAM / SAM / SOM" badgeTier={tiers.market_size}>
+        <Card title="시장 규모 분석 · TAM / SAM / SOM" badgeTier={tiers.market_size} id="report-market-size">
           <div className="flex flex-col gap-3">
             {(['tam', 'sam', 'som'] as const).map((key) => {
               const bucket = data.market_size[key]
@@ -161,7 +161,7 @@ export default function ReportPaidSections({
 
       {/* 포지셔닝 맵 */}
       {data.positioning_map && (
-        <Card title="경쟁사 포지셔닝 맵">
+        <Card title="경쟁사 포지셔닝 맵" id="report-positioning">
           <div className="relative w-full aspect-[3/2] rounded-2xl bg-[#F5F5F5] overflow-hidden">
             <div className="absolute inset-x-0 top-1/2 h-px bg-[#1D1C1C]/10" />
             <div className="absolute inset-y-0 left-1/2 w-px bg-[#1D1C1C]/10" />
@@ -195,8 +195,8 @@ export default function ReportPaidSections({
           입력한 경우에만 실제 계산치가 나온다. 미입력이면 AI가 지어내지
           않고 null로 두므로, 안내만 보여준다. */}
       {data.unit_economics ? (
-        <Card title="Unit Economics · 수익성 분석">
-          <div className="grid grid-cols-3 gap-3">
+        <Card title="Unit Economics · 수익성 분석" id="report-unit-economics">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <UeStat label="예상 CAC" value={data.unit_economics.cac} />
             <UeStat label="예상 LTV" value={data.unit_economics.ltv} />
             <UeStat label="LTV / CAC" value={data.unit_economics.ratio} highlight />
@@ -206,7 +206,7 @@ export default function ReportPaidSections({
           </p>
         </Card>
       ) : (
-        <Card title="Unit Economics · 수익성 분석">
+        <Card title="Unit Economics · 수익성 분석" id="report-unit-economics">
           {projectId ? (
             <FinancialsInlineForm projectId={projectId} onSaved={onFinancialsSaved} />
           ) : (
@@ -265,7 +265,7 @@ export default function ReportPaidSections({
 
       {/* 타사 레퍼런스 */}
       {data.competitor_references?.length > 0 && (
-        <Card title="참고 레퍼런스" badgeTier={tiers.competitor_references}>
+        <Card title="참고 레퍼런스" badgeTier={tiers.competitor_references} id="report-references">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {data.competitor_references.map((c, i) => (
               <div key={i} className="rounded-xl border border-[#1D1C1C]/8 p-4 flex flex-col gap-1.5">
@@ -298,9 +298,9 @@ export default function ReportPaidSections({
   )
 }
 
-function Card({ title, badgeTier, children }: { title: string; badgeTier?: ConfidenceTier; children: React.ReactNode }) {
+function Card({ title, badgeTier, id, children }: { title: string; badgeTier?: ConfidenceTier; id?: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
+    <div id={id} className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
       <div className="flex items-center gap-2 mb-4">
         <h3 className="text-sm font-black">{title}</h3>
         {badgeTier && <ConfidenceBadge tier={badgeTier} />}
@@ -359,7 +359,7 @@ function FinancialsInlineForm({ projectId, onSaved }: { projectId: string; onSav
         재무 정보(예상 판매가·원가·마케팅 예산)를 입력하면 CAC/LTV가 계산돼요. 여기서 입력하면
         프로젝트 상세 화면에도 그대로 반영돼요.
       </p>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <input
           type="number"
           min={0}

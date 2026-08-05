@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { Heart, MessageSquare, Clock, ChevronRight } from 'lucide-react'
-import { loungePosts } from './SharedLoungeFeed'
+import { loungePosts, type LoungePost } from './SharedLoungeFeed'
 import type { InsightPost } from './SharedFeedPanel'
 
 const CATEGORY_PALETTE = ['#F77019', '#8B5CF6', '#1565C0', '#2E7D32', '#E91E63', '#FF8F00']
@@ -31,20 +31,45 @@ export default function HappeningSection({ basePath, activityTicker }: Props) {
   const router = useRouter()
   const [feedPosts, setFeedPosts] = useState<InsightPost[]>([])
   const [newsItems, setNewsItems] = useState<InsightPost[]>([])
+  // 예전엔 이 자리도 SharedLoungeFeed.tsx의 정적 seed(loungePosts)를 그대로
+  // 가져다 썼다 — 실제로 글을 써도 여기 홈 미리보기엔 항상 고정된 6개
+  // 샘플만 보였다. 인사이트/뉴스룸처럼 실제 API로 불러오고, 글이 하나도
+  // 없을 때만 seed로 대체한다(SharedLoungeFeed.tsx와 동일한 fallback 패턴).
+  const [loungeItems, setLoungeItems] = useState<LoungePost[]>([])
 
   useEffect(() => {
     const load = async () => {
-      const [feedRes, newsRes] = await Promise.all([
+      const [feedRes, newsRes, loungeRes] = await Promise.all([
         fetch('/api/insights?type=feed'),
         fetch('/api/insights?type=newsroom'),
+        fetch('/api/lounge/posts'),
       ])
       const feedBody = await feedRes.json()
       const newsBody = await newsRes.json()
+      const loungeBody = await loungeRes.json()
       setFeedPosts(feedBody.posts ?? [])
       setNewsItems(newsBody.posts ?? [])
+      const mapped: LoungePost[] = (loungeBody.posts ?? []).map((p: {
+        id: string; author_nickname: string; body: string; created_at: string
+        like_count: number; comment_count: number
+      }) => ({
+        id: p.id,
+        author: p.author_nickname,
+        authorHandle: p.author_nickname.toLowerCase().replace(/\s+/g, '_'),
+        authorAvatarColor: '#F77019',
+        category: '자유',
+        time: new Date(p.created_at).toLocaleDateString('ko-KR'),
+        body: p.body,
+        images: 0,
+        likes: p.like_count,
+        comments: p.comment_count,
+      }))
+      setLoungeItems(mapped)
     }
     load()
   }, [])
+
+  const displayLoungePosts = loungeItems.length > 0 ? loungeItems : loungePosts
 
   return (
     <section className="w-full max-w-[1500px] mx-auto flex flex-col gap-10 py-6 select-none">
@@ -68,7 +93,7 @@ export default function HappeningSection({ basePath, activityTicker }: Props) {
       {/* ── 라운지 (실제 라운지 게시글) ── */}
       <Row title="라운지" onMore={() => router.push(`/${basePath}/lounge`)}>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {loungePosts.slice(0, 4).map((post) => (
+          {displayLoungePosts.slice(0, 4).map((post) => (
             <div
               key={post.id}
               onClick={() => router.push(`/${basePath}/lounge`)}

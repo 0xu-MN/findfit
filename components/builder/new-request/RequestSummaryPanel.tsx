@@ -51,7 +51,7 @@ export default function RequestSummaryPanel({ data }: Props) {
         {/* 비용 */}
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
-            <span>플랫폼 이용료 (캐시)</span>
+            <span>플랫폼 이용료 (포인트)</span>
             <span className="text-[#1D1C1C]">{fmt(cost.cashCost)}C</span>
           </div>
           {cost.preAuthAmount > 0 && (

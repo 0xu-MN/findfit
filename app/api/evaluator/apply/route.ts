@@ -19,6 +19,14 @@ export async function POST(req: Request) {
     const { projectId, applicantEmail, applicantDomain, applicantIntro, ndaAgreed } = await req.json()
     if (!projectId || !applicantEmail) return jsonError('필수 항목이 누락되었습니다', 400)
 
+    // 크리에이터가 특정 성별을 타겟으로 리뷰어를 모집했는데, 성별 미입력
+    // 상태로 지원이 되면 매칭 정확도가 깨진다(예: 20대 여성 타겟에 성별
+    // 미입력 지원자가 섞임) — 지원 시점에 성별이 있어야만 지원 가능하게 막는다.
+    const { data: profile } = await supabase.from('users').select('gender').eq('id', user.id).maybeSingle()
+    if (!profile?.gender) {
+      return jsonError('지원 전에 성별을 먼저 등록해주세요. 계정 설정에서 등록할 수 있어요.', 403)
+    }
+
     // 프로젝트 상태 확인
     const { data: project } = await supabase
       .from('projects_public')

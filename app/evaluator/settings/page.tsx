@@ -46,6 +46,11 @@ function UnifiedSettingsContent() {
   const [profileSaved, setProfileSaved] = useState(false)
   const [level, setLevel] = useState('general')
   const [domainTags, setDomainTags] = useState<string[]>([])
+  // 가입 폼에서 놓쳤거나 소셜 로그인이라 성별을 입력할 기회가 없었던
+  // 리뷰어를 위해 여기서도 등록/수정할 수 있게 한다 — 성별 미입력이면
+  // 프로젝트 지원/참여 자체가 막히므로(성별 타겟 매칭 정확도) 이 화면이
+  // 유일한 등록 경로가 되는 경우가 있다.
+  const [gender, setGender] = useState<'male' | 'female' | ''>('')
 
   // 포인트 지갑 & 계좌 State
   const [bankName, setBankName] = useState('')
@@ -62,11 +67,15 @@ function UnifiedSettingsContent() {
       if (!user) return
 
       // Load Profile
-      const { data: profile } = await supabase
-        .from('reviewer_profiles')
-        .select('domain_tags, level, bank_name, account_number, account_holder, is_account_verified')
-        .eq('user_id', user.id)
-        .maybeSingle()
+      const [{ data: profile }, { data: userRow }] = await Promise.all([
+        supabase
+          .from('reviewer_profiles')
+          .select('domain_tags, level, bank_name, account_number, account_holder, is_account_verified')
+          .eq('user_id', user.id)
+          .maybeSingle(),
+        supabase.from('users').select('gender').eq('id', user.id).maybeSingle(),
+      ])
+      setGender((userRow?.gender as 'male' | 'female' | null) ?? '')
 
       if (profile) {
         setDomainTags(profile.domain_tags ?? [])
@@ -94,10 +103,10 @@ function UnifiedSettingsContent() {
     setProfileSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
-      await supabase
-        .from('reviewer_profiles')
-        .update({ domain_tags: domainTags })
-        .eq('user_id', user.id)
+      await Promise.all([
+        supabase.from('reviewer_profiles').update({ domain_tags: domainTags }).eq('user_id', user.id),
+        gender ? supabase.from('users').update({ gender }).eq('id', user.id) : Promise.resolve(),
+      ])
     }
     setProfileSaving(false)
     setProfileSaved(true)
@@ -194,6 +203,26 @@ function UnifiedSettingsContent() {
                 <div className="flex flex-col gap-2 p-4 rounded-2xl bg-[#F8F9FA] border border-[#1D1C1C]/5">
                   <span className="text-[10px] font-black text-[#999] uppercase tracking-wider">평가단 등급</span>
                   <p className="text-sm font-black text-[#189DF7]">{level === 'expert' ? '전문가 리뷰어' : '일반 리뷰어'}</p>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  <span className="text-[11px] font-black text-[#999] uppercase tracking-wider">성별</span>
+                  <p className="text-[10px] text-[#999] font-medium -mt-1">타겟 성별이 있는 프로젝트에 지원/참여하려면 성별이 등록돼 있어야 해요.</p>
+                  <div className="flex gap-2">
+                    {[{ v: 'male' as const, l: '남성' }, { v: 'female' as const, l: '여성' }].map((opt) => (
+                      <button
+                        key={opt.v}
+                        onClick={() => setGender(opt.v)}
+                        className={`flex-1 h-11 rounded-xl border text-xs font-bold transition-colors ${
+                          gender === opt.v
+                            ? 'border-[#189DF7] bg-[#189DF7]/10 text-[#189DF7]'
+                            : 'border-[#1D1C1C]/10 text-[#666] hover:border-[#1D1C1C]/30'
+                        }`}
+                      >
+                        {opt.l}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="flex flex-col gap-3">

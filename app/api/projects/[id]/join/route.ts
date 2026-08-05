@@ -19,6 +19,13 @@ export async function POST(
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return jsonError('로그인이 필요합니다', 401)
 
+    // apply/route.ts와 동일한 이유 — 성별 미입력 상태로 참여가 되면 타겟
+    // 성별 기반 매칭 정확도가 깨진다.
+    const { data: profile } = await supabase.from('users').select('gender').eq('id', user.id).maybeSingle()
+    if (!profile?.gender) {
+      return jsonError('참여 전에 성별을 먼저 등록해주세요. 계정 설정에서 등록할 수 있어요.', 403)
+    }
+
     const { data: project } = await supabase
       .from('projects_public')
       .select('status, completed_count, target_count, access_method')
