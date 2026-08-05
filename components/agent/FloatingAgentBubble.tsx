@@ -29,7 +29,7 @@ export default function FloatingAgentBubble() {
       <button
         data-coach="agent-bubble"
         onClick={() => (isOpen ? close() : (activeReportProjectId ? openForReport(activeReportProjectId) : open()))}
-        className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full flex items-center justify-center text-white shadow-[0_8px_24px_rgba(247,112,25,0.35)] hover:scale-105 active:scale-95 transition-transform"
+        className="print:hidden fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full flex items-center justify-center text-white shadow-[0_8px_24px_rgba(247,112,25,0.35)] hover:scale-105 active:scale-95 transition-transform"
         style={{ background: 'linear-gradient(135deg, #F77019, #FF8F45)' }}
         title="FindFit Agent"
       >
@@ -43,7 +43,7 @@ export default function FloatingAgentBubble() {
           때도 AgentPanel을 언마운트하지 않고 display만 숨겨서 대화 상태를
           보존한다. */}
       <div
-        className="fixed bottom-24 right-6 z-40 w-[380px] max-w-[calc(100vw-32px)] h-[560px] max-h-[calc(100vh-160px)] rounded-3xl bg-white shadow-[0_16px_48px_rgba(0,0,0,0.18)] border border-[#1D1C1C]/8 overflow-hidden flex flex-col"
+        className="print:hidden fixed bottom-24 right-6 z-40 w-[380px] max-w-[calc(100vw-32px)] h-[560px] max-h-[calc(100vh-160px)] rounded-3xl bg-white shadow-[0_16px_48px_rgba(0,0,0,0.18)] border border-[#1D1C1C]/8 overflow-hidden flex flex-col"
         style={{ display: isOpen ? 'flex' : 'none' }}
       >
         <AgentPanel isExpanded={false} reportProjectIdOverride={reportProjectId} initialSeedMessage={seedMessage} initialTargetCustomer={seedTargetCustomer} onClose={close} />

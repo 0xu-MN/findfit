@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronDown, ChevronUp, User } from 'lucide-react'
+import { ChevronLeft, ChevronRight, User } from 'lucide-react'
 import ConfidenceBadge, { type ConfidenceTier } from './ConfidenceBadge'
 
 export type QuestionSummaryItem = {
@@ -59,9 +59,12 @@ export type PanelSummary = {
   age_buckets: { label: string; count: number }[]
 }
 
+type BreakdownGroup = { gender: string; total: number; options: { label: string; count: number; pct: number }[] }
 export type DemographicBreakdownItem = {
   question_text: string
-  by_gender: { gender: string; total: number; options: { label: string; count: number; pct: number }[] }[]
+  by_gender?: BreakdownGroup[]
+  by_age_bucket?: BreakdownGroup[]
+  by_job?: BreakdownGroup[]
 }
 
 // 무료 티어에 항상 노출되는 부분만 담당 — PSF 스코어 게이지 +
@@ -102,13 +105,15 @@ const RECOMMENDATION_LABELS: Record<string, { label: string; color: string; bg: 
   stop:     { label: '지금 방향은 다시 생각해봐야 해요', color: 'text-red-700', bg: 'bg-red-50 border-red-200' },
 }
 
-const NARRATIVES_PREVIEW_COUNT = 5
+const NARRATIVES_PER_PAGE = 3
 
 export default function StandardReportView({ data, mode }: { data: StandardReportData; mode: 'psf' | 'pmf' }) {
   const rec = RECOMMENDATION_LABELS[data.recommendation] ?? RECOMMENDATION_LABELS.continue
   // 리뷰어가 많아지면 "리뷰어별 의견" 카드가 한없이 길어질 수 있어서, 5명
   // 까지만 먼저 보여주고 나머지는 더보기로 펼친다.
-  const [showAllNarratives, setShowAllNarratives] = useState(false)
+  // 5명 넘으면 "더보기"로 아래에 쌓아 보여주던 걸 → 한 번에 3명씩 좌우로
+  // 넘겨보는 캐러셀로 변경(요청: "3명씩 좌우로 넘기면서 볼 수 있게").
+  const [narrativePage, setNarrativePage] = useState(0)
   const firstInsight = data.key_insights?.[0]
   const tiers = data.confidence_tiers ?? {
     sean_ellis: 'verified' as const,
@@ -195,62 +200,76 @@ export default function StandardReportView({ data, mode }: { data: StandardRepor
         </div>
       )}
 
-      {/* 문항별 응답 요약 — AI가 아니라 실제 답변 집계 */}
+      {/* 문항별 응답 요약 — 순위·라벨·%가 바 밖이 아니라 바 안에 얹혀서
+          나온다(트랙 전체 위에 텍스트를 올리고, 그 뒤에 응답 비율(%)만큼만
+          채워진 막대를 깔아서 텍스트가 항상 보이게). 순위별 색은 투명도가
+          아니라 서로 다른 고정 색이라 낮은 순위도 트랙에 묻히지 않는다. */}
       {data.question_summary?.length > 0 && (
         <div id="report-question-summary" className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
-          <h3 className="text-sm font-black mb-4">문항별 응답 요약</h3>
-          <div className="flex flex-col gap-5">
+          <h3 className="text-sm font-black mb-5">문항별 응답 요약</h3>
+          <div className="flex flex-col gap-7">
             {data.question_summary.map((q, i) => (
               <div key={i}>
-                <p className="text-[11px] font-bold text-[#666] mb-2.5">{q.question_text}</p>
-                <div className="flex flex-col gap-1.5">
-                  {q.options.map((o, oi) => (
-                    <div key={oi} className="flex items-center gap-2.5">
-                      <span className="text-[11px] text-[#1D1C1C] w-28 shrink-0 truncate">{o.label}</span>
-                      <div className="flex-1 h-1.5 rounded-full bg-[#F5F5F5] overflow-hidden">
+                <p className="text-[12px] font-black text-[#1D1C1C] mb-3">{q.question_text}</p>
+                <div className="flex flex-col gap-2">
+                  {q.options.map((o, oi) => {
+                    // 순위별 고정 색(투명도 아님) — 1위가 가장 진한 색, 아래로
+                    // 갈수록 톤만 옅어질 뿐 색 자체는 항상 또렷하다. 글씨는
+                    // 색과 무관하게 항상 다크로 고정해서 어떤 폭이든 읽힌다.
+                    const barColors = ['#F77019', '#FF8F45', '#FFB27A', '#FFCFA8', '#FFE6D2']
+                    const barColor = barColors[Math.min(oi, barColors.length - 1)]
+                    return (
+                      <div key={oi} className="relative w-full h-10 rounded-full bg-[#F5F5F5] overflow-hidden">
                         <div
-                          className={`h-full rounded-full ${oi === 0 ? 'bg-[#F77019]' : 'bg-[#F77019]/40'}`}
-                          style={{ width: `${o.pct}%` }}
+                          className="absolute inset-y-0 left-0 rounded-full"
+                          style={{ width: `${o.pct}%`, background: barColor }}
                         />
+                        <div className="relative z-10 h-full flex items-center justify-between gap-2 px-4">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="text-[10px] font-black text-[#1D1C1C]/70 shrink-0">{oi + 1}위</span>
+                            <span className="text-[11px] font-black text-[#1D1C1C] truncate">{o.label}</span>
+                          </div>
+                          <span className="text-[12px] font-black text-[#1D1C1C] shrink-0">{o.pct}%</span>
+                        </div>
                       </div>
-                      <span className="text-[11px] font-bold text-[#1D1C1C] w-24 text-right shrink-0">
-                        {o.pct}% <span className="text-[#999] font-medium">({o.total}명 중 {o.count}명)</span>
-                      </span>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
+                <p className="text-[9px] font-bold text-[#BBB] mt-1.5">
+                  총 {q.options[0]?.total ?? 0}명 응답
+                </p>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* 성별에 따른 응답 차이 — 최소 2개 성별 그룹이 각각 2명 이상 응답한
-          문항만 표시된다(데이터가 부족하면 비교 자체가 무의미하므로). */}
+      {/* 인구통계별 응답 차이 — 성별/연령대/직군 세 축 각각 최소 2개 그룹이
+          그룹당 2명 이상 응답한 문항만 표시된다(데이터가 부족하면 비교 자체가
+          무의미하므로). 직군은 domain_tags 입력률이 낮아 지금은 거의 항상
+          빠지고, 데이터가 쌓이면 자동으로 나타난다. 선택지가 2개면 도넛으로,
+          3개 이상이면 막대로 — 카드형 미니 차트. */}
       {(data.demographic_breakdown?.length ?? 0) > 0 && (
-        <div id="report-demographic-breakdown" className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
-          <h3 className="text-sm font-black mb-1">성별에 따른 응답 차이</h3>
-          <p className="text-[10px] font-bold text-[#999] mb-4">응답자 중 성별을 입력한 인원만 집계했어요.</p>
-          <div className="flex flex-col gap-6">
-            {data.demographic_breakdown!.map((q, i) => (
-              <div key={i}>
-                <p className="text-[11px] font-bold text-[#666] mb-3">{q.question_text}</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {q.by_gender.map((g, gi) => (
-                    <div key={gi} className="rounded-2xl bg-[#F5F5F5] p-3.5 flex flex-col gap-2">
-                      <span className="text-[10px] font-black text-[#1D1C1C]">{g.gender} ({g.total}명)</span>
-                      {g.options.map((o, oi) => (
-                        <div key={oi} className="flex items-center gap-2">
-                          <span className="text-[10px] text-[#666] flex-1 truncate">{o.label}</span>
-                          <span className="text-[10px] font-bold text-[#1D1C1C] shrink-0">{o.pct}%</span>
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+        <div id="report-demographic-breakdown" className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex flex-col gap-8">
+          <h3 className="text-sm font-black -mb-3">인구통계별 응답 차이</h3>
+          <DemographicBreakdownSection
+            title="성별에 따른 응답 차이"
+            note="응답자 중 성별을 입력한 인원만 집계했어요."
+            items={data.demographic_breakdown!}
+            pick={(q) => q.by_gender}
+          />
+          <DemographicBreakdownSection
+            title="연령대에 따른 응답 차이"
+            note="응답자 중 생년월일을 입력한 인원만 집계했어요."
+            items={data.demographic_breakdown!}
+            pick={(q) => q.by_age_bucket}
+          />
+          <DemographicBreakdownSection
+            title="직군에 따른 응답 차이"
+            note="응답자 중 관심 직군을 선택한 인원만 집계했어요."
+            items={data.demographic_breakdown!}
+            pick={(q) => q.by_job}
+          />
         </div>
       )}
 
@@ -304,8 +323,13 @@ export default function StandardReportView({ data, mode }: { data: StandardRepor
             </span>
           </div>
 
+          {/* 카드 자체가 프로필+성향+시나리오+페인포인트를 다 담은 넓은
+              레이아웃이라 3개를 가로로 나란히 두면 안에 있는 12칸 그리드가
+              찌그러진다 — 세로로 3장씩 쌓아 보여주고, 그 3장 묶음 단위를
+              좌우 화살표로 넘기는 방식으로("페이지당 3명 캐러셀"). */}
           <div className="flex flex-col gap-6">
-            {(showAllNarratives ? data.reviewer_narratives! : data.reviewer_narratives!.slice(0, NARRATIVES_PREVIEW_COUNT)).map((n, i) => {
+            {data.reviewer_narratives!.slice(narrativePage * NARRATIVES_PER_PAGE, narrativePage * NARRATIVES_PER_PAGE + NARRATIVES_PER_PAGE).map((n, localI) => {
+              const i = narrativePage * NARRATIVES_PER_PAGE + localI // 색상/슬라이더 다양성을 페이지 넘어가도 유지
               const themeColors = [
                 { border: '#E76F51', bg: '#FFFBF9', accent: '#E76F51', lightBg: '#FDF0EC' },
                 { border: '#2A9D8F', bg: '#F8FCFB', accent: '#2A9D8F', lightBg: '#E8F6F4' },
@@ -451,18 +475,32 @@ export default function StandardReportView({ data, mode }: { data: StandardRepor
               )
             })}
           </div>
-          {(data.reviewer_narratives?.length ?? 0) > NARRATIVES_PREVIEW_COUNT && (
-            <button
-              onClick={() => setShowAllNarratives((v) => !v)}
-              className="self-center flex items-center gap-1.5 text-[11px] font-black text-[#666] hover:text-[#F77019] transition-colors px-4 py-2 rounded-xl hover:bg-[#F5F5F5]"
-            >
-              {showAllNarratives ? (
-                <>접기 <ChevronUp className="w-3.5 h-3.5" /></>
-              ) : (
-                <>{data.reviewer_narratives!.length - NARRATIVES_PREVIEW_COUNT}명 더보기 <ChevronDown className="w-3.5 h-3.5" /></>
-              )}
-            </button>
-          )}
+          {(() => {
+            const total = data.reviewer_narratives!.length
+            const pageCount = Math.ceil(total / NARRATIVES_PER_PAGE)
+            if (pageCount <= 1) return null
+            return (
+              <div className="flex items-center justify-center gap-4">
+                <button
+                  onClick={() => setNarrativePage((p) => Math.max(0, p - 1))}
+                  disabled={narrativePage === 0}
+                  className="w-9 h-9 rounded-full border border-[#1D1C1C]/10 flex items-center justify-center text-[#666] hover:text-[#F77019] hover:border-[#F77019]/30 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="text-[11px] font-bold text-[#999]">
+                  {narrativePage + 1} / {pageCount}
+                </span>
+                <button
+                  onClick={() => setNarrativePage((p) => Math.min(pageCount - 1, p + 1))}
+                  disabled={narrativePage === pageCount - 1}
+                  className="w-9 h-9 rounded-full border border-[#1D1C1C]/10 flex items-center justify-center text-[#666] hover:text-[#F77019] hover:border-[#F77019]/30 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            )
+          })()}
         </div>
       )}
 
@@ -475,12 +513,14 @@ export default function StandardReportView({ data, mode }: { data: StandardRepor
         </div>
       )}
 
-      {/* 반복되는 주제 */}
+      {/* 반복되는 주제 — 언급 빈도를 원 크기로 표현하는 버블 클러스터.
+          가장 많이 언급된 주제일수록 크고 진하게, 아래에 원문 예시를 덧붙인다. */}
       {(data.theme_frequency?.length ?? 0) > 0 && (
         <div id="report-themes" className="rounded-3xl border border-[#1D1C1C]/10 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
-          <h3 className="text-sm font-black mb-4">반복되는 주제</h3>
-          <div className="flex flex-col gap-3">
-            {data.theme_frequency!.map((t, i) => (
+          <h3 className="text-sm font-black mb-5">반복되는 주제</h3>
+          <ThemeBubbleCluster themes={data.theme_frequency!} />
+          <div className="flex flex-col gap-3 mt-6">
+            {[...data.theme_frequency!].sort((a, b) => b.count - a.count).map((t, i) => (
               <div key={i} className="rounded-2xl bg-[#F5F5F5] p-4">
                 <div className="flex items-center gap-2 mb-1.5">
                   <span className="text-[11px] font-black text-[#1D1C1C]">{t.theme}</span>
@@ -513,6 +553,63 @@ export default function StandardReportView({ data, mode }: { data: StandardRepor
   )
 }
 
+function DemographicBreakdownSection({
+  title,
+  note,
+  items,
+  pick,
+}: {
+  title: string
+  note: string
+  items: DemographicBreakdownItem[]
+  pick: (q: DemographicBreakdownItem) => BreakdownGroup[] | undefined
+}) {
+  const rows = items
+    .map((q) => ({ question_text: q.question_text, groups: pick(q) }))
+    .filter((q): q is { question_text: string; groups: BreakdownGroup[] } => (q.groups?.length ?? 0) > 0)
+
+  if (rows.length === 0) return null
+
+  return (
+    <div>
+      <h4 className="text-[12px] font-black text-[#1D1C1C] mb-1">{title}</h4>
+      <p className="text-[9px] font-bold text-[#999] mb-4">{note}</p>
+      <div className="flex flex-col gap-5">
+        {rows.map((q, i) => (
+          <div key={i}>
+            <div className="rounded-2xl bg-[#F5F5F5] px-4 py-3 mb-3">
+              <p className="text-[9px] font-black text-[#F77019] mb-0.5">Q.</p>
+              <p className="text-[11px] font-bold text-[#1D1C1C]">{q.question_text}</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {q.groups.map((g, gi) => (
+                <div key={gi} className="rounded-2xl border border-[#1D1C1C]/8 p-4 flex flex-col items-center gap-3 text-center">
+                  <span className="text-[10px] font-black text-[#1D1C1C]">{g.gender} · {g.total}명</span>
+                  {g.options.length === 2 ? (
+                    <MiniDonut label={g.options[0].label} pct={g.options[0].pct} />
+                  ) : (
+                    <div className="w-full flex flex-col gap-1.5">
+                      {g.options.map((o, oi) => (
+                        <div key={oi} className="flex items-center gap-2">
+                          <span className="text-[9px] text-[#666] w-16 shrink-0 truncate text-left">{o.label}</span>
+                          <div className="flex-1 h-1.5 rounded-full bg-[#F5F5F5] overflow-hidden">
+                            <div className="h-full rounded-full bg-[#F77019]" style={{ width: `${o.pct}%` }} />
+                          </div>
+                          <span className="text-[9px] font-bold text-[#1D1C1C] w-8 shrink-0 text-right">{o.pct}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function PanelGroupRow({
   label,
   items,
@@ -538,6 +635,116 @@ function PanelGroupRow({
           {it.label} {it.count}명
         </span>
       ))}
+    </div>
+  )
+}
+
+// 파스텔 톤이 섞인 선명한 팔레트 — 이전 원색 조합이 밋밋하다는 피드백 반영.
+const BUBBLE_COLORS = ['#FF6B6B', '#4D96FF', '#6BCB77', '#FFA45B', '#9B72CF', '#00C2A8']
+
+// 언급 빈도를 원 크기로 표현하는 버블 클러스터. 골든 앵글(137.5°) 나선을
+// 따라가되, 원들이 서로 겹쳐서 글자가 안 보이는 문제가 있었다(반지름 계산이
+// 원 크기에 비해 너무 작았음) — 이번엔 실제 충돌 검사를 넣어서, 각 원을
+// 나선을 따라 조금씩 밀어내며 이미 놓인 원들과 안 겹칠 때까지 반지름을
+// 늘려가며 배치한다(그리디 팩킹). 그래도 살짝 맞닿는 정도는 허용해서
+// "따로따로 나열"이 아니라 "뭉쳐있는" 느낌은 유지한다.
+const GOLDEN_ANGLE = 137.5
+
+function ThemeBubbleCluster({ themes }: { themes: { theme: string; count: number }[] }) {
+  const sorted = [...themes].sort((a, b) => b.count - a.count)
+  const maxCount = sorted[0]?.count ?? 1
+  const minSize = 64
+  const maxSize = 148
+  const padding = 6 // 원 사이 최소 간격(px) — 완전히 붙어서 경계가 안 보이는 것 방지
+
+  type Placed = { theme: string; count: number; size: number; x: number; y: number; color: string }
+  const placed: Placed[] = []
+
+  sorted.forEach((t, i) => {
+    const ratio = Math.sqrt(t.count / maxCount)
+    const size = Math.round(minSize + ratio * (maxSize - minSize))
+    const color = BUBBLE_COLORS[i % BUBBLE_COLORS.length]
+
+    if (i === 0) {
+      placed.push({ ...t, size, x: 0, y: 0, color })
+      return
+    }
+
+    const angle = (i * GOLDEN_ANGLE * Math.PI) / 180
+    let radius = size / 2 + 20
+    // 반지름을 조금씩 늘려가며, 이미 놓인 모든 원과 안 겹치는 지점을 찾는다.
+    for (let attempt = 0; attempt < 60; attempt++) {
+      const x = radius * Math.cos(angle)
+      const y = radius * Math.sin(angle)
+      const collides = placed.some((p) => {
+        const dist = Math.hypot(p.x - x, p.y - y)
+        return dist < (p.size + size) / 2 + padding
+      })
+      if (!collides) {
+        placed.push({ ...t, size, x, y, color })
+        return
+      }
+      radius += 12
+    }
+    // 60번 시도해도 못 찾으면(항목이 아주 많을 때) 마지막 위치라도 사용
+    const x = radius * Math.cos(angle)
+    const y = radius * Math.sin(angle)
+    placed.push({ ...t, size, x, y, color })
+  })
+
+  const maxExtent = Math.max(...placed.map((p) => Math.hypot(p.x, p.y) + p.size / 2), maxSize / 2) + 12
+  const containerSize = maxExtent * 2
+  const center = containerSize / 2
+
+  return (
+    <div className="relative mx-auto" style={{ width: containerSize, height: containerSize, maxWidth: '100%' }}>
+      {[...placed].reverse().map((b, ri) => (
+        <div
+          key={b.theme}
+          className="absolute rounded-full flex flex-col items-center justify-center text-center text-white shadow-[0_4px_16px_rgba(0,0,0,0.1)] border-2 border-white"
+          style={{
+            width: b.size,
+            height: b.size,
+            left: center + b.x,
+            top: center + b.y,
+            transform: 'translate(-50%, -50%)',
+            background: b.color,
+            zIndex: placed.length - ri,
+          }}
+        >
+          <span className="font-black leading-tight px-2" style={{ fontSize: b.size > 110 ? 13 : 10 }}>{b.theme}</span>
+          <span className="font-bold opacity-90" style={{ fontSize: b.size > 110 ? 11 : 9 }}>{b.count}명</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// 선택지가 2개뿐인 문항(예/아니오류)의 성별 카드에 쓰는 작은 도넛 —
+// 1위 선택지 비율만 강조해서 보여준다(전체 원형 SVG, conic-gradient 대체).
+function MiniDonut({ label, pct }: { label: string; pct: number }) {
+  const r = 32
+  const circumference = 2 * Math.PI * r
+  const dash = (pct / 100) * circumference
+  return (
+    <div className="relative w-20 h-20 mb-4 flex items-center justify-center">
+      <svg viewBox="0 0 80 80" className="w-full h-full -rotate-90">
+        <circle cx="40" cy="40" r={r} fill="none" stroke="#F5F5F5" strokeWidth="9" />
+        <circle
+          cx="40"
+          cy="40"
+          r={r}
+          fill="none"
+          stroke="#F77019"
+          strokeWidth="9"
+          strokeLinecap="round"
+          strokeDasharray={`${dash} ${circumference - dash}`}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-sm font-black text-[#1D1C1C]">{pct}%</span>
+      </div>
+      <span className="absolute -bottom-5 text-[8px] font-bold text-[#999] truncate max-w-[80px]">{label}</span>
     </div>
   )
 }

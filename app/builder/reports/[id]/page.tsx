@@ -1,8 +1,8 @@
 'use client'
 
-import { ArrowLeft, BarChart3, Download, RefreshCw } from 'lucide-react'
+import { ArrowLeft, BarChart3, Download, Loader2, RefreshCw } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { use, useCallback, useEffect, useState } from 'react'
+import { use, useCallback, useEffect, useRef, useState } from 'react'
 
 import LightReportView from '@/components/report/LightReportView'
 import StandardReportView, {
@@ -94,6 +94,14 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
   const [unlocked, setUnlocked] = useState(false)
   const [unlocking, setUnlocking] = useState(false)
   const [unlockError, setUnlockError] = useState<string | null>(null)
+  // 리포트 확대/축소 — 슬라이더로 80~130% 조절, 본문 전체에 transform
+  // scale을 적용한다(폰트만 키우는 게 아니라 레이아웃 전체 배율 조정).
+  const [zoom, setZoom] = useState(100)
+  // PDF 저장 — 브라우저 인쇄 대화상자(window.print)를 거치지 않고, 리포트
+  // 본문 DOM을 캡처해서 진짜 .pdf 파일로 바로 다운로드한다. 헤더/좌측
+  // 목차/사이드바는 이 ref 바깥에 있어서 애초에 캡처 대상에 안 들어간다.
+  const reportContentRef = useRef<HTMLDivElement>(null)
+  const [generatingPdf, setGeneratingPdf] = useState(false)
 
   // 저장된 ai_reports를 조회하고, 없으면 서버에서 생성(POST)한다.
   const fetchReport = useCallback(async (regenerate = false) => {
@@ -183,6 +191,53 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
     }
   }
 
+  // PDF 저장 — window.print()(브라우저 인쇄 대화상자, 페이지 전체를 찍던
+  // 방식)를 완전히 대체한다. 리포트 본문 DOM만 캡처해서 진짜 .pdf 파일로
+  // 바로 다운로드한다(헤더/좌측 목차/사이드바는 이 ref 바깥이라 캡처 대상이
+  // 아예 아님). 캡처 중엔 확대/축소 배율을 100%로 되돌려서 실제 레이아웃
+  // 그대로 찍히게 한다.
+  const handleDownloadPdf = async () => {
+    if (!reportContentRef.current) return
+    setGeneratingPdf(true)
+    const prevZoom = zoom
+    setZoom(100)
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 150)) // 배율 리렌더 반영 대기
+      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+        import('html2canvas-pro'),
+        import('jspdf'),
+      ])
+      const canvas = await html2canvas(reportContentRef.current, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+      })
+      const imgData = canvas.toDataURL('image/png')
+      const pdf = new jsPDF('p', 'mm', 'a4')
+      const pdfWidth = pdf.internal.pageSize.getWidth()
+      const pdfHeight = pdf.internal.pageSize.getHeight()
+      const imgWidth = pdfWidth
+      const imgHeight = (canvas.height * imgWidth) / canvas.width
+      let heightLeft = imgHeight
+      let position = 0
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+      heightLeft -= pdfHeight
+      while (heightLeft > 0) {
+        position -= pdfHeight
+        pdf.addPage()
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+        heightLeft -= pdfHeight
+      }
+      pdf.save(`${project?.title || 'findfit-report'}.pdf`)
+    } catch (err) {
+      console.error('[PDF 저장 실패]', err)
+      alert(`PDF 저장에 실패했어요: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      setZoom(prevZoom)
+      setGeneratingPdf(false)
+    }
+  }
+
   const isLight = project?.project_type === 'light'
   const psfPmf: 'psf' | 'pmf' = makePsfPmf(project?.stage ?? null)
 
@@ -192,7 +247,23 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
           뒤로가기는 보조 수단으로만 남겨둔다. 프로젝트 상세로 고정 이동시켜서
           "리뷰어 의견 보기" 페이지와 서로의 뒤로가기를 번갈아 누르며 두 화면
           사이만 왔다갔다 하던 문제를 없앤다(history.back() 대신 명시적 이동). */}
-      <div className="sticky top-0 z-20 -mx-2 mb-2 bg-[#F7F7F5] px-2 py-4 flex items-center gap-3 border-b border-[#1D1C1C]/8 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+      {/* 인쇄/PDF 저장 시엔 헤더/버튼/목차 다 빼고 리포트 본문만 나오게
+          한다 — 예전엔 창을 통째로 인쇄해서 사이드바·버튼까지 다 찍혔다. */}
+      <style>{`
+        @media print {
+          .report-print-hide { display: none !important; }
+          .report-zoom-wrapper { transform: none !important; }
+          .report-content-col { max-width: 100% !important; }
+          .report-print-header { display: flex !important; }
+          [id^="report-"] { break-inside: avoid; }
+        }
+      `}</style>
+      <div className="report-print-header hidden print:flex items-center gap-2 px-2 pb-4">
+        <BarChart3 className="w-4 h-4 text-[#F77019]" />
+        <h1 className="text-sm font-black">{project?.title || 'AI 리포트'}</h1>
+        <span className="text-[10px] font-bold text-[#999] ml-auto">{new Date().toLocaleDateString('ko-KR')} 생성</span>
+      </div>
+      <div className="report-print-hide sticky top-0 z-20 -mx-2 mb-2 bg-[#F7F7F5] px-2 py-4 flex items-center gap-3 border-b border-[#1D1C1C]/8 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
         <button
           onClick={() => router.push(`/builder/projects/${projectId}`)}
           className="p-1.5 rounded-lg hover:bg-white transition-colors text-[#666]"
@@ -217,11 +288,12 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
           </button>
           {!loading && report && (
             <button
-              onClick={() => window.print()}
-              className="flex items-center gap-1.5 text-[10px] font-black text-[#666] hover:text-[#F77019] transition-colors px-2 py-1 rounded-lg hover:bg-[#F77019]/5"
+              onClick={handleDownloadPdf}
+              disabled={generatingPdf}
+              className="flex items-center gap-1.5 text-[10px] font-black text-[#666] hover:text-[#F77019] transition-colors px-2 py-1 rounded-lg hover:bg-[#F77019]/5 disabled:opacity-50"
             >
-              <Download className="w-3 h-3" />
-              PDF로 저장
+              {generatingPdf ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
+              {generatingPdf ? 'PDF 생성 중...' : 'PDF로 저장'}
             </button>
           )}
           {!loading && report && (
@@ -241,7 +313,21 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-6 py-8">
+      <div className="flex items-start gap-6 px-6 py-8">
+        {/* 목차 — 예전엔 본문 위에 가로로 얹혀 있어서 아래로 스크롤하면
+            바로 안 보였다. 왼쪽에 sticky로 고정해서 스크롤 중에도 계속
+            보이고, 지금 보고 있는 섹션이 자동으로 강조되게 한다. 확대/축소
+            슬라이더도 같은 자리에 둔다(요청: "목차 부분에 위치가 나오게"). */}
+        {!loading && !error && report && project && !isLight && (
+          <ReportTableOfContents zoom={zoom} onZoomChange={setZoom} />
+        )}
+
+        <div className="report-content-col flex-1 min-w-0 flex justify-center">
+        <div
+          ref={reportContentRef}
+          className="report-zoom-wrapper w-full max-w-2xl bg-[#F7F7F5]"
+          style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center' }}
+        >
         {/* 로딩 */}
         {loading && (
           <div className="flex flex-col items-center justify-center py-32 gap-6">
@@ -308,44 +394,41 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
               </span>
             </div>
 
-            {/* 목차 — 리포트가 길어질 때(Standard) 원하는 섹션으로 바로
-                이동할 수 있게. 실제로 안 뜬 섹션의 링크를 눌러도 그냥 아무
-                일도 안 일어날 뿐이라 항상 전체 후보를 보여준다(조건부로
-                일부만 보여주려면 report_data를 다시 훑어야 해서 단순화). */}
-            {!isLight && <ReportTableOfContents />}
-
-            {/* 이 프로젝트가 검증하려던 가설 — 등록 시 입력했지만 이번에
-                고치기 전까지 저장만 되고 어디서도 안 보였다. 리뷰어 응답과
-                나란히 볼 수 있도록 리포트 맨 위에 노출한다. */}
-            {project.extra_data?.hypothesis && (
-              <div className="rounded-3xl border border-[#1565C0]/20 bg-[#1565C0]/5 p-6 mb-4">
-                <p className="text-[9px] font-black text-[#1565C0] bg-[#1565C0]/10 inline-block px-2 py-0.5 rounded mb-2">
-                  이 프로젝트가 검증하려던 가설
-                </p>
-                <p className="text-[13px] font-bold text-[#1D1C1C] leading-relaxed">{project.extra_data.hypothesis}</p>
-              </div>
-            )}
-
             {isLight ? (
-              <LightReportView
-                data={{
-                  winner: (report.winner ?? null) as 'A' | 'B' | null,
-                  ratio_summary: report.ratio_summary ?? '',
-                  key_comments: report.key_comments ?? [],
-                  verbatim_quotes: report.verbatim_quotes ?? [],
-                  one_line_recommendation: report.one_line_recommendation ?? '',
-                }}
-              />
+              <>
+                {/* 이 프로젝트가 검증하려던 가설 — 등록 시 입력했지만 이번에
+                    고치기 전까지 저장만 되고 어디서도 안 보였다. */}
+                {project.extra_data?.hypothesis && (
+                  <div className="rounded-3xl border border-[#1565C0]/20 bg-[#1565C0]/5 p-6 mb-4">
+                    <p className="text-[9px] font-black text-[#1565C0] bg-[#1565C0]/10 inline-block px-2 py-0.5 rounded mb-2">
+                      이 프로젝트가 검증하려던 가설
+                    </p>
+                    <p className="text-[13px] font-bold text-[#1D1C1C] leading-relaxed">{project.extra_data.hypothesis}</p>
+                  </div>
+                )}
+                <LightReportView
+                  data={{
+                    winner: (report.winner ?? null) as 'A' | 'B' | null,
+                    ratio_summary: report.ratio_summary ?? '',
+                    key_comments: report.key_comments ?? [],
+                    verbatim_quotes: report.verbatim_quotes ?? [],
+                    one_line_recommendation: report.one_line_recommendation ?? '',
+                  }}
+                />
+              </>
             ) : (
               <>
-                {meta?.verdict && (
-                  <VerdictBanner
-                    verdict={meta.verdict}
-                    problemExistsPct={meta.problem_exists_pct}
-                    solutionAcceptancePct={meta.solution_acceptance_pct}
-                    purchaseIntentPct={meta.purchase_intent_pct}
-                  />
-                )}
+                {/* Overview — 가설(등록 시 입력한 검증 목적)과 리뷰어 전체
+                    반응을 요약 슬라이드 형태로 리포트 맨 위에 보여준다. */}
+                <ReportOverview
+                  hypothesis={project.extra_data?.hypothesis ?? null}
+                  verdict={meta?.verdict ?? null}
+                  problemExistsPct={meta?.problem_exists_pct ?? null}
+                  solutionAcceptancePct={meta?.solution_acceptance_pct ?? null}
+                  purchaseIntentPct={meta?.purchase_intent_pct ?? null}
+                  keyInsight={report.key_insights?.[0] ?? null}
+                  benchmarkComment={report.benchmark_comment ?? null}
+                />
                 <StandardReportView
                   data={{
                     psf_score: report.psf_score ?? 0,
@@ -457,6 +540,8 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
             )}
           </>
         )}
+        </div>
+        </div>
       </div>
 
       {/* AI 생성 리포트 안내 — 상태와 무관하게 항상 고정 노출 */}
@@ -467,26 +552,33 @@ export default function ReportDetailPage({ params }: { params: Promise<{ id: str
   )
 }
 
-const VERDICT_META: Record<'GO' | 'CAUTION' | 'RECONSIDER', { label: string; color: string; bg: string; border: string }> = {
-  GO: { label: 'GO — 계속 진행하세요', color: '#15803D', bg: '#F0FDF4', border: '#BBF7D0' },
-  CAUTION: { label: 'CAUTION — 방향을 점검해보세요', color: '#B45309', bg: '#FFFBEB', border: '#FDE68A' },
-  RECONSIDER: { label: 'RECONSIDER — 재검토가 필요해요', color: '#B91C1C', bg: '#FEF2F2', border: '#FECACA' },
+const VERDICT_META: Record<'GO' | 'CAUTION' | 'RECONSIDER', { headline: string; color: string }> = {
+  GO: { headline: '이대로 진행해도 좋다', color: '#15803D' },
+  CAUTION: { headline: '방향을 조금 점검해봐야 한다', color: '#B45309' },
+  RECONSIDER: { headline: '다시 검토가 필요하다', color: '#B91C1C' },
 }
 
-// PSF 서브스코어 3종 + 최종 판정 — ai_reports 최상위 컬럼(report_data 밖)이라
-// 별도로 렌더링한다.
-function VerdictBanner({
+// 리포트 맨 위 요약 슬라이드 — 등록할 때 적은 가설(무엇을 확인하려 했는지)과
+// 리뷰어들의 종합 반응을 한 화면에 담는다. PSF 서브스코어 3종(ai_reports
+// 최상위 컬럼)을 미니 도넛으로, 핵심 인사이트/벤치마크 코멘트를 하단 배너로.
+function ReportOverview({
+  hypothesis,
   verdict,
   problemExistsPct,
   solutionAcceptancePct,
   purchaseIntentPct,
+  keyInsight,
+  benchmarkComment,
 }: {
-  verdict: 'GO' | 'CAUTION' | 'RECONSIDER'
+  hypothesis: string | null
+  verdict: 'GO' | 'CAUTION' | 'RECONSIDER' | null
   problemExistsPct: number | null
   solutionAcceptancePct: number | null
   purchaseIntentPct: number | null
+  keyInsight: string | null
+  benchmarkComment: string | null
 }) {
-  const meta = VERDICT_META[verdict]
+  const meta = verdict ? VERDICT_META[verdict] : null
   const subscores = [
     { label: '문제 공감도', value: problemExistsPct },
     { label: '솔루션 수용도', value: solutionAcceptancePct },
@@ -494,34 +586,73 @@ function VerdictBanner({
   ]
 
   return (
-    <div
-      className="rounded-3xl border p-6 mb-4 flex flex-col gap-4"
-      style={{ background: meta.bg, borderColor: meta.border }}
-    >
-      <div className="flex items-center justify-between">
-        <span className="text-[9px] font-black text-white px-2.5 py-1 rounded-full" style={{ background: meta.color }}>
-          FindFit 판정
+    <div id="report-overview" className="rounded-3xl bg-[#FFF7F0] border border-[#F77019]/15 p-8 mb-4 flex flex-col gap-6">
+      <div className="text-center flex flex-col items-center gap-3">
+        <span className="text-[10px] font-black text-[#F77019] bg-white px-3 py-1 rounded-full tracking-widest">
+          OVERVIEW
         </span>
-        <span className="text-base font-black" style={{ color: meta.color }}>
-          {meta.label}
-        </span>
+        <h2 className="text-lg sm:text-xl font-black text-[#1D1C1C] leading-snug">
+          리뷰어들은{' '}
+          <span style={{ color: meta?.color ?? '#F77019' }}>
+            &ldquo;{meta?.headline ?? '검증이 진행 중이다'}&rdquo;
+          </span>
+          {' '}라고 답했어요
+        </h2>
+        <p className="text-[12px] font-medium text-[#666] leading-relaxed max-w-xl">
+          {hypothesis
+            ? `이 프로젝트는 "${hypothesis}"를 확인하기 위해 등록됐고, 실제 리뷰어들의 반응을 모아봤어요.`
+            : '이 프로젝트가 등록될 때 세운 가설을 바탕으로, 실제 리뷰어들의 반응을 모아봤어요.'}
+        </p>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {subscores.map((s) => (
-          <div key={s.label} className="rounded-2xl bg-white/70 px-3 py-2.5 flex flex-col gap-1">
-            <span className="text-[9px] font-bold text-[#666]">{s.label}</span>
-            <span className="text-lg font-black" style={{ color: meta.color }}>
-              {s.value ?? '—'}
-              {s.value !== null && '%'}
-            </span>
+          <div key={s.label} className="rounded-2xl bg-white p-4 flex flex-col items-center gap-2 text-center">
+            <span className="text-[10px] font-bold text-[#999]">{s.label}</span>
+            <OverviewDonut pct={s.value} />
           </div>
         ))}
       </div>
+
+      {(keyInsight || benchmarkComment) && (
+        <div className="rounded-2xl px-6 py-5 text-center" style={{ background: 'linear-gradient(135deg, #F77019, #FF8F45)' }}>
+          <p className="text-[9px] font-black text-white/80 tracking-widest mb-1.5">KEY INSIGHT</p>
+          <p className="text-[13px] font-bold text-white leading-relaxed">{keyInsight ?? benchmarkComment}</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function OverviewDonut({ pct }: { pct: number | null }) {
+  const value = pct ?? 0
+  const r = 28
+  const circumference = 2 * Math.PI * r
+  const dash = (value / 100) * circumference
+  return (
+    <div className="relative w-16 h-16 flex items-center justify-center">
+      <svg viewBox="0 0 72 72" className="w-full h-full -rotate-90">
+        <circle cx="36" cy="36" r={r} fill="none" stroke="#F5F5F5" strokeWidth="8" />
+        {pct !== null && (
+          <circle
+            cx="36"
+            cy="36"
+            r={r}
+            fill="none"
+            stroke="#F77019"
+            strokeWidth="8"
+            strokeLinecap="round"
+            strokeDasharray={`${dash} ${circumference - dash}`}
+          />
+        )}
+      </svg>
+      <span className="absolute text-[13px] font-black text-[#1D1C1C]">{pct !== null ? `${pct}%` : '—'}</span>
     </div>
   )
 }
 
 const TOC_SECTIONS: { id: string; label: string }[] = [
+  { id: 'report-overview', label: 'Overview' },
   { id: 'report-score', label: '점수/판정' },
   { id: 'report-question-summary', label: '문항별 응답' },
   { id: 'report-demographic-breakdown', label: '성별 응답 차이' },
@@ -542,20 +673,61 @@ const TOC_SECTIONS: { id: string; label: string }[] = [
 // 리포트가 길어지면 원하는 섹션을 스크롤로 찾기 어려워서 추가 — 실제로
 // 렌더 안 된 섹션의 링크를 눌러도 해당 id가 DOM에 없어 그냥 무시된다
 // (에러 없이 조용히 아무 일도 안 일어남).
-function ReportTableOfContents() {
+//
+// 예전엔 본문 위에 가로 알약 목록으로 얹혀 있어서 스크롤해서 내려가면
+// 안 보였다 — 왼쪽에 sticky로 고정해서 스크롤 중에도 계속 보이게 하고,
+// IntersectionObserver로 지금 보고 있는 섹션을 자동으로 강조한다. 확대/
+// 축소 슬라이더도 같은 자리(요청: "목차 부분에 위치가 나오게")에 둔다.
+function ReportTableOfContents({ zoom, onZoomChange }: { zoom: number; onZoomChange: (z: number) => void }) {
+  const [activeId, setActiveId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.filter((e) => e.isIntersecting)
+        if (visible.length > 0) {
+          setActiveId(visible[0].target.id)
+        }
+      },
+      { rootMargin: '-80px 0px -70% 0px' }
+    )
+    const els = TOC_SECTIONS.map((s) => document.getElementById(s.id)).filter((el): el is HTMLElement => !!el)
+    els.forEach((el) => observer.observe(el))
+    return () => observer.disconnect()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   return (
-    <div className="print:hidden rounded-2xl border border-[#1D1C1C]/8 bg-white px-4 py-3 mb-4 flex items-center gap-2 overflow-x-auto">
-      <span className="text-[10px] font-black text-[#999] shrink-0">목차</span>
-      <div className="flex items-center gap-1.5">
+    <div className="print:hidden hidden lg:flex flex-col gap-4 w-[180px] flex-shrink-0 sticky top-24 max-h-[calc(100vh-120px)]">
+      <div className="flex flex-col gap-1 pr-1 overflow-y-auto">
+        <span className="text-[10px] font-black text-[#999] px-2 mb-1">목차</span>
         {TOC_SECTIONS.map((s) => (
           <a
             key={s.id}
             href={`#${s.id}`}
-            className="text-[10px] font-bold text-[#666] hover:text-[#F77019] hover:bg-[#F77019]/5 px-2.5 py-1 rounded-lg transition-colors whitespace-nowrap"
+            className={`text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-colors truncate ${
+              activeId === s.id ? 'text-[#F77019] bg-[#F77019]/10' : 'text-[#666] hover:text-[#F77019] hover:bg-[#F77019]/5'
+            }`}
           >
             {s.label}
           </a>
         ))}
+      </div>
+
+      <div className="border-t border-[#1D1C1C]/8 pt-3 px-2 flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-black text-[#999]">화면 크기</span>
+          <span className="text-[10px] font-bold text-[#666]">{zoom}%</span>
+        </div>
+        <input
+          type="range"
+          min={80}
+          max={130}
+          step={10}
+          value={zoom}
+          onChange={(e) => onZoomChange(Number(e.target.value))}
+          className="w-full accent-[#F77019]"
+        />
       </div>
     </div>
   )

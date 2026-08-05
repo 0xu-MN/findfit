@@ -258,7 +258,7 @@ export async function generateAndSaveReport(projectId: string, supabase: any) {
   const question_summary = buildQuestionSummary(questions, answers)
 
   // 성별에 따른 응답 차이 — AI 호출 없이 코드로 직접 집계.
-  const demographic_breakdown = buildDemographicBreakdown(questions, answers, genderById)
+  const demographic_breakdown = buildDemographicBreakdown(questions, answers, genderById, ageById, domainById)
 
   // 응답 소요시간 — review_started_at(문항 최초 열람)과 submitted_at(제출)
   // 둘 다 있는 매칭만 계산 대상(2026-08-01 이전에 제출된 리뷰는 시작 시각이
@@ -455,48 +455,101 @@ function buildQuestionSummary(questions: QuestionRow[], answers: AnswerRow[]) {
     .filter((q) => q.options.length > 0)
 }
 
-// 문항별 응답을 성별로 쪼개서 보여준다 — "20대 여성 타겟인데 실제로 어떤
-// 성별이 어떻게 답했는지"를 볼 수 있게 해달라는 요청. AI 호출 없이 순수
-// 집계. 데이터가 거의 안 채워져 있을 수 있어서(성별 미입력 다수), 최소
-// 2명 이상 응답한 성별 그룹만 보여주고, 애초에 성별이 2종류 이상 실제로
-// 갈리지 않으면(전원 같은 성별/미입력) 이 항목 자체를 생략한다.
-function buildDemographicBreakdown(
+// 문항별 응답을 성별/연령대/직군으로 쪼개서 보여준다 — "20대 여성 타겟인데
+// 실제로 어떤 사람들이 어떻게 답했는지"를 볼 수 있게 해달라는 요청. AI 호출
+// 없이 순수 집계. 데이터가 거의 안 채워져 있을 수 있어서(특히 직군), 최소
+// 2명 이상 응답한 그룹만 보여주고, 애초에 그룹이 2개 이상 실제로 갈리지
+// 않으면(전원 같은 그룹/미입력) 이 항목 자체를 생략한다.
+//
+// labelsByReviewer: 리뷰어 하나가 여러 그룹에 속할 수 있는 경우(직군은
+// 다중 태그라 한 명이 "PM"이면서 "디자이너"일 수 있음)를 위해 배열로 받는다
+// — 성별/연령대는 항상 배열 길이 0(미입력) 또는 1(단일 값)이 된다.
+function buildGroupBreakdown(
   questions: QuestionRow[],
   answers: AnswerRow[],
-  genderById: Map<string, string | null>
+  labelsByReviewer: Map<string, string[]>
 ) {
-  const genderGroups = questions
+  return questions
     .filter((q) => BAR_CHART_TYPES.has(q.question_type))
     .map((q) => {
       const relevant = answers.filter((a) => a.question_id === q.id)
-      const byGender = new Map<string, Map<string, number>>()
-      const byGenderTotal = new Map<string, number>()
+      const byGroup = new Map<string, Map<string, number>>()
+      const byGroupTotal = new Map<string, number>()
       for (const a of relevant) {
-        const rawGender = a.reviewer_id ? genderById.get(a.reviewer_id) : null
-        if (!rawGender) continue // 미입력 응답자는 이 breakdown에서 제외
-        const gender = rawGender === 'male' ? '남성' : rawGender === 'female' ? '여성' : rawGender
+        const labels = a.reviewer_id ? labelsByReviewer.get(a.reviewer_id) ?? [] : []
+        if (labels.length === 0) continue // 미입력 응답자는 이 breakdown에서 제외
         const cleaned = a.answer_text.replace(/\s*\(이유:[^)]*\)\s*$/, '').trim()
-        byGenderTotal.set(gender, (byGenderTotal.get(gender) ?? 0) + 1)
-        const optionMap = byGender.get(gender) ?? new Map<string, number>()
-        for (const option of cleaned.split(',').map((s) => s.trim()).filter(Boolean)) {
-          optionMap.set(option, (optionMap.get(option) ?? 0) + 1)
+        for (const groupLabel of labels) {
+          byGroupTotal.set(groupLabel, (byGroupTotal.get(groupLabel) ?? 0) + 1)
+          const optionMap = byGroup.get(groupLabel) ?? new Map<string, number>()
+          for (const option of cleaned.split(',').map((s) => s.trim()).filter(Boolean)) {
+            optionMap.set(option, (optionMap.get(option) ?? 0) + 1)
+          }
+          byGroup.set(groupLabel, optionMap)
         }
-        byGender.set(gender, optionMap)
       }
-      const by_gender = Array.from(byGender.entries())
-        .filter(([, opts]) => Array.from(opts.values()).reduce((s, n) => s + n, 0) >= 2)
-        .map(([gender, opts]) => {
-          const total = byGenderTotal.get(gender) ?? 0
+      // 그룹당 최소 2명 조건은 리뷰어 5명짜리 프로젝트 같은 실제 소규모
+      // 데이터에서 성별/연령대가 1명씩만 갈려도 전부 걸러져 섹션 자체가
+      // 항상 비어버렸다 — 그룹당 1명이라도 있으면 보여주되(화면에 "N명"
+      // 표시로 표본 크기를 그대로 드러냄), 최소 2개 그룹이 있어야 한다는
+      // 조건(비교 대상 자체가 있어야 함)은 아래에서 그대로 유지한다.
+      const groups = Array.from(byGroup.entries())
+        .filter(([, opts]) => Array.from(opts.values()).reduce((s, n) => s + n, 0) >= 1)
+        .map(([label, opts]) => {
+          const total = byGroupTotal.get(label) ?? 0
           const options = Array.from(opts.entries())
-            .map(([label, count]) => ({ label, count, pct: total > 0 ? Math.round((count / total) * 100) : 0 }))
+            .map(([optLabel, count]) => ({ label: optLabel, count, pct: total > 0 ? Math.round((count / total) * 100) : 0 }))
             .sort((a, b) => b.pct - a.pct)
-          return { gender, total, options }
+          return { gender: label, total, options } // "gender" 필드명 재사용(화면 타입 호환) — 실제로는 그룹 라벨
         })
-      return { question_text: q.question_text, by_gender }
+      return { question_text: q.question_text, by_gender: groups }
     })
-    .filter((q) => q.by_gender.length >= 2) // 최소 두 성별이 다 있어야 "차이"를 비교할 수 있음
+    .filter((q) => q.by_gender.length >= 2) // 최소 두 그룹이 다 있어야 "차이"를 비교할 수 있음
+}
 
-  return genderGroups
+function buildDemographicBreakdown(
+  questions: QuestionRow[],
+  answers: AnswerRow[],
+  genderById: Map<string, string | null>,
+  ageById: Map<string, number | null>,
+  domainById: Map<string, string[]>
+) {
+  const genderLabels = new Map<string, string[]>()
+  const ageLabels = new Map<string, string[]>()
+  for (const [id, g] of genderById) {
+    genderLabels.set(id, g ? [g === 'male' ? '남성' : g === 'female' ? '여성' : g] : [])
+  }
+  for (const [id, age] of ageById) {
+    ageLabels.set(id, typeof age === 'number' ? [`${Math.floor(age / 10) * 10}대`] : [])
+  }
+
+  const genderGroups = buildGroupBreakdown(questions, answers, genderLabels).map((q) => ({
+    question_text: q.question_text,
+    by_gender: q.by_gender,
+  }))
+  const ageGroups = buildGroupBreakdown(questions, answers, ageLabels).map((q) => ({
+    question_text: q.question_text,
+    by_age_bucket: q.by_gender,
+  }))
+  const jobGroups = buildGroupBreakdown(questions, answers, domainById).map((q) => ({
+    question_text: q.question_text,
+    by_job: q.by_gender,
+  }))
+
+  // 문항 텍스트 기준으로 세 breakdown을 하나로 합친다 — 셋 중 하나라도
+  // 조건(최소 2그룹 x 그룹당 2명 이상)을 만족하면 그 문항이 결과에 포함되고,
+  // 나머지 차원은 그 문항에서 조건을 못 채웠으면 그냥 undefined로 빠진다.
+  const questionTexts = new Set([
+    ...genderGroups.map((g) => g.question_text),
+    ...ageGroups.map((g) => g.question_text),
+    ...jobGroups.map((g) => g.question_text),
+  ])
+  return Array.from(questionTexts).map((question_text) => ({
+    question_text,
+    by_gender: genderGroups.find((g) => g.question_text === question_text)?.by_gender,
+    by_age_bucket: ageGroups.find((g) => g.question_text === question_text)?.by_age_bucket,
+    by_job: jobGroups.find((g) => g.question_text === question_text)?.by_job,
+  }))
 }
 
 // 패널 프로필 집계 — 직군/성별/연령대별 인원수. Claude 호출 없이 순수 카운트.

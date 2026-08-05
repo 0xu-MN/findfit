@@ -50,7 +50,7 @@ export default function ReportsSidebar() {
   )
 
   return (
-    <div className="w-[280px] flex-shrink-0 flex flex-col gap-3 h-[calc(100vh-80px)] sticky top-20 py-6 pr-4 border-r border-[#1D1C1C]/8">
+    <div className="print:hidden w-[200px] flex-shrink-0 flex flex-col gap-3 h-[calc(100vh-80px)] sticky top-20 py-6 pr-3 border-r border-[#1D1C1C]/8">
       <h2 className="text-sm font-black text-[#1D1C1C] px-1">리포트 목록</h2>
 
       <div className="flex items-center bg-white border border-[#1D1C1C]/10 rounded-lg px-3 py-2 shadow-sm focus-within:border-[#F77019] transition-colors">
