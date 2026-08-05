@@ -26,6 +26,18 @@ export async function POST(
       return jsonError('참여 전에 성별을 먼저 등록해주세요. 계정 설정에서 등록할 수 있어요.', 403)
     }
 
+    // apply/route.ts와 동일한 이유 — 참여 패널 프로필의 직군 집계가 항상
+    // 비어 있지 않도록, 성별과 같이 참여 시점에도 막는다(리뷰 제출 시점
+    // 안전망은 그대로 유지 — 두 시점 다 필요).
+    const { data: reviewerProfile } = await supabase
+      .from('reviewer_profiles')
+      .select('domain_tags')
+      .eq('user_id', user.id)
+      .maybeSingle()
+    if (!reviewerProfile?.domain_tags || reviewerProfile.domain_tags.length === 0) {
+      return jsonError('참여 전에 관심 직군을 먼저 선택해주세요. 계정 설정에서 선택할 수 있어요.', 403)
+    }
+
     const { data: project } = await supabase
       .from('projects_public')
       .select('status, completed_count, target_count, access_method')

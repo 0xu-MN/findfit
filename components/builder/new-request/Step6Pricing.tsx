@@ -410,6 +410,12 @@ function StdDeepPricing({
           AI 추정이 아니라 실제 계산으로 대체된다. 입력하지 않으면 리포트에
           "재무 정보를 입력하면 계산됩니다" 안내만 표시(AI가 지어내지 않음). */}
       <Field label="재무 정보 (선택)" hint="입력하면 리포트에 실제 LTV/CAC가 계산돼요 · 미입력 시 생략">
+        {(data.stage === 'idea' || data.stage === 'prototype') && (
+          <p className="text-[9px] font-bold text-[#F77019] bg-[#F77019]/5 rounded-lg px-3 py-2 -mt-1 mb-2">
+            ⚠ 지금 단계(아이디어/프로토타입)에서는 여기 입력해도 리포트에 반영되지 않아요 —
+            이 정보는 베타 단계 이상부터 리포트에 나타나요. 그래도 미리 저장은 돼요.
+          </p>
+        )}
         <div className="grid grid-cols-3 gap-2">
           <div className="flex flex-col gap-1">
             <span className="text-[9px] font-bold text-[#999]">예상 판매가(원)</span>

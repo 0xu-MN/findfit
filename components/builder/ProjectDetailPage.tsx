@@ -668,6 +668,12 @@ export default function ProjectDetailPage({ projectId }: Props) {
           <p className="text-[10px] font-bold text-[#999] -mt-2">
             리포트의 Unit Economics(CAC/LTV) 계산에 쓰여요. 안 채우면 그 섹션이 비어있게 나와요.
           </p>
+          {(project.stage === 'idea' || project.stage === 'prototype') && (
+            <p className="text-[9px] font-bold text-[#F77019] bg-[#F77019]/5 rounded-lg px-3 py-2 -mt-1">
+              ⚠ 지금 단계(아이디어/프로토타입)에서는 입력해도 리포트에 반영되지 않아요 —
+              베타 단계 이상부터 리포트에 나타나요. 그래도 미리 저장은 돼요.
+            </p>
+          )}
 
           {editingFinancials ? (
             <div className="flex flex-col gap-3">

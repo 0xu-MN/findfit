@@ -52,6 +52,15 @@ export async function POST(
       return NextResponse.json({ error: '리뷰 제출 전에 관심 직군을 먼저 선택해주세요. 계정 설정에서 선택할 수 있어요.' }, { status: 403 })
     }
 
+    // 성별도 마찬가지 — app/api/evaluator/apply/route.ts, app/api/projects/[id]/join/route.ts
+    // 에 지원/참여 시점 게이트가 있지만, 초대 링크로 그 절차를 우회해 바로
+    // 들어오는 경로가 생기더라도 최종적으로 여기서 한 번 더 걸러지도록 동일한
+    // 안전망을 둔다(직군 게이트와 같은 이유 — 두 시점 모두에 둬야 확실함).
+    const { data: userGender } = await supabase.from('users').select('gender').eq('id', user.id).maybeSingle()
+    if (!userGender?.gender) {
+      return NextResponse.json({ error: '리뷰 제출 전에 성별을 먼저 등록해주세요. 계정 설정에서 등록할 수 있어요.' }, { status: 403 })
+    }
+
     // project_matches RLS(reviewer_id=auth.uid())가 이미 본인 row만 보이도록
     // 걸러주지만, matchId가 애초에 남의 것이면 select 자체가 0건 → 아래에서 404.
     const { data: match } = await supabase
